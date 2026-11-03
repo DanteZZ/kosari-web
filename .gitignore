@@ -1,0 +1,24 @@
+# Dependencies / build
+web/node_modules/
+web/dist/
+**/node_modules/
+
+# Original GameMaker binary blobs (keep decompiled source + web port)
+*.exe
+*.gmk
+gm8decompiler.exe
+uninstall.exe
+sgi.url
+
+# Tooling caches
+tools/GmkSplitter.v0.21.zip
+tools/patch_work/
+tools/gmksplit-patched.jar
+web/tmp_*.png
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
+.vscode/
+.idea/
