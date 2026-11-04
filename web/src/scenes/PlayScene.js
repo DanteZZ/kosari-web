@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { W, H, GROUND_Y, hud, parallax as PX } from '../layout.js';
 import { GameState } from '../state/GameState.js';
 import { Player } from '../objects/Player.js';
 import { Kosar } from '../objects/Kosar.js';
@@ -13,12 +14,32 @@ export class PlayScene extends Phaser.Scene {
   create() {
     this.pausedGame = false;
     this.gameOverStarted = false;
-    this.farBg = this.add.tileSprite(0, 0, 640, 480, 'bg_background4').setOrigin(0);
-    this.nearBg = this.add.image(0, 0, 'bg_background9').setOrigin(0);
+    this.cameras.main.setBackgroundColor('#000000');
+
+    const skyKey = this.textures.exists('bg_sky') ? 'bg_sky' : 'bg_background4';
+    const midKey = this.textures.exists('bg_mid') ? 'bg_mid' : 'bg_background4';
+    const nearKey = this.textures.exists('bg_near') ? 'bg_near' : 'bg_background9';
+
+    this.skyBg = this.add
+      .tileSprite(0, PX.sky.y, W, PX.sky.h, skyKey)
+      .setOrigin(0)
+      .setDepth(-40);
+    this.midBg = this.add
+      .tileSprite(0, PX.mid.y, W, PX.mid.h, midKey)
+      .setOrigin(0)
+      .setDepth(-30);
+    this.haze = this.add
+      .rectangle(0, 0, W, H, 0x102030, PX.hazeAlpha)
+      .setOrigin(0)
+      .setDepth(-20);
+    this.nearBg = this.add
+      .tileSprite(0, PX.near.y, W, PX.near.h, nearKey)
+      .setOrigin(0)
+      .setDepth(-10);
 
     this.ground = this.physics.add.staticGroup();
-    for (let x = 0; x < 640; x += 16) {
-      const tile = this.ground.create(x, 464, 'spr_wall_0');
+    for (let x = 0; x < W; x += 16) {
+      const tile = this.ground.create(x, GROUND_Y, 'spr_wall_0');
       tile.setOrigin(0, 0).refreshBody();
       tile.setVisible(false);
     }
@@ -48,16 +69,22 @@ export class PlayScene extends Phaser.Scene {
     }
 
     this.scoreText = this.add
-      .text(72, 3, '', {
+      .text(hud.score.x, hud.score.y, '', {
         fontFamily: 'Georgia, "Times New Roman", serif',
         fontSize: '16px',
         color: '#000000',
       })
       .setDepth(1000);
-    this.add.rectangle(0, 25, 69, 5, 0x333333).setOrigin(0).setDepth(1000);
-    this.healthBar = this.add.rectangle(0, 25, 69, 5, 0x22cc44).setOrigin(0).setDepth(1001);
+    this.add
+      .rectangle(hud.healthBar.x, hud.healthBar.y, hud.healthBar.w, hud.healthBar.h, 0x333333)
+      .setOrigin(0)
+      .setDepth(1000);
+    this.healthBar = this.add
+      .rectangle(hud.healthBar.x, hud.healthBar.y, hud.healthBar.w, hud.healthBar.h, 0x22cc44)
+      .setOrigin(0)
+      .setDepth(1001);
     this.ammoText = this.add
-      .text(420, 8, '', {
+      .text(hud.ammo.x, hud.ammo.y, '', {
         fontFamily: 'Consolas, monospace',
         fontSize: '13px',
         color: '#111111',
@@ -66,7 +93,7 @@ export class PlayScene extends Phaser.Scene {
       })
       .setDepth(1000);
     this.bossHud = this.add
-      .text(200, 40, '', {
+      .text(hud.boss.x, hud.boss.y, '', {
         fontFamily: 'Georgia, "Times New Roman", serif',
         fontSize: '14px',
         color: '#aa0000',
@@ -76,7 +103,7 @@ export class PlayScene extends Phaser.Scene {
       .setDepth(1000)
       .setVisible(false);
     this.pauseText = this.add
-      .text(320, 220, 'Пауза. Enter — продолжить', {
+      .text(hud.pause.x, hud.pause.y, 'Пауза. Enter — продолжить', {
         fontFamily: 'Georgia, "Times New Roman", serif',
         fontSize: '22px',
         color: '#ffffff',
@@ -106,7 +133,10 @@ export class PlayScene extends Phaser.Scene {
     this.pauseText.setVisible(!!this.pausedGame);
     if (this.pausedGame || this.gameOverStarted) return;
 
-    this.farBg.tilePositionX += 1;
+    const drift = 1 + Math.min(2, (GameState.score || 0) / 250000);
+    this.skyBg.tilePositionX += PX.sky.rate * drift;
+    this.midBg.tilePositionX += PX.mid.rate * drift;
+    this.nearBg.tilePositionX += PX.near.rate * drift;
     this.player.step();
     this.updateMeleeAttacks();
     if (this.iFrames > 0) this.iFrames -= 1;
@@ -629,7 +659,7 @@ export class PlayScene extends Phaser.Scene {
 
     while (this.lifeIcons.length < GameState.lives) {
       const icon = this.add
-        .image(this.lifeIcons.length * 50, 40, 'lives_0')
+        .image(hud.livesStartX + this.lifeIcons.length * 50, hud.livesY, 'lives_0')
         .setOrigin(0)
         .setDepth(1000);
       this.lifeIcons.push(icon);

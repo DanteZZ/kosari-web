@@ -80,6 +80,7 @@ const SPRITES = {
   save: 1,
   load_ch: 1,
   save_ch: 1,
+  logo: 1,
 };
 
 const BACKGROUNDS = [
@@ -163,6 +164,9 @@ export class BootScene extends Phaser.Scene {
     for (const bg of BACKGROUNDS) {
       this.load.image(`bg_${bg}`, `assets/bg/${bg}.png`);
     }
+    this.load.image('bg_sky', 'assets/bg/layers/sky.png');
+    this.load.image('bg_mid', 'assets/bg/layers/mid.png');
+    this.load.image('bg_near', 'assets/bg/layers/near.png');
     for (const [name, ext] of Object.entries(SOUNDS)) {
       this.load.audio(name, `assets/sounds/${name}.${ext}`);
     }

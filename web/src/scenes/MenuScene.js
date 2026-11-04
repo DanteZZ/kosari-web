@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { menu as L } from '../layout.js';
 import { GameState, SaveLoad } from '../state/GameState.js';
 
 export class MenuScene extends Phaser.Scene {
@@ -7,14 +8,57 @@ export class MenuScene extends Phaser.Scene {
   }
 
   create() {
-    this.add.image(0, 0, 'bg_menu').setOrigin(0);
+    this.cameras.main.setBackgroundColor('#000000');
+
+    if (this.textures.exists('logo_0')) {
+      this.add.image(L.logo.x, L.logo.y, 'logo_0').setOrigin(0.5, 0).setDepth(1);
+    }
 
     if (GameState.musicPlay) {
       this.sound.stopAll();
       this.sound.play('menu1', { loop: true, volume: 0.55 });
     }
 
-    this.makeButton(0, 352, 'sprite_exit', 'sprite_exit_ch', () => {
+    const y0 = L.row0;
+    const y1 = L.row0 + L.rowGap;
+    const y2 = L.row0 + L.rowGap * 2;
+
+    this.makeButton(L.colLeft, y0, 'sprite_new_game', 'sprite_new_game_ch', () => {
+      this.sound.stopAll();
+      GameState.resetRun();
+      this.scene.start('Danger');
+    }).setDepth(3);
+
+    this.makeButton(L.colRight, y0, 'achievements', 'achievements_ch', () => {
+      this.sound.stopAll();
+      this.scene.start('Shop');
+    }).setDepth(2);
+
+    this.makeButton(L.colLeft, y1, 'sprite_highscore', 'sprite_highscore_ch', () => {
+      this.sound.stopAll();
+      this.scene.start('Highscore', { mode: 'view', bg: 'bg_highscores' });
+    }).setDepth(2);
+
+    this.addMenuAction(L.colRight, y1, 'load', 'load_ch', () => {
+      if (SaveLoad.load()) {
+        this.sound.play('save_load', { volume: 0.6 });
+        this.scene.start('Loading');
+      } else {
+        this.sound.play('warning');
+      }
+    });
+
+    this.addMenuAction(L.colLeft, y2, 'autors', 'autors_ch', () => {
+      this.sound.stopAll();
+      this.scene.start('Authors');
+    });
+
+    this.addMenuAction(L.colRight, y2, 'save', 'save_ch', () => {
+      SaveLoad.save();
+      this.sound.play('save_load', { volume: 0.6 });
+    });
+
+    this.makeButton(L.exit.x, L.exit.y, 'sprite_exit', 'sprite_exit_ch', () => {
       this.sound.stopAll();
       const msg = this.add
         .text(320, 200, 'Выйти хочешь — косарь должен!', {
@@ -29,60 +73,23 @@ export class MenuScene extends Phaser.Scene {
       this.time.delayedCall(1600, () => msg.destroy());
     }).setDepth(1);
 
-    this.makeButton(0, 288, 'sprite_highscore', 'sprite_highscore_ch', () => {
-      this.sound.stopAll();
-      this.scene.start('Highscore', { mode: 'view', bg: 'bg_highscores' });
-    }).setDepth(2);
-
-    this.makeButton(320, 256, 'achievements', 'achievements_ch', () => {
-      this.sound.stopAll();
-      this.scene.start('Shop');
-    }).setDepth(2);
-
-    this.makeButton(0, 256, 'sprite_new_game', 'sprite_new_game_ch', () => {
-      this.sound.stopAll();
-      GameState.resetRun();
-      this.scene.start('Danger');
-    }).setDepth(3);
-
-    // Original positions: authors (0,320), save (320,320), load (0,288) shares row with highscores
-    this.addMenuAction(0, 320, 'autors', 'autors_ch', () => {
-      this.sound.stopAll();
-      this.scene.start('Authors');
-    });
-
-    if (this.textures.exists('save_0')) {
-      this.addMenuAction(320, 320, 'save', 'save_ch', () => {
-        SaveLoad.save();
-        this.sound.play('save_load', { volume: 0.6 });
-      });
-    }
-
-    if (this.textures.exists('load_0')) {
-      this.addMenuAction(320, 288, 'load', 'load_ch', () => {
-        if (SaveLoad.load()) {
-          this.sound.play('save_load', { volume: 0.6 });
-          this.scene.start('Loading');
-        } else {
-          this.sound.play('warning');
-        }
-      });
+    for (const hint of L.hints) {
+      this.add
+        .text(hint.x, hint.y, hint.text, {
+          fontFamily: 'Consolas, monospace',
+          fontSize: '12px',
+          color: '#dddddd',
+        })
+        .setDepth(10);
     }
 
     this.add
-      .text(8, 440, 'Enter — игра · L — загрузка · R — рекорды · Esc выход', {
+      .text(L.copyright.x, L.copyright.y, L.copyright.text, {
         fontFamily: 'Consolas, monospace',
-        fontSize: '12px',
-        color: '#dddddd',
+        fontSize: '11px',
+        color: '#888888',
       })
-      .setDepth(10);
-
-    this.add
-      .text(8, 456, '← → ходить · ↑ прыжок · Z/X удар · 0-4 оружие · A стрелять · S граната', {
-        fontFamily: 'Consolas, monospace',
-        fontSize: '12px',
-        color: '#dddddd',
-      })
+      .setOrigin(0.5, 0.5)
       .setDepth(10);
 
     this.input.keyboard?.once('keydown-ENTER', () => {
