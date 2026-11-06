@@ -18,7 +18,7 @@ const VARIANTS = {
   thrower: { skin: 'buiniy', scale: 0.95, tint: 0xb3c79a },
   blocker: { skin: 'nikita', scale: 1.12, tint: 0x7f93b8 },
   /** Original boss 1 uses the masked-hoodie rig. */
-  borsch: { skin: 'boss1', scale: 1.08, tint: null },
+  borsch: { skin: 'boss1', scale: 1, tint: null },
 };
 
 const PLAYER_SCALE = 1 / 1.5;
@@ -245,8 +245,12 @@ export class FighterView {
       });
     }
 
-    // Dead enemies fade out before removal
-    if (f.state === 'dead' && f.team !== 'player') {
+    // Dead enemies fade out before removal; bosses between phases are off-stage
+    if (f.away) {
+      this.visual.setAlpha(0);
+      this.shadow.setAlpha(0);
+      this.hpBar?.setVisible(false);
+    } else if (f.state === 'dead' && f.team !== 'player') {
       const a = Math.min(1, f.removeT / 30);
       this.visual.setAlpha(a);
       this.shadow.setAlpha(0.3 * a);

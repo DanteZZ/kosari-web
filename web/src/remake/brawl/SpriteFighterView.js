@@ -7,8 +7,7 @@ import { stage } from './stage.js';
  * sheet exists (see web/art-requests/).
  */
 const SPRITES = {
-  /** Original sprite faces left. */
-  povar: { key: 'povar_0', height: 300, facesLeft: true },
+  // e.g. someone: { key: 'their_sprite_0', height: 260, facesLeft: true },
 };
 
 export class SpriteFighterView {
