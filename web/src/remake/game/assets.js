@@ -132,19 +132,6 @@ export function preloadGameAssets(scene) {
   for (const [name, ext] of Object.entries(SOUNDS)) {
     scene.load.audio(name, `assets/sounds/${name}.${ext}`);
   }
-  scene.load.image('svg_sky', 'assets/svg/sky.svg');
-  scene.load.image('svg_hills', 'assets/svg/hills.svg');
-  scene.load.image('svg_grass', 'assets/svg/grass.svg');
-
-  // Multi-layer world from sprites/ (cache-bust when art changes)
-  const WV = 'hills5';
-  scene.load.image('layer_clouds', `assets/world/layers/clouds/clouds.png?v=${WV}`);
-  scene.load.image('layer_far', `assets/world/layers/far.png?v=${WV}`);
-  scene.load.image('layer_mid', `assets/world/layers/mid.png?v=${WV}`);
-  scene.load.image('layer_fog', `assets/world/layers/fog.png?v=${WV}`);
-  scene.load.image('layer_world', `assets/world/layers/world.png?v=${WV}`);
-  scene.load.image('layer_grass', `assets/world/layers/grass.png?v=${WV}`);
-
   // Loose painted world parts — the brawl core assembles the forest at runtime
   const WP = 'wp1';
   for (const name of WORLD_PARTS) {
