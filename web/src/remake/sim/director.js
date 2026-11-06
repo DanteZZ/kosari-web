@@ -110,10 +110,13 @@ export class MapDirector {
     const zMin = w.bounds.zMin + 8;
     const zMax = w.bounds.zMax - 8;
     let f;
+    // Later arenas hit harder and take more punishment
+    const k = this.idx * (this.map.scaling ?? 0.12);
+    const scale = { hpMul: 1 + k, dmgMul: 1 + k * 0.5 };
     if (q.from === 'drop') {
       // Drops out of the trees onto the road
       const x = rng.range(a.left + 140, a.right - 140);
-      f = w.spawn(q.kind, x, rng.range(zMin, zMax));
+      f = w.spawn(q.kind, x, rng.range(zMin, zMax), scale);
       f.y = f.py = rng.range(380, 460);
       f.state = 'jump';
       f.vy = 0;
@@ -121,7 +124,7 @@ export class MapDirector {
     } else {
       const side = q.from === 'both' ? (q.k % 2 ? -1 : 1) : q.from === 'left' ? -1 : 1;
       const x = side < 0 ? a.left - 90 - rng.range(0, 160) : a.right + 90 + rng.range(0, 160);
-      f = w.spawn(q.kind, x, rng.range(zMin, zMax), { facing: -side });
+      f = w.spawn(q.kind, x, rng.range(zMin, zMax), { facing: -side, ...scale });
     }
     this.waveIds.push(f.id);
     this.arenaIds.push(f.id);

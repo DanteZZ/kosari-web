@@ -9,6 +9,16 @@ import { CLIP_IMPACT } from './clips.js';
 
 const SQUASH_MS = 130;
 
+/**
+ * New enemy types reuse the existing rigs: skin + size + a tint on the
+ * clothes (the head stays untinted so faces still read).
+ */
+const VARIANTS = {
+  runner: { skin: 'nikita', scale: 0.9, tint: 0x86c8ff },
+  thrower: { skin: 'buiniy', scale: 0.95, tint: 0xb3c79a },
+  blocker: { skin: 'nikita', scale: 1.12, tint: 0x7f93b8 },
+};
+
 const PLAYER_SCALE = 1 / 1.5;
 
 /**
@@ -36,15 +46,18 @@ export class FighterView {
       this.puppet.baseScale = PLAYER_SCALE;
       this.puppet.root.setScale(PLAYER_SCALE);
     } else {
-      const skin = getEnemySkin(f.kind);
+      const variant = VARIANTS[f.kind];
+      const skin = getEnemySkin(variant?.skin || f.kind);
       this.puppet = new BonePuppet(scene, this.mount, {
         fit: false,
         layout: skin.layout,
         texKey: (part) => enemyPartTextureKey(skin.id, part),
         targetH: skin.targetH,
       });
-      this.puppet.baseScale = skin.scale;
-      this.puppet.root.setScale(skin.scale);
+      const sc = skin.scale * (variant?.scale ?? 1);
+      this.puppet.baseScale = sc;
+      this.puppet.root.setScale(sc);
+      this.variant = variant || null;
     }
     // Thin dark outline so fighters read against the busy forest
     try {
@@ -60,6 +73,7 @@ export class FighterView {
     this.sprites = Object.values(this.puppet.nodes)
       .map((n) => n.sprite)
       .filter(Boolean);
+    this._baseTint();
     this.flashT = 0;
     this.shownWeapon = 0;
     this.squashT = 0;
@@ -87,6 +101,39 @@ export class FighterView {
     if (f.team !== 'player') {
       this.hpBar = scene.add.graphics().setDepth(1500).setVisible(false);
     }
+  }
+
+  /** Clothes tint for variants (restored after hit flashes). */
+  _baseTint() {
+    for (const s of this.sprites) {
+      if (this.variant?.tint && s.boneName !== 'head') s.setTint(this.variant.tint);
+      else s.clearTint();
+    }
+  }
+
+  /** Pooling: hide while unused. */
+  park() {
+    this.visual.setVisible(false);
+    this.shadow.setVisible(false);
+    this.hpBar?.setVisible(false);
+    this.warn?.setVisible(false);
+  }
+
+  /** Pooling: take over a new sim fighter of the same kind. */
+  reset(f) {
+    this.id = f.id;
+    this.seenSeq = f.animSeq;
+    this.flashT = 0;
+    this.squashT = 0;
+    this.jolt = 0;
+    this.telegraphT = 0;
+    this.rot = 0;
+    this.knockDir = 1;
+    this.puppet.oneshot = null;
+    this._baseTint();
+    this._resetSpin();
+    this.visual.setVisible(true).setAlpha(1).setScale(1);
+    this.shadow.setVisible(true);
   }
 
   flash(ms = 70) {
@@ -145,6 +192,10 @@ export class FighterView {
       this._driveMove(f, alpha, dt);
     } else if (flipU < 1) {
       this._flip(f, flipU, dt);
+    } else if (f.state === 'block' || (this.kind === 'blocker' && f.state === 'idle')) {
+      this._resetSpin();
+      this.puppet.setFacing(f.facing > 0 ? 1 : 0);
+      this.puppet.drive(dt, sampleKeyframes(getClip('guard_high')?.frames || [], 0, { ease: false }), { snap: 0.7 });
     } else if (f.state === 'grab') {
       this._resetSpin();
       this.puppet.setFacing(f.facing > 0 ? 1 : 0);
@@ -205,7 +256,7 @@ export class FighterView {
 
     if (this.flashT > 0) {
       this.flashT -= frameMs;
-      if (this.flashT <= 0) for (const s of this.sprites) s.clearTint();
+      if (this.flashT <= 0) this._baseTint();
     }
 
     if (this.warn) {

@@ -148,12 +148,13 @@ function think(world, e, players, engaged, sides) {
       break;
     }
     case 'engage': {
-      const reach = (move.reach[0] + move.reach[1]) / 2;
+      const range = move.aiRange || move.reach;
+      const reach = (range[0] + range[1]) / 2;
       goalX = t.x + side * reach;
       goalZ = t.z;
       const dx = Math.abs(e.x - t.x);
       const dz = Math.abs(e.z - t.z);
-      if (dx >= move.reach[0] + 10 && dx <= move.reach[1] - 6 && dz < move.depth * 0.6) {
+      if (dx >= range[0] + 10 && dx <= range[1] - 6 && dz < (move.aiDepth ?? move.depth * 0.6)) {
         press = ai.next === 'heavy' ? BTN.HEAVY : BTN.LIGHT;
         ai.next = null;
         ai.mode = 'recover';

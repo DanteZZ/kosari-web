@@ -995,6 +995,55 @@ export const RAGE_STOMP = [
   { t: 1, pose: { torso: 0, head: 0, hipsY: 0, arm_r_u: 0, arm_r_l: 0, arm_l_u: 0, arm_l_l: 0, leg_l_u: 0, leg_l_l: 0, leg_r_u: 0, leg_r_l: 0 } },
 ];
 
+/** Overhand bottle toss: right arm winds back over the shoulder, then whips forward. */
+export const THROW_BOTTLE_R = [
+  { t: 0, pose: { arm_r_u: 0, arm_r_l: 0, torso: 0, hipsY: 0 } },
+  {
+    t: 0.35,
+    pose: {
+      arm_r_u: 150, arm_r_l: -60, arm_l_u: -40, arm_l_l: 20,
+      torso: -16, head: 8, hipsY: 4,
+      leg_l_u: -14, leg_l_l: 10, leg_r_u: 18, leg_r_l: 14,
+    },
+  },
+  {
+    t: 0.5,
+    pose: {
+      arm_r_u: -110, arm_r_l: 10, arm_l_u: 30, arm_l_l: -20,
+      torso: 20, head: -8, hipsY: -6,
+      leg_l_u: -24, leg_l_l: 8, leg_r_u: 22, leg_r_l: 10,
+    },
+  },
+  {
+    t: 0.7,
+    pose: {
+      arm_r_u: -70, arm_r_l: 30, arm_l_u: 20, arm_l_l: -12,
+      torso: 12, head: -4, hipsY: -2,
+    },
+  },
+  { t: 1, pose: { arm_r_u: 0, arm_r_l: 0, arm_l_u: 0, arm_l_l: 0, torso: 0, head: 0, hipsY: 0, leg_l_u: 0, leg_l_l: 0, leg_r_u: 0, leg_r_l: 0 } },
+];
+
+/** High guard: both forearms up in front of the face. */
+export const GUARD_HIGH = [
+  {
+    t: 0,
+    pose: {
+      arm_r_u: -40, arm_r_l: -95, arm_l_u: -30, arm_l_l: -100,
+      torso: -4, head: 10, hipsY: 6,
+      leg_l_u: 12, leg_l_l: 16, leg_r_u: -12, leg_r_l: 18,
+    },
+  },
+  {
+    t: 1,
+    pose: {
+      arm_r_u: -40, arm_r_l: -95, arm_l_u: -30, arm_l_l: -100,
+      torso: -4, head: 10, hipsY: 6,
+      leg_l_u: 12, leg_l_l: 16, leg_r_u: -12, leg_r_l: 18,
+    },
+  },
+];
+
 /** Z: right → left → uppercut right */
 export const PUNCH_Z_COMBO = [
   { frames: PUNCH_R, dur: 0.32, hand: 'r', style: 'punch' },

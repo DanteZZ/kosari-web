@@ -45,6 +45,9 @@ export const SHOP = [
 export const KILL_LOOT = {
   nikita: [1, 2],
   buiniy: [2, 4],
+  runner: [1, 2],
+  thrower: [1, 3],
+  blocker: [2, 4],
   boss1: [18, 18],
 };
 

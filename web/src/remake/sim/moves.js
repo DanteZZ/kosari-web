@@ -147,6 +147,24 @@ export const MOVES = {
     hitstun: 16, kb: 3, hitstop: 4, lunge: 1.5,
     sfx: 'udar',
   },
+  /** Runner: crouched wind-up, then a long flying tackle (lunges only while active). */
+  e_rush: {
+    clip: 'punch_superman_r',
+    startup: 16, active: 10, recovery: 24,
+    dmg: 9, reach: [0, 80], depth: 24,
+    hitstun: 20, kb: 6, hitstop: 4, lunge: 11, lungeActive: true,
+    aiRange: [120, 205], aiDepth: 12,
+    sfx: 'udar',
+  },
+  /** Thrower: overhand bottle toss. */
+  e_bottle: {
+    clip: 'throw_bottle',
+    startup: 20, active: 1, recovery: 22,
+    dmg: 0, reach: [0, 0], depth: 0, hitstun: 0, kb: 0, hitstop: 0, lunge: 0,
+    projectile: { kind: 'bottle', tex: 'bottle', speed: 9, life: 80, dmg: 9, hitstun: 18, kb: 4, reflectable: true, muzzle: { x: 30, y: 190 } },
+    aiRange: [220, 560], aiDepth: 14,
+    sfx: null,
+  },
   e_heavy: {
     clip: 'kick_knockout',
     startup: 24, active: 5, recovery: 28,

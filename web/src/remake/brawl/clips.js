@@ -16,4 +16,5 @@ export const CLIP_IMPACT = {
   knee_r: 0.3,
   throw_heave: 0.5,
   rage_stomp: 0.42,
+  throw_bottle: 0.5,
 };

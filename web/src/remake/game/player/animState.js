@@ -15,6 +15,8 @@ import {
   KNEE_R,
   THROW_HEAVE,
   RAGE_STOMP,
+  THROW_BOTTLE_R,
+  GUARD_HIGH,
 } from './anims.js';
 
 /** Brawl-core strikes (editable in the anim editor as extra clips). */
@@ -28,6 +30,8 @@ const BRAWL_CLIPS = [
   ['knee_r', 'Колено в захвате', KNEE_R, 0.26, 'r', 'kick'],
   ['throw_heave', 'Бросок', THROW_HEAVE, 0.45, 'r', 'throw'],
   ['rage_stomp', 'Ярость (спецудар)', RAGE_STOMP, 0.6, 'r', 'special'],
+  ['throw_bottle', 'Бросок бутылки', THROW_BOTTLE_R, 0.7, 'r', 'throw'],
+  ['guard_high', 'Блок', GUARD_HIGH, 1, 'r', 'guard'],
 ];
 
 function clone(v) {

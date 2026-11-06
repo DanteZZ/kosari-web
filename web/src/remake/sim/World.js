@@ -73,8 +73,10 @@ export class World {
       vx: 0, vz: 0, vy: 0,
       facing: opts.facing ?? 1,
       faceX: null,
-      hp: def.hp,
-      maxHp: def.hp,
+      hp: Math.round(def.hp * (opts.hpMul ?? 1)),
+      maxHp: Math.round(def.hp * (opts.hpMul ?? 1)),
+      /** Outgoing damage multiplier (difficulty scaling). */
+      dmgMul: opts.dmgMul ?? 1,
       state: 'idle',
       st: 0,
       timer: 0,
@@ -274,6 +276,11 @@ export class World {
         break;
       case 'grab':
         this._grab(f);
+        break;
+      case 'block':
+        f.x += f.vx;
+        f.vx *= 0.75;
+        if (--f.timer <= 0) this._setState(f, 'idle');
         break;
       case 'grabbed':
         this._grabbed(f);
@@ -530,11 +537,15 @@ export class World {
         this._land(f);
         return;
       }
+    } else if (m.lungeActive) {
+      // Charge only while the hitbox is live (tackles)
+      if (f.mt > m.startup && f.mt <= swing) f.x += f.facing * m.lunge;
     } else if (f.mt <= swing) {
       // Lunge forward through the swing, easing out
       const k = 1 - (f.mt - 1) / swing;
       f.x += f.facing * m.lunge * (0.4 + 0.6 * k);
     }
+    if (m.projectile && f.mt === m.startup) this._spawnProj(f, m.projectile);
 
     // Cancel recovery into the next combo step — on hit only
     if (f.mt > swing && f.connected && m.next) {
@@ -593,7 +604,7 @@ export class World {
     for (const att of this.fighters) {
       if (att.state !== 'attack') continue;
       const m = MOVES[att.move];
-      if (m.throw) continue;
+      if (m.throw || m.projectile) continue;
       if (att.mt <= m.startup || att.mt > m.startup + m.active) continue;
 
       for (const tgt of this.fighters) {
@@ -647,7 +658,22 @@ export class World {
       return;
     }
 
-    tgt.hp = Math.max(0, tgt.hp - m.dmg);
+    // Блокер: punches from the front bounce off his guard
+    const guarding = def.guard && (FREE.has(tgt.state) || tgt.state === 'block') && tgt.facing === -dir;
+    if (guarding && !src && m.clip && m.clip.startsWith('punch') && !m.heavy) {
+      this._setState(tgt, 'block', 14);
+      tgt.vx = dir * 2.5;
+      att.x -= att.facing * 6;
+      this.hitstop = Math.max(this.hitstop, 3);
+      tgt.animSeq += 1;
+      tgt.anim = { type: 'block' };
+      this.events.push({ type: 'block', id: tgt.id, x: tgt.x, z: tgt.z, dir });
+      return;
+    }
+
+    const dmg = Math.max(1, Math.round((m.dmg || 0) * (att.dmgMul || 1)));
+    m = { ...m, dmg };
+    tgt.hp = Math.max(0, tgt.hp - dmg);
     this.hitstop = Math.max(this.hitstop, m.hitstop);
 
     let reaction = 'flinch';
@@ -709,8 +735,10 @@ export class World {
     } else {
       tgt.armorAcc = 0;
       tgt.facing = -dir;
-      this._setState(tgt, 'hitstun', m.hitstun);
+      // A kick through a raised guard leaves the blocker wide open
+      this._setState(tgt, 'hitstun', guarding ? Math.max(m.hitstun, 40) : m.hitstun);
       tgt.vx = dir * m.kb;
+      if (guarding) this.events.push({ type: 'guardBreak', id: tgt.id, x: tgt.x, z: tgt.z });
     }
 
     if (reaction !== 'armor' && reaction !== 'held') {
@@ -1109,23 +1137,7 @@ export class World {
     const n = w.pellets || 1;
     for (let i = 0; i < n; i += 1) {
       const dz = n > 1 ? ((i / (n - 1)) - 0.5) * w.spreadZ : 0;
-      this.projectiles.push({
-        id: this.nextId++,
-        owner: f.id,
-        team: f.team,
-        spec: w.proj,
-        x: f.x + f.facing * w.muzzle.x,
-        z: f.z + dz * 0.3,
-        vz: dz * 0.06,
-        y: f.y + w.muzzle.y,
-        px: f.x + f.facing * w.muzzle.x,
-        pz: f.z,
-        py: f.y + w.muzzle.y,
-        vx: f.facing * w.proj.speed * (n > 1 ? this.rng.range(0.92, 1.05) : 1),
-        life: w.proj.life,
-        hit: [],
-        dead: false,
-      });
+      this._spawnProj(f, w.proj, { muzzle: w.muzzle, dz, speedK: n > 1 ? this.rng.range(0.92, 1.05) : 1 });
     }
     f.x -= f.facing * w.recoil;
     this.events.push({ type: 'shot', id: f.id, weapon: f.weapon, x: f.x, z: f.z });
@@ -1133,6 +1145,57 @@ export class World {
       this.events.push({ type: 'empty', id: f.id, weapon: f.weapon });
       f.weapon = 0;
     }
+  }
+
+  _spawnProj(f, spec, o = {}) {
+    const mz = o.muzzle || spec.muzzle || { x: 40, y: 150 };
+    const dz = o.dz || 0;
+    const x = f.x + f.facing * mz.x;
+    const y = f.y + mz.y;
+    this.projectiles.push({
+      id: this.nextId++,
+      owner: f.id,
+      team: f.team,
+      spec,
+      x,
+      z: f.z + dz * 0.3,
+      vz: dz * 0.06,
+      y,
+      px: x,
+      pz: f.z,
+      py: y,
+      vx: f.facing * spec.speed * (o.speedK || 1),
+      life: spec.life,
+      hit: [],
+      dead: false,
+      dmgMul: f.dmgMul || 1,
+      reflected: false,
+    });
+    if (spec.kind === 'bottle') this.events.push({ type: 'toss', id: f.id, x, z: f.z });
+  }
+
+  /** A player's live melee swing knocks enemy bottles back where they came from. */
+  _tryReflect(pr) {
+    for (const f of this.fighters) {
+      if (f.team !== 'player' || f.state !== 'attack') continue;
+      const m = MOVES[f.move];
+      if (!m || m.grabOnly || m.throw || m.projectile) continue;
+      if (f.mt <= m.startup || f.mt > m.startup + m.active) continue;
+      if (Math.abs(pr.z - f.z) > m.depth + 10 || Math.abs(pr.y - f.y - 140) > 120) continue;
+      const front = (pr.x - f.x) * f.facing;
+      if (front < -20 || front > m.reach[1] + 30) continue;
+      pr.team = f.team;
+      pr.owner = f.id;
+      pr.vx = f.facing * Math.abs(pr.vx) * 1.6;
+      pr.life = 70;
+      pr.hit = [];
+      pr.reflected = true;
+      pr.dmgMul = 2;
+      this.hitstop = Math.max(this.hitstop, 4);
+      this.events.push({ type: 'reflect', id: f.id, x: pr.x, z: pr.z, y: pr.y });
+      return true;
+    }
+    return false;
   }
 
   _updateProjectiles() {
@@ -1145,6 +1208,7 @@ export class World {
       pr.z += pr.vz || 0;
       pr.life -= 1;
       const sp = pr.spec;
+      if (sp.reflectable && !pr.reflected && pr.team !== 'player') this._tryReflect(pr);
       for (const t of this.fighters) {
         if (pr.dead) break;
         if (t.team === pr.team || t.dead || UNHITTABLE.has(t.state) || t.iframes > 0) continue;
@@ -1159,15 +1223,23 @@ export class World {
         const owner = this._byId(pr.owner) || { id: -1, team: pr.team, x: pr.x, facing: Math.sign(pr.vx), combo: 0, meter: 0 };
         // Shotgun up close knocks down
         const close = sp.kind === 'pellet' && pr.life > sp.life - 6;
-        this._applyHit(owner, t, {
+        const shooter = { ...owner, dmgMul: pr.dmgMul };
+        this._applyHit(shooter, t, {
           dmg: sp.dmg,
           hitstun: sp.hitstun,
           kb: sp.kb,
           hitstop: 2,
-          knockdown: close,
-          heavy: close,
+          knockdown: close || pr.reflected,
+          heavy: close || pr.reflected,
         }, { x: pr.x - Math.sign(pr.vx) * 40, facing: Math.sign(pr.vx) });
+        // Credit combo / meter to the real owner (shooter is a copy)
+        if (owner.id > 0 && owner.team === 'player') {
+          owner.combo = shooter.combo;
+          owner.comboT = shooter.comboT;
+          owner.meter = shooter.meter;
+        }
         if (sp.kind !== 'pellet' || t.kind !== 'crate') pr.dead = true;
+        if (sp.kind === 'bottle') this.events.push({ type: 'shatter', x: pr.x, z: pr.z, y: pr.y });
       }
       if (!pr.dead && pr.life <= 0) {
         if (sp.explode) this._explode(pr);

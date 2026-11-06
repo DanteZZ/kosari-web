@@ -37,6 +37,37 @@ export const FIGHTERS = {
     moves: { light: 'e_heavy' },
     ai: { standoff: 210, aggression: 0.55, attackCd: [60, 110], retreat: [30, 60] },
   },
+  /** Шустрый: fast, fragile, charges in from far away with a flying tackle. */
+  runner: {
+    team: 'enemy',
+    hp: 30,
+    speedX: 5.4,
+    speedZ: 3.3,
+    jumpV: 0,
+    moves: { light: 'e_rush' },
+    ai: { standoff: 300, aggression: 1, attackCd: [40, 80], retreat: [36, 60] },
+  },
+  /** Метатель: keeps his distance and lobs bottles (punch them back!). */
+  thrower: {
+    team: 'enemy',
+    hp: 38,
+    speedX: 2.6,
+    speedZ: 2.3,
+    jumpV: 0,
+    moves: { light: 'e_bottle' },
+    ai: { standoff: 420, aggression: 0.9, attackCd: [50, 90], retreat: [10, 24], ignoreTokens: true },
+  },
+  /** Блокер: guards against punches from the front — kick, throw or flank him. */
+  blocker: {
+    team: 'enemy',
+    hp: 70,
+    speedX: 2.5,
+    speedZ: 1.9,
+    jumpV: 0,
+    guard: true,
+    moves: { light: 'e_jab' },
+    ai: { standoff: 200, aggression: 0.6, attackCd: [50, 90], retreat: [24, 44] },
+  },
   /** Breakable loot crate dropped from the sky (team 'prop': anyone can smash it). */
   crate: {
     team: 'prop',

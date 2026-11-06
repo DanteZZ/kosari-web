@@ -25,7 +25,7 @@ export class SandboxDirector {
     let x = p.x + side * w.rng.range(620, 780);
     if (x < w.bounds.xMin + 40 || x > w.bounds.xMax - 40) x = p.x - side * w.rng.range(620, 780);
     const z = w.rng.range(w.bounds.zMin + 10, w.bounds.zMax - 10);
-    const kind = w.kills >= 4 && w.rng.chance(0.28) ? 'buiniy' : 'nikita';
+    const kind = w.kills < 4 ? 'nikita' : w.rng.pick(['nikita', 'nikita', 'buiniy', 'runner', 'thrower', 'blocker']);
     w.spawn(kind, x, z, { facing: -side });
   }
 }

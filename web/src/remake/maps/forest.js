@@ -19,6 +19,8 @@ export default {
   name: 'Лес',
   length: 6400,
   start: { x: 260, z: 80 },
+  /** Each next arena: enemies +10% HP, +5% damage. */
+  scaling: 0.1,
   arenas: [
     {
       id: 'a1',
@@ -40,7 +42,7 @@ export default {
       waves: [
         { nextAt: 1, spawns: [{ kind: 'nikita', count: 4, from: 'both', every: 24 }] },
         { banner: 'Сверху!', spawns: [{ kind: 'nikita', count: 3, from: 'drop', every: 30 }] },
-        { spawns: [{ kind: 'buiniy', count: 1, from: 'right' }, { kind: 'nikita', count: 3, from: 'left', every: 36 }] },
+        { banner: 'Шустрые!', spawns: [{ kind: 'runner', count: 3, from: 'both', every: 40 }, { kind: 'buiniy', count: 1, from: 'right' }, { kind: 'nikita', count: 2, from: 'left', every: 36 }] },
       ],
     },
     {
@@ -51,8 +53,8 @@ export default {
       reward: [{ kind: 'heal', amount: 60 }],
       waves: [
         { nextAt: 2, spawns: [{ kind: 'nikita', count: 6, from: 'both', every: 18 }] },
-        { nextAt: 1, spawns: [{ kind: 'buiniy', count: 2, from: 'both', every: 50 }, { kind: 'nikita', count: 3, from: 'drop', every: 40 }] },
-        { banner: 'Толпа!', spawns: [{ kind: 'nikita', count: 8, from: 'both', every: 14 }, { kind: 'buiniy', count: 1, from: 'right' }] },
+        { nextAt: 1, banner: 'Бутылки!', spawns: [{ kind: 'thrower', count: 2, from: 'right', every: 50 }, { kind: 'nikita', count: 3, from: 'drop', every: 40 }, { kind: 'runner', count: 2, from: 'left', every: 60 }] },
+        { banner: 'Толпа!', spawns: [{ kind: 'nikita', count: 8, from: 'both', every: 14 }, { kind: 'blocker', count: 1, from: 'right' }, { kind: 'buiniy', count: 1, from: 'left' }] },
       ],
     },
     {
@@ -62,8 +64,8 @@ export default {
       right: 5450,
       reward: [{ kind: 'heal', amount: 80 }],
       waves: [
-        { nextAt: 2, spawns: [{ kind: 'buiniy', count: 3, from: 'both', every: 40 }, { kind: 'nikita', count: 4, from: 'both', every: 20 }] },
-        { banner: 'Последняя волна перед боссом', spawns: [{ kind: 'nikita', count: 6, from: 'drop', every: 16 }, { kind: 'buiniy', count: 2, from: 'both', every: 60 }] },
+        { nextAt: 2, spawns: [{ kind: 'blocker', count: 2, from: 'both', every: 40 }, { kind: 'thrower', count: 2, from: 'both', every: 60 }, { kind: 'buiniy', count: 2, from: 'both', every: 40 }, { kind: 'nikita', count: 4, from: 'both', every: 20 }] },
+        { banner: 'Последняя волна перед боссом', spawns: [{ kind: 'runner', count: 5, from: 'both', every: 20 }, { kind: 'nikita', count: 6, from: 'drop', every: 16 }, { kind: 'buiniy', count: 2, from: 'both', every: 60 }] },
       ],
     },
     {
@@ -74,7 +76,7 @@ export default {
       right: 6400,
       waves: [
         { banner: 'БОСС', nextAt: 1, spawns: [{ kind: 'boss1', count: 1, from: 'right' }] },
-        { banner: 'Подмога!', bossHpBelow: 0.5, spawns: [{ kind: 'nikita', count: 4, from: 'both', every: 40 }] },
+        { banner: 'Подмога!', bossHpBelow: 0.5, spawns: [{ kind: 'runner', count: 3, from: 'both', every: 40 }, { kind: 'thrower', count: 2, from: 'both', every: 60 }] },
       ],
     },
   ],
