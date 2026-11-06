@@ -1,0 +1,205 @@
+/**
+ * Frame data for every attack (ticks @ 60 Hz).
+ *
+ * startup  — wind-up before the hitbox turns on
+ * active   — ticks the hitbox can connect
+ * recovery — cool-down after; combo "next" steps may cancel it on hit
+ * reach    — [min, max] px in front of the attacker (sweep: both sides)
+ * depth    — max |dz| to connect (lane depth tolerance)
+ * kb       — knockback px/tick on the victim
+ * launch   — vertical launch speed (pops the victim into the air)
+ * knockdown— victim falls and has to get up
+ * lunge    — attacker slides forward px/tick during startup+active
+ * clip     — bone-puppet clip id the view plays (game/player/animState.js),
+ *            timed so its impact key lands on the first active tick
+ * next     — combo routes: which move a buffered LIGHT / HEAVY chains into
+ */
+import { BOMB, POT, PAN } from './hazards.js';
+
+export const MOVES = {
+  // ---- Player: light chain jab → jab → uppercut (launcher)
+  jab1: {
+    clip: 'punch_r',
+    startup: 4, active: 3, recovery: 9,
+    dmg: 7, reach: [10, 96], depth: 30,
+    hitstun: 18, kb: 2.2, hitstop: 4, lunge: 2.2,
+    next: { light: 'jab2', heavy: 'spin' },
+    sfx: 'udar',
+  },
+  jab2: {
+    clip: 'punch_l',
+    startup: 4, active: 3, recovery: 10,
+    dmg: 8, reach: [10, 100], depth: 30,
+    hitstun: 20, kb: 2.6, hitstop: 4, lunge: 2.4,
+    next: { light: 'upper', heavy: 'spin' },
+    sfx: 'udar',
+  },
+  upper: {
+    clip: 'punch_upper_r',
+    startup: 6, active: 4, recovery: 16,
+    dmg: 12, reach: [10, 104], depth: 32,
+    hitstun: 0, kb: 3.5, launch: 13, hitstop: 7, lunge: 3,
+    next: { heavy: 'highkick' },
+    sfx: 'udar',
+    heavy: true,
+  },
+  // ---- Player: heavy
+  /** K1: quick front snap kick — staggers, chains into the head kick. */
+  kick: {
+    clip: 'kick_snap_r',
+    startup: 7, active: 4, recovery: 13,
+    dmg: 11, reach: [20, 120], depth: 32,
+    hitstun: 24, kb: 4.5, hitstop: 6, lunge: 3,
+    next: { heavy: 'highkick', light: 'jab1' },
+    sfx: 'punch',
+  },
+  /** K2: Bruce Lee high kick to the head — pops the victim up. */
+  highkick: {
+    clip: 'kick_head_r',
+    startup: 9, active: 5, recovery: 20,
+    dmg: 19, reach: [20, 126], depth: 32,
+    hitstun: 0, kb: 5, launch: 12, hitstop: 9, lunge: 2.5,
+    sfx: 'superudar',
+    heavy: true,
+  },
+  /** Chain finisher: spinning kick that hits both sides (crowd clear). */
+  spin: {
+    clip: 'kick_spin_r',
+    startup: 7, active: 8, recovery: 18,
+    dmg: 13, reach: [0, 118], depth: 40, sweep: true,
+    hitstun: 0, kb: 8, knockdown: true, hitstop: 6, lunge: 1,
+    sfx: 'superudar',
+    heavy: true,
+  },
+  // ---- Air / dash
+  airkick: {
+    clip: 'kick_fly_r',
+    startup: 3, active: 16, recovery: 6, air: true,
+    dmg: 11, reach: [10, 108], depth: 34,
+    hitstun: 22, kb: 5, knockdown: true, hitstop: 5, lunge: 0,
+    sfx: 'punch',
+  },
+  dashpunch: {
+    clip: 'punch_superman_r',
+    startup: 2, active: 7, recovery: 14,
+    dmg: 12, reach: [10, 104], depth: 32,
+    hitstun: 0, kb: 10, knockdown: true, hitstop: 6, lunge: 9,
+    sfx: 'superudar',
+    heavy: true,
+  },
+
+  // ---- Grab: knees on the held enemy, then throw
+  knee: {
+    clip: 'knee_r',
+    startup: 4, active: 2, recovery: 9,
+    dmg: 6, reach: [0, 90], depth: 24, grabOnly: true,
+    hitstun: 0, kb: 0, hitstop: 5, lunge: 0,
+    sfx: 'udar',
+  },
+  knee_final: {
+    clip: 'knee_r',
+    startup: 5, active: 2, recovery: 14,
+    dmg: 10, reach: [0, 90], depth: 24, grabOnly: true,
+    hitstun: 0, kb: 7, knockdown: true, hitstop: 8, lunge: 0,
+    sfx: 'superudar',
+    heavy: true,
+  },
+  /** Heave the held enemy into the crowd (released at the impact frame). */
+  throw: {
+    clip: 'throw_heave',
+    startup: 10, active: 1, recovery: 16, throw: true,
+    dmg: 8, reach: [0, 0], depth: 0,
+    hitstun: 0, kb: 13, hitstop: 6, lunge: 0,
+    sfx: 'superudar',
+    heavy: true,
+  },
+
+  // ---- Rage special: shockwave around the player (costs a full meter)
+  rage: {
+    clip: 'rage_stomp',
+    startup: 10, active: 6, recovery: 20, special: true,
+    dmg: 22, reach: [0, 200], depth: 90, sweep: true,
+    hitstun: 0, kb: 9, launch: 11, hitstop: 10, lunge: 0,
+    sfx: 'superudar',
+    heavy: true,
+  },
+
+  // ---- Boss
+  b_jab: {
+    clip: 'punch_r',
+    startup: 12, active: 4, recovery: 16,
+    dmg: 12, reach: [10, 112], depth: 30,
+    hitstun: 20, kb: 5, hitstop: 5, lunge: 3,
+    sfx: 'udar',
+  },
+  b_slam: {
+    clip: 'rage_stomp',
+    startup: 28, active: 5, recovery: 30,
+    dmg: 22, reach: [0, 165], depth: 55, sweep: true,
+    hitstun: 0, kb: 9, knockdown: true, hitstop: 8, lunge: 0,
+    sfx: 'superudar',
+    heavy: true,
+  },
+
+  // ---- Original bosses (throws only; damage comes from what you punch back)
+  b_bomb: {
+    clip: 'throw_bottle',
+    startup: 18, active: 1, recovery: 20,
+    dmg: 0, reach: [0, 0], depth: 0, hitstun: 0, kb: 0, hitstop: 0, lunge: 0,
+    projectile: BOMB,
+    sfx: null,
+  },
+  p_pot: {
+    clip: 'throw_bottle',
+    startup: 18, active: 1, recovery: 18,
+    dmg: 0, reach: [0, 0], depth: 0, hitstun: 0, kb: 0, hitstop: 0, lunge: 0,
+    projectile: POT,
+    sfx: null,
+  },
+  p_pan: {
+    clip: 'throw_bottle',
+    startup: 14, active: 1, recovery: 18,
+    dmg: 0, reach: [0, 0], depth: 0, hitstun: 0, kb: 0, hitstop: 0, lunge: 0,
+    projectile: PAN,
+    sfx: null,
+  },
+
+  // ---- Enemies: slow, readable wind-ups
+  e_jab: {
+    clip: 'punch_r',
+    startup: 16, active: 4, recovery: 22,
+    dmg: 8, reach: [10, 92], depth: 26,
+    hitstun: 16, kb: 3, hitstop: 4, lunge: 1.5,
+    sfx: 'udar',
+  },
+  /** Runner: crouched wind-up, then a long flying tackle (lunges only while active). */
+  e_rush: {
+    clip: 'punch_superman_r',
+    startup: 16, active: 10, recovery: 24,
+    dmg: 9, reach: [0, 80], depth: 24,
+    hitstun: 20, kb: 6, hitstop: 4, lunge: 11, lungeActive: true,
+    aiRange: [120, 205], aiDepth: 12,
+    sfx: 'udar',
+  },
+  /** Thrower: overhand bottle toss. */
+  e_bottle: {
+    clip: 'throw_bottle',
+    startup: 20, active: 1, recovery: 22,
+    dmg: 0, reach: [0, 0], depth: 0, hitstun: 0, kb: 0, hitstop: 0, lunge: 0,
+    projectile: { kind: 'bottle', tex: 'bottle', speed: 9, life: 80, dmg: 9, hitstun: 18, kb: 4, reflectable: true, muzzle: { x: 30, y: 190 } },
+    aiRange: [220, 560], aiDepth: 14,
+    sfx: null,
+  },
+  e_heavy: {
+    clip: 'kick_knockout',
+    startup: 24, active: 5, recovery: 28,
+    dmg: 16, reach: [20, 116], depth: 28,
+    hitstun: 0, kb: 8, knockdown: true, hitstop: 6, lunge: 2.5,
+    sfx: 'punch',
+    heavy: true,
+  },
+};
+
+export function moveTotal(m) {
+  return m.startup + m.active + m.recovery;
+}

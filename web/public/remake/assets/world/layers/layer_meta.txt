@@ -1,0 +1,15 @@
+{
+  "LAYER_W": 3600,
+  "LAYER_H": 1180,
+  "PATH_ROW": 760,
+  "ROAD_TOP": 620,
+  "ROAD_BOT": 900,
+  "layers": [
+    "clouds",
+    "far",
+    "mid",
+    "fog",
+    "world",
+    "grass"
+  ]
+}
