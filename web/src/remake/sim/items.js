@@ -49,6 +49,8 @@ export const KILL_LOOT = {
   thrower: [1, 3],
   blocker: [2, 4],
   boss1: [18, 18],
+  borsch: [25, 25],
+  povar: [25, 25],
 };
 
 /** Weighted gun drop from crates. */

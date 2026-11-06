@@ -13,10 +13,13 @@
  *       bossHpBelow — also wait until the boss is at or below this HP fraction
  *       spawns[]  — { kind, count, from: 'left'|'right'|'both'|'drop', every: ticks between spawns }
  *   boss arena    — boss: true (boss music, boss HP bar)
+ *   next          — map id offered after the results screen
+ *   anvils / airships / crates / kosariRain — hazard timings [min, max] ticks (false = off)
  */
 export default {
   id: 'forest',
   name: 'Лес',
+  next: 'opushka',
   length: 6400,
   start: { x: 260, z: 80 },
   /** Each next arena: enemies +10% HP, +5% damage. */
@@ -75,8 +78,7 @@ export default {
       left: 5550,
       right: 6400,
       waves: [
-        { banner: 'БОСС', nextAt: 1, spawns: [{ kind: 'boss1', count: 1, from: 'right' }] },
-        { banner: 'Подмога!', bossHpBelow: 0.5, spawns: [{ kind: 'runner', count: 3, from: 'both', every: 40 }, { kind: 'thrower', count: 2, from: 'both', every: 60 }] },
+        { banner: 'Влад Борщ', nextAt: 1, spawns: [{ kind: 'borsch', count: 1, from: 'right' }] },
       ],
     },
   ],

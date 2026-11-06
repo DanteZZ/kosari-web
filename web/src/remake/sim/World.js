@@ -14,6 +14,7 @@ import {
 } from './constants.js';
 import { BTN, ACTION_BTNS, axisX, axisZ, selField } from './input.js';
 import { WEAPONS, WEAPON_SLOTS, SHOP, KILL_LOOT, CRATE_GUNS } from './items.js';
+import { DIRIG_BOMB, FORK, ANVIL_FLY } from './hazards.js';
 import { MOVES, moveTotal } from './moves.js';
 import { FIGHTERS } from './fighters.js';
 import { createRng } from './rng.js';
@@ -58,6 +59,15 @@ export class World {
     /** Loot crates dropping from the sky: [min, max] ticks between drops, or null. */
     this.crateEvery = null;
     this.crateT = 0;
+    /** Original-game hazards: [min, max] ticks between events, or null = off. */
+    this.anvilEvery = null;
+    this.anvilT = 0;
+    this.airshipEvery = null;
+    this.airshipT = 0;
+    this.airships = [];
+    this.forkRainT = 0;
+    this.kosariRain = null;
+    this.kosariT = 0;
   }
 
   spawn(kind, x, z, opts = {}) {
@@ -73,8 +83,8 @@ export class World {
       vx: 0, vz: 0, vy: 0,
       facing: opts.facing ?? 1,
       faceX: null,
-      hp: Math.round(def.hp * (opts.hpMul ?? 1)),
-      maxHp: Math.round(def.hp * (opts.hpMul ?? 1)),
+      hp: Math.round(def.hp * (def.onlyReflected ? 1 : opts.hpMul ?? 1)),
+      maxHp: Math.round(def.hp * (def.onlyReflected ? 1 : opts.hpMul ?? 1)),
       /** Outgoing damage multiplier (difficulty scaling). */
       dmgMul: opts.dmgMul ?? 1,
       state: 'idle',
@@ -122,6 +132,10 @@ export class World {
       weapon: 0,
       fireCd: 0,
       looted: false,
+      /** Multi-phase bosses (Повар). */
+      phase: 1,
+      retreating: false,
+      away: false,
       /** Props (crates): height it fell from. */
       dropH: 0,
       /** Bumped whenever a new one-shot animation should start (view watches it). */
@@ -181,6 +195,7 @@ export class World {
     this._updatePickups();
     this._dropLoot();
     this._crateDropper();
+    this._hazards();
 
     for (const f of this.fighters) {
       this._clamp(f);
@@ -654,7 +669,39 @@ export class World {
     const def = FIGHTERS[tgt.kind];
 
     if (def.prop) {
-      this._hitProp(tgt, m, dir);
+      this._hitProp(tgt, m, dir, att, src);
+      return;
+    }
+    if (tgt.retreating || tgt.away) return;
+    if (def.onlyReflected) {
+      // Original bosses: only their own thrown stuff, knocked back, hurts them
+      if (!(src && src.reflected)) {
+        if (!src) {
+          this.hitstop = Math.max(this.hitstop, 2);
+          this.events.push({ type: 'immune', id: tgt.id, x: tgt.x, z: tgt.z, hint: def.hint });
+        }
+        return;
+      }
+      tgt.hp = Math.max(0, tgt.hp - (src.bossDmg ?? 1));
+      this.hitstop = Math.max(this.hitstop, 10);
+      this.events.push({ type: 'hit', attacker: att.id, target: tgt.id, targetTeam: tgt.team, x: tgt.x, z: tgt.z, y: tgt.y, dir, dmg: src.bossDmg ?? 1, heavy: true, reaction: 'boss' });
+      if (tgt.hp > 0) {
+        this._setState(tgt, 'hitstun', 40);
+        tgt.vx = dir * 3;
+        tgt.animSeq += 1;
+        tgt.anim = { type: 'hurt', reaction: 'flinch', dir };
+        this.events.push({ type: 'bossHit', id: tgt.id, hp: tgt.hp, x: tgt.x, z: tgt.z });
+        return;
+      }
+      if (def.phases && tgt.phase < def.phases.length) {
+        // Not dead yet: runs off, next phase comes back from the other side
+        tgt.retreating = true;
+        tgt.iframes = 99999;
+        this._setState(tgt, 'idle');
+        this.events.push({ type: 'bossPhase', id: tgt.id, phase: tgt.phase, x: tgt.x, z: tgt.z });
+        return;
+      }
+      this._bossDown(tgt, dir);
       return;
     }
 
@@ -1147,80 +1194,145 @@ export class World {
     }
   }
 
+  /**
+   * Launch a projectile from fighter-like `f` ({ id, team, x, z, y, facing, dmgMul }).
+   * Spec fields are documented in hazards.js / items.js.
+   * @param {{ muzzle?, dz?, speedK?, x?, y?, z?, vy?, target? }} [o]
+   */
   _spawnProj(f, spec, o = {}) {
     const mz = o.muzzle || spec.muzzle || { x: 40, y: 150 };
     const dz = o.dz || 0;
-    const x = f.x + f.facing * mz.x;
-    const y = f.y + mz.y;
-    this.projectiles.push({
+    const x = o.x ?? f.x + f.facing * mz.x;
+    const y = o.y ?? (f.y || 0) + mz.y;
+    const z = o.z ?? f.z + dz * 0.3;
+    const pr = {
       id: this.nextId++,
       owner: f.id,
+      origOwner: f.id,
       team: f.team,
       spec,
       x,
-      z: f.z + dz * 0.3,
-      vz: dz * 0.06,
+      z,
       y,
       px: x,
-      pz: f.z,
+      pz: z,
       py: y,
-      vx: f.facing * spec.speed * (o.speedK || 1),
+      vx: f.facing * (spec.speed || 0) * (o.speedK || 1),
+      vz: dz * 0.06,
+      vy: o.vy ?? spec.vy ?? 0,
+      tx: x,
+      tz: z,
       life: spec.life,
       hit: [],
       dead: false,
       dmgMul: f.dmgMul || 1,
       reflected: false,
-    });
-    if (spec.kind === 'bottle') this.events.push({ type: 'toss', id: f.id, x, z: f.z });
+      hitsAll: !!spec.hitsAll,
+    };
+    if (spec.arc) {
+      const t = o.target || this._nearestPlayer(x, z, 1e9);
+      if (t) this._aim(pr, t.x + this.rng.range(-30, 30), t.z, 0, spec.arcSpeed || 8);
+    }
+    this.projectiles.push(pr);
+    if (spec.kind !== 'bullet' && spec.kind !== 'pellet' && spec.kind !== 'rocket') {
+      this.events.push({ type: 'toss', id: f.id, kind: spec.kind, x, z });
+    }
+    return pr;
   }
 
-  /** A player's live melee swing knocks enemy bottles back where they came from. */
+  /** Ballistic aim: land at (tx, height ty, tz). Remembers the landing spot for markers. */
+  _aim(pr, tx, tz, ty, speed) {
+    const g = pr.spec.gravity || 0;
+    const dx = tx - pr.x;
+    const T = Math.max(18, Math.min(110, Math.abs(dx) / speed));
+    pr.vx = dx / T;
+    pr.vz = (tz - pr.z) / T;
+    pr.vy = (ty - pr.y + 0.5 * g * T * T) / T;
+    pr.tx = tx;
+    pr.tz = tz;
+  }
+
+  /** A player's live melee swing knocks enemy throwables back. */
   _tryReflect(pr) {
     for (const f of this.fighters) {
       if (f.team !== 'player' || f.state !== 'attack') continue;
       const m = MOVES[f.move];
       if (!m || m.grabOnly || m.throw || m.projectile) continue;
       if (f.mt <= m.startup || f.mt > m.startup + m.active) continue;
-      if (Math.abs(pr.z - f.z) > m.depth + 10 || Math.abs(pr.y - f.y - 140) > 120) continue;
+      if (Math.abs(pr.z - f.z) > m.depth + 14 || Math.abs(pr.y - f.y - 140) > 130) continue;
       const front = (pr.x - f.x) * f.facing;
-      if (front < -20 || front > m.reach[1] + 30) continue;
+      if (front < -24 || front > m.reach[1] + 34) continue;
+      const back = pr.spec.reflectable === 'toOwner' ? this._byId(pr.origOwner) : null;
       pr.team = f.team;
       pr.owner = f.id;
-      pr.vx = f.facing * Math.abs(pr.vx) * 1.6;
-      pr.life = 70;
       pr.hit = [];
       pr.reflected = true;
+      pr.hitsAll = false;
       pr.dmgMul = 2;
+      pr.life = 160;
+      if (back && !back.dead) {
+        // Straight back at whoever threw it (chest height)
+        this._aim(pr, back.x, back.z, 120, 12);
+      } else {
+        pr.vx = f.facing * Math.max(9, Math.abs(pr.vx) * 1.6);
+        pr.vy = pr.spec.gravity ? 6 : 0;
+        pr.tx = pr.x + pr.vx * 30;
+      }
       this.hitstop = Math.max(this.hitstop, 4);
-      this.events.push({ type: 'reflect', id: f.id, x: pr.x, z: pr.z, y: pr.y });
+      this.events.push({ type: 'reflect', id: f.id, kind: pr.spec.kind, x: pr.x, z: pr.z, y: pr.y });
       return true;
     }
     return false;
   }
 
+  _projHits(pr, t) {
+    if (t.dead || UNHITTABLE.has(t.state) || t.iframes > 0 || t.state === 'grabbed') return false;
+    if (pr.hitsAll ? t.id === pr.owner : t.team === pr.team) return false;
+    if (pr.hit.includes(t.id)) return false;
+    if (Math.abs(t.x - pr.x) > 30 + Math.abs(pr.vx) * 0.5 || Math.abs(t.z - pr.z) > 24) return false;
+    if (pr.y < t.y - 10 || pr.y > t.y + 250) return false;
+    return true;
+  }
+
   _updateProjectiles() {
     if (!this.projectiles.length) return;
     for (const pr of this.projectiles) {
+      if (pr.dead) continue;
       pr.px = pr.x;
       pr.pz = pr.z;
       pr.py = pr.y;
+      const sp = pr.spec;
       pr.x += pr.vx;
       pr.z += pr.vz || 0;
+      pr.y += pr.vy || 0;
+      if (sp.gravity) pr.vy -= sp.gravity;
       pr.life -= 1;
-      const sp = pr.spec;
       if (sp.reflectable && !pr.reflected && pr.team !== 'player') this._tryReflect(pr);
+
+      // Player bullets set off bombs in mid-air
+      if (pr.team === 'player' && (sp.kind === 'bullet' || sp.kind === 'pellet')) {
+        for (const q of this.projectiles) {
+          if (q === pr || q.dead || !q.spec.shootable) continue;
+          if (Math.abs(q.x - pr.x) > 28 + Math.abs(pr.vx) * 0.5 || Math.abs(q.z - pr.z) > 26 || Math.abs(q.y - pr.y) > 50) continue;
+          q.owner = pr.owner;
+          q.team = 'player';
+          q.hitsAll = false;
+          this._explode(q);
+          pr.dead = true;
+          break;
+        }
+        if (pr.dead) continue;
+      }
+
       for (const t of this.fighters) {
         if (pr.dead) break;
-        if (t.team === pr.team || t.dead || UNHITTABLE.has(t.state) || t.iframes > 0) continue;
-        if (t.state === 'grabbed' || pr.hit.includes(t.id)) continue;
-        if (Math.abs(t.x - pr.x) > 30 + Math.abs(pr.vx) * 0.5 || Math.abs(t.z - pr.z) > 22) continue;
-        if (pr.y < t.y - 10 || pr.y > t.y + 250) continue;
+        if (!this._projHits(pr, t)) continue;
         if (sp.explode) {
           this._explode(pr);
           break;
         }
         pr.hit.push(t.id);
-        const owner = this._byId(pr.owner) || { id: -1, team: pr.team, x: pr.x, facing: Math.sign(pr.vx), combo: 0, meter: 0 };
+        const owner = this._byId(pr.owner) || { id: -1, team: pr.team, x: pr.x, facing: Math.sign(pr.vx) || 1, combo: 0, meter: 0 };
         // Shotgun up close knocks down
         const close = sp.kind === 'pellet' && pr.life > sp.life - 6;
         const shooter = { ...owner, dmgMul: pr.dmgMul };
@@ -1228,24 +1340,38 @@ export class World {
           dmg: sp.dmg,
           hitstun: sp.hitstun,
           kb: sp.kb,
-          hitstop: 2,
-          knockdown: close || pr.reflected,
-          heavy: close || pr.reflected,
-        }, { x: pr.x - Math.sign(pr.vx) * 40, facing: Math.sign(pr.vx) });
+          hitstop: sp.pierce ? 5 : 2,
+          knockdown: !!sp.knockdown || close || pr.reflected,
+          heavy: !!sp.knockdown || close || pr.reflected,
+        }, { x: pr.x - Math.sign(pr.vx || 1) * 40, facing: Math.sign(pr.vx) || 1, reflected: pr.reflected, bossDmg: sp.bossDmg });
         // Credit combo / meter to the real owner (shooter is a copy)
         if (owner.id > 0 && owner.team === 'player') {
           owner.combo = shooter.combo;
           owner.comboT = shooter.comboT;
           owner.meter = shooter.meter;
         }
-        if (sp.kind !== 'pellet' || t.kind !== 'crate') pr.dead = true;
-        if (sp.kind === 'bottle') this.events.push({ type: 'shatter', x: pr.x, z: pr.z, y: pr.y });
+        if (!sp.pierce && (sp.kind !== 'pellet' || t.kind !== 'crate')) {
+          pr.dead = true;
+          if (sp.kind !== 'bullet' && sp.kind !== 'pellet') this.events.push({ type: 'shatter', kind: sp.kind, x: pr.x, z: pr.z, y: pr.y });
+        }
       }
-      if (!pr.dead && pr.life <= 0) {
+      if (pr.dead) continue;
+
+      // Landing
+      if (sp.gravity && pr.y <= 0) {
+        pr.y = 0;
+        if (sp.explode) this._explode(pr);
+        else {
+          pr.dead = true;
+          this.events.push({ type: sp.kind === 'fork' ? 'forkStick' : 'shatter', kind: sp.kind, x: pr.x, z: pr.z, y: 0 });
+        }
+        continue;
+      }
+      if (pr.life <= 0) {
         if (sp.explode) this._explode(pr);
         else pr.dead = true;
       }
-      if (pr.x < this.bounds.xMin - 200 || pr.x > this.bounds.xMax + 200) pr.dead = true;
+      if (pr.x < this.bounds.xMin - 300 || pr.x > this.bounds.xMax + 300) pr.dead = true;
     }
     this.projectiles = this.projectiles.filter((pr) => !pr.dead);
   }
@@ -1255,11 +1381,104 @@ export class World {
     const e = pr.spec.explode;
     const owner = this._byId(pr.owner) || { id: -1, team: pr.team, x: pr.x, facing: 1, combo: 0, meter: 0 };
     this.hitstop = Math.max(this.hitstop, 7);
-    this.events.push({ type: 'explode', x: pr.x, z: pr.z, y: pr.y });
+    this.events.push({ type: 'explode', kind: pr.spec.kind, x: pr.x, z: pr.z, y: pr.y });
     for (const t of this.fighters) {
-      if (t.team === pr.team || t.dead || UNHITTABLE.has(t.state)) continue;
+      if (t.dead || UNHITTABLE.has(t.state)) continue;
+      if (pr.hitsAll ? t.id === pr.owner : t.team === pr.team) continue;
       if (Math.abs(t.x - pr.x) > e.radius || Math.abs(t.z - pr.z) > e.depth) continue;
-      this._applyHit(owner, t, { dmg: e.dmg, kb: e.kb, launch: e.launch, hitstop: 7, heavy: true, special: false }, { x: pr.x, facing: Math.sign(pr.vx) || 1 });
+      this._applyHit(owner, t, { dmg: e.dmg, kb: e.kb, launch: e.launch, hitstop: 7, heavy: true, special: false }, {
+        x: pr.x,
+        facing: Math.sign(pr.vx) || 1,
+        reflected: pr.reflected,
+        bossDmg: pr.spec.bossDmg,
+      });
+    }
+  }
+
+  // ------------------------------------------------------------------ hazards (original game)
+
+  dropAnvil(x, z) {
+    const a = this.spawn('anvil', x, z);
+    a.y = a.py = 640;
+    a.vy = 0;
+    a.dropH = 640;
+    this.events.push({ type: 'anvilIncoming', id: a.id, x, z });
+    return a;
+  }
+
+  callAirship() {
+    const ps = this.players();
+    if (!ps.length || this.airships.length) return;
+    const pb = this.playerBounds || this.bounds;
+    const fromLeft = this.rng.chance(0.5);
+    this.airships.push({
+      id: this.nextId++,
+      x: fromLeft ? pb.xMin - 300 : pb.xMax + 300,
+      px: fromLeft ? pb.xMin - 300 : pb.xMax + 300,
+      y: 360,
+      vx: fromLeft ? 1.6 : -1.6,
+      dropT: 90,
+    });
+    this.events.push({ type: 'airship' });
+  }
+
+  _hazards() {
+    const ps = this.players();
+    const pb = this.playerBounds || this.bounds;
+    const near = () => ps[this.rng.int(0, ps.length - 1)];
+
+    // Anvils from the sky (Влад Борщ phases, or a map can switch them on)
+    if (this.anvilEvery && ps.length) {
+      if (this.anvilT <= 0) this.anvilT = this.rng.int(this.anvilEvery[0], this.anvilEvery[1]);
+      if (--this.anvilT <= 0) {
+        const p = near();
+        const x = Math.min(pb.xMax - 60, Math.max(pb.xMin + 60, p.x + this.rng.range(-160, 160)));
+        this.dropAnvil(x, Math.min(this.bounds.zMax - 10, Math.max(this.bounds.zMin + 10, p.z + this.rng.range(-30, 30))));
+      }
+    }
+
+    // Airship passes, dropping bombs near the players
+    if (this.airshipEvery && ps.length && !this.airships.length) {
+      if (this.airshipT <= 0) this.airshipT = this.rng.int(this.airshipEvery[0], this.airshipEvery[1]);
+      if (--this.airshipT <= 0) this.callAirship();
+    }
+    for (const s of this.airships) {
+      s.px = s.x;
+      s.x += s.vx;
+      if (--s.dropT <= 0 && ps.length) {
+        s.dropT = this.rng.int(60, 100);
+        const p = near();
+        if (Math.abs(p.x - s.x) < 420) {
+          const z = Math.min(this.bounds.zMax - 10, Math.max(this.bounds.zMin + 10, p.z + this.rng.range(-40, 40)));
+          this._spawnProj({ id: -1, team: 'hazard', x: s.x, z, y: 0, facing: 1, dmgMul: 1 }, DIRIG_BOMB, { x: s.x, y: s.y - 40, z });
+        }
+      }
+      if ((s.vx > 0 && s.x > pb.xMax + 400) || (s.vx < 0 && s.x < pb.xMin - 400)) s.gone = true;
+    }
+    if (this.airships.some((s) => s.gone)) {
+      this.airships = this.airships.filter((s) => !s.gone);
+      this.events.push({ type: 'airshipGone' });
+    }
+
+    // Fork rain between Повар's phases
+    if (this.forkRainT > 0 && ps.length) {
+      this.forkRainT -= 1;
+      if (this.forkRainT % 14 === 0) {
+        const p = near();
+        const x = Math.min(pb.xMax - 30, Math.max(pb.xMin + 30, p.x + this.rng.range(-280, 280)));
+        const z = this.rng.range(this.bounds.zMin + 8, this.bounds.zMax - 8);
+        this._spawnProj({ id: -1, team: 'hazard', x, z, y: 0, facing: 1, dmgMul: 1 }, FORK, { x, y: 640, z });
+      }
+    }
+
+    // Косари falling from the sky (like the original's kosarepad)
+    if (this.kosariRain && ps.length) {
+      if (this.kosariT <= 0) this.kosariT = this.rng.int(this.kosariRain[0], this.kosariRain[1]);
+      if (--this.kosariT <= 0) {
+        const p = near();
+        const x = Math.min(pb.xMax - 40, Math.max(pb.xMin + 40, p.x + this.rng.range(-380, 380)));
+        this.spawnPickup('kosar', x, this.rng.range(this.bounds.zMin + 10, this.bounds.zMax - 10), this.rng.chance(0.12) ? 5 : 1, { y: 520 });
+      }
     }
   }
 
@@ -1312,8 +1531,18 @@ export class World {
   }
 
   _prop(f) {
+    const def = FIGHTERS[f.kind];
     if (f.dead) {
       if (--f.removeT <= 0) f.removed = true;
+      return;
+    }
+    if (def.lie && f.y <= 0 && f.vy === 0 && f.st > 0) {
+      // Landed anvil sits for a moment, then cracks apart
+      if (--f.lieT <= 0) {
+        f.dead = true;
+        f.removeT = 1;
+        this.events.push({ type: 'anvilBreak', id: f.id, x: f.x, z: f.z });
+      }
       return;
     }
     if (f.y > 0 || f.vy > 0) {
@@ -1321,21 +1550,42 @@ export class World {
       if (f.y <= 0) {
         f.y = 0;
         f.vy = 0;
-        this.events.push({ type: 'crateLand', id: f.id, x: f.x, z: f.z });
+        this.events.push({ type: def.anvil ? 'anvilLand' : 'crateLand', id: f.id, x: f.x, z: f.z });
         if (f.dropH > 120) {
           // Crushes whoever stands underneath
           for (const t of this.fighters) {
             if (t === f || t.dead || t.team === 'prop' || UNHITTABLE.has(t.state)) continue;
             if (Math.abs(t.x - f.x) > 52 || Math.abs(t.z - f.z) > 26) continue;
-            this._applyHit(f, t, { dmg: 15, kb: 5, knockdown: true, hitstop: 5, heavy: true }, { x: f.x, facing: 1 });
+            this._applyHit(f, t, { dmg: def.crush ?? 15, kb: 5, knockdown: true, hitstop: 5, heavy: true }, { x: f.x, facing: 1 });
           }
         }
         f.dropH = 0;
+        f.st = 1;
+        f.lieT = def.lie || 0;
       }
     }
   }
 
-  _hitProp(c, m, dir) {
+  _hitProp(c, m, dir, att, src) {
+    if (FIGHTERS[c.kind].anvil) {
+      c.dead = true;
+      c.removeT = 1;
+      if (src || !att || att.team !== 'player') {
+        // Shot (or blown up): shatters
+        this.events.push({ type: 'anvilBreak', id: c.id, x: c.x, z: c.z });
+        return;
+      }
+      // Punched: flies off sideways and mows down the crowd
+      const pr = this._spawnProj({ id: att.id, team: att.team, x: c.x, z: c.z, y: 0, facing: dir, dmgMul: 1 }, ANVIL_FLY, {
+        x: c.x,
+        y: Math.max(40, c.y),
+        z: c.z,
+      });
+      pr.vx = dir * ANVIL_FLY.speed;
+      this.hitstop = Math.max(this.hitstop, 5);
+      this.events.push({ type: 'anvilLaunch', id: att.id, x: c.x, z: c.z });
+      return;
+    }
     if (c.y > 40) return;
     c.hp = Math.max(0, c.hp - (m.dmg || 0));
     this.hitstop = Math.max(this.hitstop, 2);
@@ -1365,6 +1615,21 @@ export class World {
         y: 40, vy: 9, vx: this.rng.range(-2, 2), weapon: gun,
       });
     }
+  }
+
+  /** Final boss defeat: slow motion and a shower of косари. */
+  _bossDown(tgt, dir) {
+    tgt.dead = true;
+    tgt.facing = -dir;
+    this._setState(tgt, 'airhit');
+    tgt.vy = 10;
+    tgt.vx = dir * 6;
+    this.kills += 1;
+    this.slowmo = Math.max(this.slowmo, 90);
+    this.anvilEvery = null;
+    this.airshipEvery = null;
+    this.forkRainT = 0;
+    this.events.push({ type: 'bossDown', id: tgt.id, x: tgt.x, z: tgt.z });
   }
 
   _rollOffsets(f) {

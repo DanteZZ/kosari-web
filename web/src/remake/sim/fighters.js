@@ -79,6 +79,60 @@ export const FIGHTERS = {
     jumpV: 0,
     moves: {},
   },
+  /** Falling anvil from the original game: crushes, punch it to send it flying. */
+  anvil: {
+    team: 'prop',
+    prop: true,
+    anvil: true,
+    noGrab: true,
+    hp: 1,
+    crush: 28,
+    lie: 50,
+    speedX: 0,
+    speedZ: 0,
+    jumpV: 0,
+    moves: {},
+  },
+  /**
+   * Original boss 1 — Влад Борщ. Throws fused bombs; only bombs punched back
+   * at him hurt (3 lives). Brings anvils, later the airship and backup.
+   */
+  borsch: {
+    team: 'enemy',
+    boss: true,
+    title: 'Влад Борщ',
+    hint: 'Отбей бомбу в него ударом!',
+    noGrab: true,
+    onlyReflected: true,
+    bossAI: 'borsch',
+    hp: 3,
+    speedX: 2.2,
+    speedZ: 1.6,
+    jumpV: 0,
+    moves: { light: 'b_bomb' },
+    ai: {},
+  },
+  /**
+   * Original boss 2 — Повар. Lobs pots and skims frying pans; only kitchenware
+   * punched back hurts him. Three phases (40/70/100); between them he runs off
+   * and forks rain from the sky.
+   */
+  povar: {
+    team: 'enemy',
+    boss: true,
+    title: 'Повар',
+    hint: 'Отбей посуду в него ударом!',
+    noGrab: true,
+    onlyReflected: true,
+    bossAI: 'povar',
+    hp: 40,
+    phases: [40, 70, 100],
+    speedX: 1.9,
+    speedZ: 1.4,
+    jumpV: 0,
+    moves: { light: 'p_pot', heavy: 'p_pan' },
+    ai: {},
+  },
   /** Map boss: big, armored, two attacks, ignores the crowd attack-token limit. */
   boss1: {
     team: 'enemy',

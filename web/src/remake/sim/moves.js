@@ -14,6 +14,8 @@
  *            timed so its impact key lands on the first active tick
  * next     — combo routes: which move a buffered LIGHT / HEAVY chains into
  */
+import { BOMB, POT, PAN } from './hazards.js';
+
 export const MOVES = {
   // ---- Player: light chain jab → jab → uppercut (launcher)
   jab1: {
@@ -137,6 +139,29 @@ export const MOVES = {
     hitstun: 0, kb: 9, knockdown: true, hitstop: 8, lunge: 0,
     sfx: 'superudar',
     heavy: true,
+  },
+
+  // ---- Original bosses (throws only; damage comes from what you punch back)
+  b_bomb: {
+    clip: 'throw_bottle',
+    startup: 18, active: 1, recovery: 20,
+    dmg: 0, reach: [0, 0], depth: 0, hitstun: 0, kb: 0, hitstop: 0, lunge: 0,
+    projectile: BOMB,
+    sfx: null,
+  },
+  p_pot: {
+    clip: 'throw_bottle',
+    startup: 18, active: 1, recovery: 18,
+    dmg: 0, reach: [0, 0], depth: 0, hitstun: 0, kb: 0, hitstop: 0, lunge: 0,
+    projectile: POT,
+    sfx: null,
+  },
+  p_pan: {
+    clip: 'throw_bottle',
+    startup: 14, active: 1, recovery: 18,
+    dmg: 0, reach: [0, 0], depth: 0, hitstun: 0, kb: 0, hitstop: 0, lunge: 0,
+    projectile: PAN,
+    sfx: null,
   },
 
   // ---- Enemies: slow, readable wind-ups

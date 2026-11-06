@@ -17,6 +17,10 @@ export class MapDirector {
     world.bounds.xMax = map.length;
     // Loot crates every ~25–40 s unless the map says otherwise
     world.crateEvery = map.crates === false ? null : map.crates || [1500, 2400];
+    // Косари drizzle from the sky like in the original
+    world.kosariRain = map.kosariRain === false ? null : map.kosariRain || [260, 460];
+    world.anvilEvery = map.anvils || null;
+    world.airshipEvery = map.airships || null;
     world.playerBounds = { xMin: 0, xMax: map.arenas[0]?.right ?? map.length };
   }
 

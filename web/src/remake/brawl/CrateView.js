@@ -52,7 +52,12 @@ export class CrateView {
     this.bodyH = 66;
     this.shake = 0;
     this.shadow = scene.add.ellipse(0, 0, 90, 22, 0x000000, 0.35).setDepth(99);
-    this.img = scene.add.image(0, 0, crateTexture(scene)).setOrigin(0.5, 1);
+    const anvil = f.kind === 'anvil' && scene.textures.exists('nakovalna_0');
+    this.img = scene.add.image(0, 0, anvil ? 'nakovalna_0' : crateTexture(scene)).setOrigin(0.5, 1);
+    if (anvil) {
+      this.img.setScale(1.15);
+      this.shadow.setFillStyle(0x550000, 0.4);
+    }
   }
 
   flash() {}

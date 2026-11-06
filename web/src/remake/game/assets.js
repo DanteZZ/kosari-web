@@ -46,6 +46,13 @@ export const SPRITES = {
   headshot: 1,
   explosion: 17,
   boss1_stand: 1,
+  povar: 1,
+  povar_rev: 1,
+  povar_vilka: 46,
+  povar_skorovodka: 5,
+  kastrule: 20,
+  borsch: 20,
+  little_nakovalnya: 10,
   boss1_go: 1,
   boss_throw: 3,
   boss_lives0: 1,
@@ -93,6 +100,16 @@ export const SOUNDS = {
   superudar: 'WAV',
   thunder: 'mp3',
   credits: 'mp3',
+  eto_vlad_borsh: 'wav',
+  'BLYA!!!': 'wav',
+  blya: 'wav',
+  poreshau: 'wav',
+  haa: 'wav',
+  haha2: 'wav',
+  mmm: 'wav',
+  pidarblya: 'wav',
+  poovar: 'wav',
+  professiya_: 'wav',
 };
 
 function spriteUrl(name, i) {
@@ -190,5 +207,9 @@ export function createGameAnimations(scene) {
   mk('grenade_r', 'grenade_spr_throw_r', 20, 14, 0);
   mk('grenade_l', 'grenade_spr_throw_l', 20, 14, 0);
   mk('explosion_anim', 'explosion', 17, 16, 0);
+  mk('kastrule_spin', 'kastrule', 20, 24);
+  mk('skovorodka_spin', 'povar_skorovodka', 5, 16);
+  mk('borsch_spin', 'borsch', 20, 20);
+  mk('bomb_fuse', 'boss_throw', 3, 12);
   mk('thunder_flash', 'thunder', 5, 12, 0);
 }

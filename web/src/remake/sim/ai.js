@@ -2,6 +2,7 @@ import { ATTACK_TOKENS } from './constants.js';
 import { BTN } from './input.js';
 import { MOVES } from './moves.js';
 import { FIGHTERS } from './fighters.js';
+import { BOSS_AI } from './bosses.js';
 
 const FREE = new Set(['idle', 'walk']);
 const DOWNED = new Set(['airhit', 'down', 'getup']);
@@ -23,7 +24,7 @@ export function thinkAll(world) {
   const sides = new Map(players.map((p) => [p.id, { '-1': 0, '1': 0 }]));
 
   for (const e of world.fighters) {
-    if (!e.ai || e.dead) continue;
+    if (!e.ai || e.dead || FIGHTERS[e.kind].bossAI) continue;
     if (e.ai.mode === 'engage' && engaged.has(e.ai.target) && !FIGHTERS[e.kind].ai.ignoreTokens) {
       engaged.set(e.ai.target, engaged.get(e.ai.target) + 1);
     }
@@ -50,7 +51,9 @@ export function thinkAll(world) {
 
   for (const e of world.fighters) {
     if (!e.ai || e.dead) continue;
-    think(world, e, players, engaged, sides);
+    const boss = FIGHTERS[e.kind].bossAI;
+    if (boss) BOSS_AI[boss](world, e, players);
+    else think(world, e, players, engaged, sides);
   }
 }
 

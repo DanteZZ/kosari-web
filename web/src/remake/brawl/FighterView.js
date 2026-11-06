@@ -17,6 +17,8 @@ const VARIANTS = {
   runner: { skin: 'nikita', scale: 0.9, tint: 0x86c8ff },
   thrower: { skin: 'buiniy', scale: 0.95, tint: 0xb3c79a },
   blocker: { skin: 'nikita', scale: 1.12, tint: 0x7f93b8 },
+  /** Original boss 1 uses the masked-hoodie rig. */
+  borsch: { skin: 'boss1', scale: 1.08, tint: null },
 };
 
 const PLAYER_SCALE = 1 / 1.5;

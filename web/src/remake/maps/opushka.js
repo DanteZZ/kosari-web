@@ -1,0 +1,58 @@
+/**
+ * Map "Опушка" — second map. Anvils and the airship from the original game
+ * are active the whole way; ends with Повар (3 phases + fork rain).
+ * Format: see forest.js.
+ */
+export default {
+  id: 'opushka',
+  name: 'Опушка',
+  length: 5600,
+  start: { x: 260, z: 80 },
+  scaling: 0.1,
+  /** Original hazards on this map: [min, max] ticks between drops / flights. */
+  anvils: [520, 820],
+  airships: [1500, 2200],
+  arenas: [
+    {
+      id: 'o1',
+      trigger: 720,
+      left: 380,
+      right: 1500,
+      reward: [{ kind: 'heal', amount: 50 }],
+      waves: [
+        { nextAt: 1, spawns: [{ kind: 'nikita', count: 4, from: 'both', every: 26 }, { kind: 'runner', count: 2, from: 'right', every: 50 }] },
+        { banner: 'Буйные!', spawns: [{ kind: 'buiniy', count: 3, from: 'both', every: 50 }, { kind: 'nikita', count: 3, from: 'drop', every: 30 }] },
+      ],
+    },
+    {
+      id: 'o2',
+      trigger: 2000,
+      left: 1700,
+      right: 2850,
+      reward: [{ kind: 'heal', amount: 60 }],
+      waves: [
+        { nextAt: 2, spawns: [{ kind: 'thrower', count: 3, from: 'both', every: 40 }, { kind: 'blocker', count: 2, from: 'left', every: 60 }] },
+        { banner: 'Толпа!', spawns: [{ kind: 'nikita', count: 9, from: 'both', every: 12 }, { kind: 'buiniy', count: 2, from: 'both', every: 70 }] },
+      ],
+    },
+    {
+      id: 'o3',
+      trigger: 3300,
+      left: 3000,
+      right: 4150,
+      reward: [{ kind: 'heal', amount: 80 }],
+      waves: [
+        { nextAt: 2, spawns: [{ kind: 'runner', count: 4, from: 'both', every: 24 }, { kind: 'blocker', count: 2, from: 'both', every: 50 }] },
+        { banner: 'Перед Поваром', spawns: [{ kind: 'nikita', count: 5, from: 'drop', every: 18 }, { kind: 'thrower', count: 2, from: 'right', every: 60 }, { kind: 'buiniy', count: 2, from: 'left', every: 60 }] },
+      ],
+    },
+    {
+      id: 'boss',
+      boss: true,
+      trigger: 4650,
+      left: 4350,
+      right: 5600,
+      waves: [{ banner: 'Повар', spawns: [{ kind: 'povar', count: 1, from: 'right' }] }],
+    },
+  ],
+};

@@ -11,10 +11,22 @@ import { DT, METER_MAX } from '../sim/constants.js';
 import { MOVES } from '../sim/moves.js';
 import { FighterView } from './FighterView.js';
 import { CrateView } from './CrateView.js';
+import { SpriteFighterView, SPRITE_KINDS } from './SpriteFighterView.js';
+import { ROAD_Y } from './stage.js';
 import { WEAPONS, WEAPON_SLOTS, SHOP } from '../sim/items.js';
 import { WEAPON_DEFS } from '../game/player/weapons.js';
 import { KeyboardInput } from './keyboard.js';
 import { stage, LANE_DEPTH } from './stage.js';
+
+/** Original-game throwables: sprite key, animation, on-screen size, spin per frame. */
+const ORIG_PROJ = {
+  bomb: { key: 'boss_throw_0', anim: 'bomb_fuse', size: 48, spin: 4 },
+  pot: { key: 'kastrule_0', anim: 'kastrule_spin', size: 56 },
+  pan: { key: 'povar_skorovodka_0', anim: 'skovorodka_spin', size: 62 },
+  fork: { key: 'povar_vilka_0', size: 130, angle: 180 },
+  dirigbomb: { key: 'dirig_bomb_0', anim: 'dirig_bomb_fall', size: 64 },
+  anvil: { key: 'nakovalna_0', size: 90, spin: 9 },
+};
 
 /** Slight over-zoom so camera roll never shows the edges. */
 const BASE_ZOOM = 1.015;
@@ -68,6 +80,9 @@ export class BrawlScene extends Phaser.Scene {
     this.pickupViews = new Map();
     this.projViews = new Map();
     this.viewPool = new Map();
+    this.airshipViews = new Map();
+    this.markViews = new Map();
+    this.immuneHintT = 0;
     this.shopOpen = false;
     this.keys = new KeyboardInput(this);
 
@@ -93,7 +108,7 @@ export class BrawlScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     kb.on('keydown-P', () => this.togglePause());
     kb.on('keydown-ENTER', () => {
-      if (this.finished) this.scene.restart();
+      if (this.finished) this.scene.restart({ map: this.map?.next || this.map?.id, onExit: this.onExit });
       else this.togglePause();
     });
     kb.on('keydown-ESC', () => {
@@ -118,6 +133,7 @@ export class BrawlScene extends Phaser.Scene {
       this.game.events.off('remake-resize', this._onResize);
       this.sound.stopByKey('game');
       this.sound.stopByKey('boss');
+      this.sound.stopByKey('dirigabb_sound');
     });
     if (this.map) this.banner(this.map.name, 'Иди вперёд →', 1800);
 
@@ -216,7 +232,12 @@ export class BrawlScene extends Phaser.Scene {
           v = pool.pop();
           v.reset(f);
         } else {
-          v = f.kind === 'crate' ? new CrateView(this, f) : new FighterView(this, f);
+          v =
+            f.kind === 'crate' || f.kind === 'anvil'
+              ? new CrateView(this, f)
+              : SPRITE_KINDS.has(f.kind)
+                ? new SpriteFighterView(this, f)
+                : new FighterView(this, f);
         }
         this.views.set(f.id, v);
       }
@@ -238,6 +259,7 @@ export class BrawlScene extends Phaser.Scene {
     }
     this.renderPickups(alpha);
     this.renderProjectiles(alpha);
+    this.renderAirships(alpha);
 
     this.updateCamera(frameMs / 1000, alpha);
     this.updateHud();
@@ -376,6 +398,8 @@ export class BrawlScene extends Phaser.Scene {
           break;
         case 'spawn':
           if (ev.from === 'drop') this.sound.play('beep', { volume: 0.1, rate: 0.5 });
+          if (ev.kind === 'borsch') this.sound.play('eto_vlad_borsh', { volume: 0.6 });
+          if (ev.kind === 'povar') this.sound.play('professiya_', { volume: 0.6 });
           break;
         case 'shot':
           this.onShot(ev);
@@ -413,11 +437,67 @@ export class BrawlScene extends Phaser.Scene {
           this.onCrateBreak(ev);
           break;
         case 'toss':
-          this.sound.play('udar', { volume: 0.2, rate: 1.3 });
+          if (ev.kind === 'bottle' || ev.kind === 'pot' || ev.kind === 'pan' || ev.kind === 'bomb') this.sound.play('udar', { volume: 0.2, rate: 1.3 });
+          if ((ev.kind === 'pot' || ev.kind === 'pan') && Math.random() < 0.3) this.sound.play('mmm', { volume: 0.4 });
+          break;
+        case 'immune':
+          this.sound.play('no_bulet', { volume: 0.35, rate: 0.7 });
+          if (this.time.now > this.immuneHintT && ev.hint) {
+            this.immuneHintT = this.time.now + 3500;
+            this.popText(ev.x, stage.groundY(ev.z) - 300, ev.hint, '#ffe27a', 22);
+          }
+          break;
+        case 'bossHit':
+          this.shake(260, 10);
+          this.punch(0.05);
+          this.sound.play(Math.random() < 0.5 ? 'BLYA!!!' : 'blya', { volume: 0.5 });
+          break;
+        case 'bossPhase':
+          this.banner('Сбежал!', 'Берегись вилок', 1400, true);
+          this.sound.play('haha2', { volume: 0.5 });
+          break;
+        case 'forkRain':
+          this.sound.play('warning', { volume: 0.3 });
+          break;
+        case 'bossReturn':
+          this.banner('Повар вернулся!', `Фаза ${ev.phase}/3`, 1300, true);
+          this.sound.play('poovar', { volume: 0.5 });
+          break;
+        case 'forkStick':
+          this.sound.play('hit', { volume: 0.12, rate: 1.8 });
+          break;
+        case 'airship':
+          this.sound.play('dirigabb_poyav', { volume: 0.45 });
+          if (!this.sound.get('dirigabb_sound')?.isPlaying) this.sound.play('dirigabb_sound', { loop: true, volume: 0.3 });
+          break;
+        case 'airshipGone':
+          this.sound.stopByKey('dirigabb_sound');
+          break;
+        case 'anvilIncoming':
+          this.sound.play('warning', { volume: 0.15, rate: 1.4 });
+          break;
+        case 'anvilLand':
+          this.shake(200, 8);
+          this.dust(ev.x, ev.z, 1.8);
+          this.sound.play('punch', { volume: 0.5, rate: 0.6 });
+          break;
+        case 'anvilBreak':
+          this.anvilPieces(ev.x, ev.z);
+          this.sound.play('hit', { volume: 0.35, rate: 0.7 });
+          break;
+        case 'anvilLaunch':
+          this.shake(120, 6);
+          this.sound.play('superudar', { volume: 0.45 });
+          this.popText(ev.x, stage.groundY(ev.z) - 160, 'АХТУНГ!', '#ffd23f', 26);
           break;
         case 'shatter':
-          this.shards(ev.x, ev.z, ev.y);
-          this.sound.play('hit', { volume: 0.35, rate: 1.5 });
+          if (ev.kind === 'bottle') {
+            this.shards(ev.x, ev.z, ev.y);
+            this.sound.play('hit', { volume: 0.35, rate: 1.5 });
+          } else {
+            this.sound.play('punch', { volume: 0.3, rate: 1.4 });
+            this.dust(ev.x, ev.z, 0.6);
+          }
           break;
         case 'reflect':
           this.shake(80, 3);
@@ -540,9 +620,18 @@ export class BrawlScene extends Phaser.Scene {
       let img = this.projViews.get(pr.id);
       if (!img) {
         if (pr.spec.tex === 'bottle') this.bottleTexture();
-        const key = `proj_${pr.spec.tex}`;
-        img = this.add.image(0, 0, this.textures.exists(key) ? key : '__DEFAULT').setOrigin(0.5);
-        img.setScale(pr.spec.kind === 'rocket' ? 0.75 : pr.spec.kind === 'pellet' ? 0.5 : pr.spec.kind === 'bottle' ? 1 : 0.55);
+        const orig = ORIG_PROJ[pr.spec.tex];
+        if (orig) {
+          img = this.add.sprite(0, 0, this.textures.exists(orig.key) ? orig.key : '__DEFAULT').setOrigin(0.5);
+          if (orig.anim && this.anims.exists(orig.anim)) img.play(orig.anim);
+          img.setScale(orig.size / (Math.max(img.width, img.height) || 1));
+          if (orig.angle) img.setAngle(orig.angle);
+          img.origSpin = orig.spin || 0;
+        } else {
+          const key = `proj_${pr.spec.tex}`;
+          img = this.add.image(0, 0, this.textures.exists(key) ? key : '__DEFAULT').setOrigin(0.5);
+          img.setScale(pr.spec.kind === 'rocket' ? 0.75 : pr.spec.kind === 'pellet' ? 0.5 : pr.spec.kind === 'bottle' ? 1 : 0.55);
+        }
         img.setFlipX(pr.vx < 0);
         // Line the shot up with the barrel as drawn this frame (aim pose / recoil
         // move the gun a little; the sim keeps a fixed muzzle height)
@@ -558,6 +647,18 @@ export class BrawlScene extends Phaser.Scene {
         img.angle += Math.sign(pr.vx) * 14;
         img.setTint(pr.reflected ? 0xffe27a : 0xffffff);
       }
+      if (img.origSpin) img.angle += Math.sign(pr.vx || 1) * img.origSpin;
+      if (pr.reflected && pr.spec.reflectable) img.setTint(0xffe27a);
+      // Landing marker for things falling / lobbed onto the road
+      if (pr.spec.marker && !pr.reflected) {
+        let mk = this.markViews.get(pr.id);
+        if (!mk) {
+          mk = this.add.ellipse(0, 0, 70, 18).setStrokeStyle(3, 0xff3b2f, 0.9).setFillStyle(0xff3b2f, 0.18);
+          this.markViews.set(pr.id, mk);
+        }
+        const k = Math.min(1, Math.max(0.3, 1 - pr.y / 600));
+        mk.setPosition(pr.tx, stage.groundY(pr.tz)).setScale(0.6 + k * 0.5).setDepth(stage.depth(pr.tz) - 1);
+      }
       if (pr.spec.kind === 'rocket' && Math.random() < 0.6) {
         const puff = this.add.circle(x - Math.sign(pr.vx) * 26, stage.groundY(z) - pr.y + img.offY, 6, 0xdddddd, 0.6).setDepth(stage.depth(z) + 1);
         this.tweens.add({ targets: puff, scale: 3, alpha: 0, duration: 420, onComplete: () => puff.destroy() });
@@ -568,6 +669,54 @@ export class BrawlScene extends Phaser.Scene {
         img.destroy();
         this.projViews.delete(id);
       }
+    }
+    for (const [id, mk] of this.markViews) {
+      const pr = this.world.projectiles.find((q) => q.id === id);
+      if (!pr || pr.reflected) {
+        mk.destroy();
+        this.markViews.delete(id);
+      }
+    }
+  }
+
+  renderAirships(alpha) {
+    const seen = new Set();
+    for (const s of this.world.airships) {
+      seen.add(s.id);
+      let spr = this.airshipViews.get(s.id);
+      if (!spr) {
+        spr = this.add.sprite(0, 0, 'dirig_0').setOrigin(0.5).setScale(1.1).setDepth(60);
+        if (this.anims.exists('dirig_fly')) spr.play('dirig_fly');
+        // Art faces left
+        spr.setFlipX(s.vx > 0);
+        this.airshipViews.set(s.id, spr);
+      }
+      const x = s.px + (s.x - s.px) * alpha;
+      spr.setPosition(x, ROAD_Y - s.y + Math.sin(this.time.now / 600) * 6);
+    }
+    for (const [id, spr] of this.airshipViews) {
+      if (!seen.has(id)) {
+        spr.destroy();
+        this.airshipViews.delete(id);
+      }
+    }
+  }
+
+  anvilPieces(x, z) {
+    const y = stage.groundY(z) - 30;
+    for (let i = 0; i < 6; i += 1) {
+      const key = this.textures.exists(`little_nakovalnya_${i % 10}`) ? `little_nakovalnya_${i % 10}` : '__DEFAULT';
+      const p = this.add.image(x, y, key).setScale(0.45).setDepth(stage.depth(z) + 1);
+      this.tweens.add({
+        targets: p,
+        x: x + Phaser.Math.Between(-90, 90),
+        y: y + Phaser.Math.Between(-80, 20),
+        angle: Phaser.Math.Between(-360, 360),
+        alpha: 0,
+        duration: 500 + Math.random() * 200,
+        ease: 'Quad.easeOut',
+        onComplete: () => p.destroy(),
+      });
     }
   }
 
@@ -1012,7 +1161,12 @@ export class BrawlScene extends Phaser.Scene {
     h.bossName.setVisible(bossOn);
     h.bossBack.setVisible(bossOn);
     h.bossFill.setVisible(bossOn);
-    if (boss) h.bossFill.width = 414 * Math.max(0, boss.hp / boss.maxHp);
+    if (boss) {
+      h.bossFill.width = 414 * Math.max(0, boss.hp / boss.maxHp);
+      h.bossName.setText((FIGHTERS[boss.kind].title || 'Босс').toUpperCase());
+      const off = boss.away || boss.retreating;
+      h.bossFill.setAlpha(off ? 0.35 : 1);
+    }
   }
 }
 
