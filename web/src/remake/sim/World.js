@@ -1114,13 +1114,13 @@ export class World {
         owner: f.id,
         team: f.team,
         spec: w.proj,
-        x: f.x + f.facing * 58,
+        x: f.x + f.facing * w.muzzle.x,
         z: f.z + dz * 0.3,
         vz: dz * 0.06,
-        y: 116,
-        px: f.x + f.facing * 58,
+        y: f.y + w.muzzle.y,
+        px: f.x + f.facing * w.muzzle.x,
         pz: f.z,
-        py: 116,
+        py: f.y + w.muzzle.y,
         vx: f.facing * w.proj.speed * (n > 1 ? this.rng.range(0.92, 1.05) : 1),
         life: w.proj.life,
         hit: [],
@@ -1149,7 +1149,8 @@ export class World {
         if (pr.dead) break;
         if (t.team === pr.team || t.dead || UNHITTABLE.has(t.state) || t.iframes > 0) continue;
         if (t.state === 'grabbed' || pr.hit.includes(t.id)) continue;
-        if (Math.abs(t.x - pr.x) > 30 + Math.abs(pr.vx) * 0.5 || Math.abs(t.z - pr.z) > 22 || t.y > 170) continue;
+        if (Math.abs(t.x - pr.x) > 30 + Math.abs(pr.vx) * 0.5 || Math.abs(t.z - pr.z) > 22) continue;
+        if (pr.y < t.y - 10 || pr.y > t.y + 250) continue;
         if (sp.explode) {
           this._explode(pr);
           break;

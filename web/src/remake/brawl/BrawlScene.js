@@ -501,13 +501,18 @@ export class BrawlScene extends Phaser.Scene {
         img = this.add.image(0, 0, this.textures.exists(key) ? key : '__DEFAULT').setOrigin(0.5);
         img.setScale(pr.spec.kind === 'rocket' ? 0.75 : pr.spec.kind === 'pellet' ? 0.5 : 0.55);
         img.setFlipX(pr.vx < 0);
+        // Line the shot up with the barrel as drawn this frame (aim pose / recoil
+        // move the gun a little; the sim keeps a fixed muzzle height)
+        img.offY = 0;
+        const m = this.views.get(pr.owner)?.muzzle?.();
+        if (m) img.offY = Phaser.Math.Clamp(m.y - (stage.groundY(pr.z) - pr.y), -60, 60);
         this.projViews.set(pr.id, img);
       }
       const x = pr.px + (pr.x - pr.px) * alpha;
       const z = pr.pz + (pr.z - pr.pz) * alpha;
-      img.setPosition(x, stage.groundY(z) - pr.y).setDepth(stage.depth(z) + 2);
+      img.setPosition(x, stage.groundY(z) - pr.y + img.offY).setDepth(stage.depth(z) + 2);
       if (pr.spec.kind === 'rocket' && Math.random() < 0.6) {
-        const puff = this.add.circle(x - Math.sign(pr.vx) * 26, stage.groundY(z) - pr.y, 6, 0xdddddd, 0.6).setDepth(stage.depth(z) + 1);
+        const puff = this.add.circle(x - Math.sign(pr.vx) * 26, stage.groundY(z) - pr.y + img.offY, 6, 0xdddddd, 0.6).setDepth(stage.depth(z) + 1);
         this.tweens.add({ targets: puff, scale: 3, alpha: 0, duration: 420, onComplete: () => puff.destroy() });
       }
     }
