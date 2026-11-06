@@ -9,7 +9,8 @@ const base = process.env.VITE_BASE || (repo ? `/${repo}/` : '/');
 /**
  * Multi-page site:
  *   /          — launcher (pick a game)
- *   /classic/  — Kosari Classic (faithful GM8 port), code in src/classic, assets in public/classic
+ *   /classic/  — Kosari Classic: the original GM8 game on a small GM runtime (src/classic/gm),
+ *                data exported by scripts/export_gm.py into public/classic/gm
  *   /remake/   — Kosari Remake (new beat'em up),    code in src/remake,  assets in public/remake
  * Game code loads assets via relative "assets/..." URLs, so each page resolves
  * them under its own folder (/classic/assets, /remake/assets).
