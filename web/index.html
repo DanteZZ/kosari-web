@@ -4,39 +4,27 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#000000" />
-    <title>Косари v3.0</title>
+    <title>Косари — Remake</title>
     <link rel="icon" href="./favicon.ico" type="image/x-icon" />
-    <style>
-      html,
-      body {
-        margin: 0;
-        width: 100%;
-        height: 100%;
-        height: 100dvh;
-        overflow: hidden;
-        background: #000;
-        touch-action: none;
-      }
-
-      /* Integer zoom is applied in main.js — do not override canvas size here. */
-      #game {
-        position: fixed;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        overflow: hidden;
-        background: #000;
-      }
-
-      #game canvas {
-        display: block;
-        image-rendering: pixelated;
-        image-rendering: crisp-edges;
-      }
-    </style>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/src/styles/main.css" />
   </head>
   <body>
-    <div id="game"></div>
+    <div id="app">
+      <div id="ui-root"></div>
+      <div id="game-shell" class="hidden" aria-hidden="true">
+        <div id="game-stage"></div>
+        <div id="pause-overlay" class="hidden">
+          <p class="display">Пауза</p>
+          <p>Enter — продолжить · Esc — в меню</p>
+        </div>
+      </div>
+    </div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>

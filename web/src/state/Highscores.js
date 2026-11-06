@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'kosari_highscores_v1';
+const STORAGE_KEY = 'kosari_remake_highscores_v1';
 const MAX = 10;
 
 function read() {
