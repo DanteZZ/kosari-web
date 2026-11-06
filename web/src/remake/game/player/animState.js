@@ -11,6 +11,10 @@ import {
   KICK_SPIN_R,
   KICK_FLY_R,
   PUNCH_SUPERMAN_R,
+  GRAB_HOLD,
+  KNEE_R,
+  THROW_HEAVE,
+  RAGE_STOMP,
 } from './anims.js';
 
 /** Brawl-core strikes (editable in the anim editor as extra clips). */
@@ -20,6 +24,10 @@ const BRAWL_CLIPS = [
   ['kick_spin_r', 'Вертушка', KICK_SPIN_R, 0.55, 'r', 'kick'],
   ['kick_fly_r', 'Удар в прыжке', KICK_FLY_R, 0.4, 'r', 'kick'],
   ['punch_superman_r', 'Удар с рывка', PUNCH_SUPERMAN_R, 0.38, 'r', 'punch'],
+  ['grab_hold', 'Захват (удержание)', GRAB_HOLD, 1, 'r', 'grab'],
+  ['knee_r', 'Колено в захвате', KNEE_R, 0.26, 'r', 'kick'],
+  ['throw_heave', 'Бросок', THROW_HEAVE, 0.45, 'r', 'throw'],
+  ['rage_stomp', 'Ярость (спецудар)', RAGE_STOMP, 0.6, 'r', 'special'],
 ];
 
 function clone(v) {

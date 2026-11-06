@@ -73,7 +73,7 @@ function think(world, e, players, engaged, sides) {
   const rng = world.rng;
   e.cmd = 0;
 
-  if (DOWNED.has(e.state) || e.state === 'hitstun') {
+  if (DOWNED.has(e.state) || e.state === 'hitstun' || e.state === 'grabbed') {
     if (ai.mode === 'engage') {
       engaged.set(ai.target, Math.max(0, (engaged.get(ai.target) || 1) - 1));
     }

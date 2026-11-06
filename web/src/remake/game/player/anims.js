@@ -894,6 +894,107 @@ export const PUNCH_SUPERMAN_R = [
   { t: 1, pose: { arm_r_u: 0, arm_r_l: 0, arm_l_u: 0, arm_l_l: 0, torso: 0, head: 0, hipsY: 0, leg_l_u: 0, leg_l_l: 0, leg_r_u: 0, leg_r_l: 0 } },
 ];
 
+/** Holding a grabbed enemy: both arms forward on their collar. */
+export const GRAB_HOLD = [
+  {
+    t: 0,
+    pose: {
+      arm_r_u: -62, arm_r_l: 34, arm_l_u: -54, arm_l_l: 30,
+      torso: 10, head: -4, hipsY: 4,
+      leg_l_u: 10, leg_l_l: 12, leg_r_u: -14, leg_r_l: 16,
+    },
+  },
+  {
+    t: 1,
+    pose: {
+      arm_r_u: -62, arm_r_l: 34, arm_l_u: -54, arm_l_l: 30,
+      torso: 10, head: -4, hipsY: 4,
+      leg_l_u: 10, leg_l_l: 12, leg_r_u: -14, leg_r_l: 16,
+    },
+  },
+];
+
+/** Knee strike to a held enemy (arms keep the hold). */
+export const KNEE_R = [
+  { t: 0, pose: { ...GRAB_HOLD[0].pose } },
+  {
+    t: 0.3,
+    pose: {
+      arm_r_u: -48, arm_r_l: 46, arm_l_u: -42, arm_l_l: 44,
+      torso: 18, head: -8, hipsY: -6,
+      leg_r_u: -96, leg_r_l: 92, leg_l_u: 6, leg_l_l: 2,
+    },
+  },
+  {
+    t: 0.6,
+    pose: {
+      arm_r_u: -56, arm_r_l: 38, arm_l_u: -50, arm_l_l: 34,
+      torso: 14, head: -6, hipsY: 0,
+      leg_r_u: -50, leg_r_l: 60, leg_l_u: 8, leg_l_l: 8,
+    },
+  },
+  { t: 1, pose: { ...GRAB_HOLD[0].pose } },
+];
+
+/** Throw: dip and heave the held body up and forward. */
+export const THROW_HEAVE = [
+  { t: 0, pose: { ...GRAB_HOLD[0].pose } },
+  {
+    t: 0.3,
+    pose: {
+      arm_r_u: -20, arm_r_l: 40, arm_l_u: -16, arm_l_l: 36,
+      torso: 26, head: -6, hipsY: 18,
+      leg_l_u: 24, leg_l_l: 50, leg_r_u: -30, leg_r_l: 56,
+    },
+  },
+  {
+    t: 0.5,
+    pose: {
+      arm_r_u: -150, arm_r_l: 10, arm_l_u: -140, arm_l_l: 12,
+      torso: -18, head: 10, hipsY: -12,
+      leg_l_u: 18, leg_l_l: 4, leg_r_u: -20, leg_r_l: 6,
+    },
+  },
+  {
+    t: 0.72,
+    pose: {
+      arm_r_u: -110, arm_r_l: 20, arm_l_u: -100, arm_l_l: 20,
+      torso: -6, head: 4, hipsY: -4,
+    },
+  },
+  { t: 1, pose: { arm_r_u: 0, arm_r_l: 0, arm_l_u: 0, arm_l_l: 0, torso: 0, head: 0, hipsY: 0, leg_l_u: 0, leg_l_l: 0, leg_r_u: 0, leg_r_l: 0 } },
+];
+
+/** Rage special: crouch and gather, then explode outward. */
+export const RAGE_STOMP = [
+  { t: 0, pose: { torso: 0, hipsY: 0 } },
+  {
+    t: 0.3,
+    pose: {
+      torso: 24, head: 12, hipsY: 26,
+      arm_r_u: 30, arm_r_l: -70, arm_l_u: 30, arm_l_l: -70,
+      leg_l_u: 40, leg_l_l: 70, leg_r_u: -44, leg_r_l: 76,
+    },
+  },
+  {
+    t: 0.42,
+    pose: {
+      torso: -14, head: -18, hipsY: -14,
+      arm_r_u: -150, arm_r_l: 0, arm_l_u: 150, arm_l_l: 0,
+      leg_l_u: 34, leg_l_l: 4, leg_r_u: -36, leg_r_l: 4,
+    },
+  },
+  {
+    t: 0.7,
+    pose: {
+      torso: -10, head: -12, hipsY: -10,
+      arm_r_u: -140, arm_r_l: 6, arm_l_u: 140, arm_l_l: 6,
+      leg_l_u: 30, leg_l_l: 6, leg_r_u: -32, leg_r_l: 6,
+    },
+  },
+  { t: 1, pose: { torso: 0, head: 0, hipsY: 0, arm_r_u: 0, arm_r_l: 0, arm_l_u: 0, arm_l_l: 0, leg_l_u: 0, leg_l_l: 0, leg_r_u: 0, leg_r_l: 0 } },
+];
+
 /** Z: right → left → uppercut right */
 export const PUNCH_Z_COMBO = [
   { frames: PUNCH_R, dur: 0.32, hand: 'r', style: 'punch' },

@@ -1,7 +1,7 @@
 import { BonePuppet } from '../game/player/BonePuppet.js';
 import { getEnemySkin, enemyPartTextureKey } from '../game/enemies/parts.js';
 import { getClip, getFlipClip } from '../game/player/animState.js';
-import { sampleKeyframes, jumpPose } from '../game/player/anims.js';
+import { sampleKeyframes, jumpPose, HURT } from '../game/player/anims.js';
 import { MOVES, moveTotal } from '../sim/moves.js';
 import { FLIP_TICKS } from '../sim/constants.js';
 import { stage } from './stage.js';
@@ -57,6 +57,22 @@ export class FighterView {
     this.flashT = 0;
     this.squashT = 0;
     this.squashAmt = 0;
+    this.jolt = 0;
+    this.telegraphT = 0;
+    this.warn = null;
+    if (f.team !== 'player') {
+      this.warn = scene.add
+        .text(0, 0, '!', {
+          fontFamily: 'Russo One, Impact, sans-serif',
+          fontSize: '30px',
+          color: '#ffdd33',
+          stroke: '#000000',
+          strokeThickness: 5,
+        })
+        .setOrigin(0.5, 1)
+        .setDepth(1600)
+        .setVisible(false);
+    }
     this.rot = 0;
     this.knockDir = 1;
 
@@ -115,11 +131,25 @@ export class FighterView {
       this._driveMove(f, alpha, dt);
     } else if (flipU < 1) {
       this._flip(f, flipU, dt);
+    } else if (f.state === 'grab') {
+      this._resetSpin();
+      this.puppet.setFacing(f.facing > 0 ? 1 : 0);
+      this.puppet.drive(dt, sampleKeyframes(getClip('grab_hold')?.frames || [], 0, { ease: false }), { snap: 0.6 });
+    } else if (f.state === 'grabbed') {
+      // Folded over in the hold; jolts when kneed
+      this._resetSpin();
+      this.puppet.setFacing(f.facing > 0 ? 1 : 0);
+      const pose = sampleKeyframes(HURT, this.jolt > 0 ? 0.16 : 0.38, { ease: false });
+      this.puppet.drive(dt, pose, { snap: this.jolt > 0 ? 0.9 : 0.45 });
+      if (this.jolt > 0) this.jolt -= frameMs;
     } else {
-      // Body rotation: knockdown fall, lying, getting up
+      // Body rotation: knockdown fall, lying, getting up, tumbling when thrown
       let targetRot = 0;
       let snap = 1 - Math.exp(-dt * 18);
-      if (f.state === 'airhit') {
+      if (f.state === 'airhit' && f.thrown) {
+        this.rot = (this.rot + dt * 820 * this.knockDir) % 360;
+        targetRot = this.rot;
+      } else if (f.state === 'airhit') {
         targetRot = this.knockDir * 55;
       } else if (f.state === 'down' || f.state === 'dead') {
         targetRot = this.knockDir * 86;
@@ -127,10 +157,13 @@ export class FighterView {
       } else if (f.state === 'getup') {
         snap = 1 - Math.exp(-dt * 12);
       }
-      if (Math.abs(this.rot) > 180) this.rot = 0;
+      const tumbling = f.state === 'airhit' && f.thrown;
+      if (!tumbling && Math.abs(this.rot) > 180) this.rot = 0;
       this.rot += (targetRot - this.rot) * snap;
-      this.spin.setPosition(0, 0);
-      this.mount.setPosition(0, 0);
+      // Thrown bodies tumble around their middle; everything else pivots at the feet
+      const pivot = tumbling ? this.hipsH : 0;
+      this.spin.setPosition(0, -pivot);
+      this.mount.setPosition(0, pivot);
       this.spin.setAngle(this.rot);
 
       this.puppet.setFacing(f.facing > 0 ? 1 : 0);
@@ -160,6 +193,16 @@ export class FighterView {
       if (this.flashT <= 0) for (const s of this.sprites) s.clearTint();
     }
 
+    if (this.warn) {
+      const on = this.telegraphT > 0 && f.state === 'attack' && !f.dead;
+      if (on) {
+        this.telegraphT -= frameMs;
+        const pulse = 1 + 0.25 * Math.sin(this.telegraphT * 0.04);
+        this.warn.setPosition(Math.round(x), Math.round(gy - y - this.bodyH - 18)).setScale(pulse);
+      }
+      this.warn.setVisible(on);
+    }
+
     if (this.hpBar) {
       const show = f.hp < f.maxHp && !f.dead;
       this.hpBar.setVisible(show);
@@ -172,6 +215,14 @@ export class FighterView {
         this.hpBar.fillStyle(0xe2463b, 1).fillRect(bx, by, Math.max(0, (w * f.hp) / f.maxHp), 5);
       }
     }
+  }
+
+  /** Enemy wind-up warning above the head for `ms`. */
+  telegraph(ms, heavy) {
+    if (!this.warn) return;
+    this.telegraphT = ms;
+    this.warn.setText(heavy ? '!!' : '!');
+    this.warn.setColor(heavy ? '#ff4d3d' : '#ffdd33');
   }
 
   /** Take-off / landing squash (called from scene events). */
@@ -251,8 +302,13 @@ export class FighterView {
     if (!a) return;
     if (a.type === 'move') {
       // Posed every frame in _driveMove from the sim tick
+    } else if (a.type === 'hurt' && a.reaction === 'held') {
+      this.jolt = 90;
+      this.flash(60);
+      this.telegraphT = 0;
     } else if (a.type === 'hurt') {
       this.knockDir = a.dir || 1;
+      this.telegraphT = 0;
       const dur = a.reaction === 'flinch' ? 0.3 : 0.5;
       this.puppet.playHurt(null, dur, { mirror: false });
       this.flash(a.reaction === 'kill' ? 110 : 70);
@@ -263,6 +319,7 @@ export class FighterView {
     this.shadow.destroy();
     this.visual.destroy(true);
     this.hpBar?.destroy();
+    this.warn?.destroy();
   }
 }
 

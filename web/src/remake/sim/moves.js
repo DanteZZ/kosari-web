@@ -86,6 +86,42 @@ export const MOVES = {
     heavy: true,
   },
 
+  // ---- Grab: knees on the held enemy, then throw
+  knee: {
+    clip: 'knee_r',
+    startup: 4, active: 2, recovery: 9,
+    dmg: 6, reach: [0, 90], depth: 24, grabOnly: true,
+    hitstun: 0, kb: 0, hitstop: 5, lunge: 0,
+    sfx: 'udar',
+  },
+  knee_final: {
+    clip: 'knee_r',
+    startup: 5, active: 2, recovery: 14,
+    dmg: 10, reach: [0, 90], depth: 24, grabOnly: true,
+    hitstun: 0, kb: 7, knockdown: true, hitstop: 8, lunge: 0,
+    sfx: 'superudar',
+    heavy: true,
+  },
+  /** Heave the held enemy into the crowd (released at the impact frame). */
+  throw: {
+    clip: 'throw_heave',
+    startup: 10, active: 1, recovery: 16, throw: true,
+    dmg: 8, reach: [0, 0], depth: 0,
+    hitstun: 0, kb: 13, hitstop: 6, lunge: 0,
+    sfx: 'superudar',
+    heavy: true,
+  },
+
+  // ---- Rage special: shockwave around the player (costs a full meter)
+  rage: {
+    clip: 'rage_stomp',
+    startup: 10, active: 6, recovery: 20, special: true,
+    dmg: 22, reach: [0, 200], depth: 90, sweep: true,
+    hitstun: 0, kb: 9, launch: 11, hitstop: 10, lunge: 0,
+    sfx: 'superudar',
+    heavy: true,
+  },
+
   // ---- Enemies: slow, readable wind-ups
   e_jab: {
     clip: 'punch_r',

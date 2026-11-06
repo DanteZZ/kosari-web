@@ -11,10 +11,12 @@ export const BTN = {
   LIGHT: 32,
   HEAVY: 64,
   DASH: 128,
+  /** Rage special (also J+K together). */
+  SPECIAL: 256,
 };
 
 /** Buttons that are edge-triggered and buffered. */
-export const ACTION_BTNS = [BTN.JUMP, BTN.LIGHT, BTN.HEAVY, BTN.DASH];
+export const ACTION_BTNS = [BTN.JUMP, BTN.LIGHT, BTN.HEAVY, BTN.DASH, BTN.SPECIAL];
 
 export function axisX(bits) {
   return (bits & BTN.RIGHT ? 1 : 0) - (bits & BTN.LEFT ? 1 : 0);

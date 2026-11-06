@@ -13,6 +13,7 @@ export const P1_KEYS = {
   [BTN.LIGHT]: [K.J],
   [BTN.HEAVY]: [K.K],
   [BTN.DASH]: [K.L, K.SHIFT],
+  [BTN.SPECIAL]: [K.I],
 };
 
 /**

@@ -25,3 +25,14 @@ export const ATTACK_TOKENS = 2;
 
 /** Somersault length (ticks) on the double jump. */
 export const FLIP_TICKS = 26;
+
+/** Perfect dodge: enemies run at half speed for this many ticks. */
+export const SLOWMO_TICKS = 48;
+/** Rage meter capacity; a full bar unlocks the special. */
+export const METER_MAX = 100;
+/** Max ticks a grab can be held. */
+export const GRAB_TICKS = 110;
+/** Ticks of pushing into a stunned/idle enemy before auto-grab. */
+export const GRAB_CONTACT = 5;
+/** Damage a player soaks in quick succession before being knocked down (anti-lock). */
+export const STAGGER_LIMIT = 26;

@@ -13,4 +13,7 @@ export const CLIP_IMPACT = {
   kick_spin_r: 0.4,
   kick_fly_r: 0.22,
   punch_superman_r: 0.2,
+  knee_r: 0.3,
+  throw_heave: 0.5,
+  rage_stomp: 0.42,
 };

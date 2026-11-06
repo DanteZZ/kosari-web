@@ -4,7 +4,8 @@ import { VIEW_W, VIEW_H } from '../game/constants.js';
 import { createParallax } from '../game/parallax.js';
 import { World } from '../sim/World.js';
 import { SandboxDirector } from '../sim/sandbox.js';
-import { DT } from '../sim/constants.js';
+import { DT, METER_MAX } from '../sim/constants.js';
+import { MOVES } from '../sim/moves.js';
 import { FighterView } from './FighterView.js';
 import { KeyboardInput } from './keyboard.js';
 import { stage, LANE_DEPTH } from './stage.js';
@@ -119,7 +120,8 @@ export class BrawlScene extends Phaser.Scene {
         v = new FighterView(this, f);
         this.views.set(f.id, v);
       }
-      v.render(f, frozen ? 1 : alpha, frozen ? 0 : frameMs / 1000, frameMs);
+      const slowK = this.world.slowmo > 0 && f.team !== 'player' ? 0.5 : 1;
+      v.render(f, frozen ? 1 : alpha, frozen ? 0 : (frameMs / 1000) * slowK, frameMs);
     }
     for (const [id, v] of this.views) {
       if (!alive.has(id)) {
@@ -130,6 +132,9 @@ export class BrawlScene extends Phaser.Scene {
 
     this.updateCamera(frameMs / 1000, alpha);
     this.updateHud();
+    // Perfect-dodge slow motion tint
+    const slowA = this.world.slowmo > 0 ? Math.min(0.16, this.world.slowmo / 60) : 0;
+    this.slowOverlay.setAlpha(this.slowOverlay.alpha + (slowA - this.slowOverlay.alpha) * 0.2);
   }
 
   updateCamera(dt, alpha) {
@@ -163,8 +168,31 @@ export class BrawlScene extends Phaser.Scene {
     if (!evs.length) return;
     for (const ev of evs) {
       switch (ev.type) {
-        case 'swing':
+        case 'swing': {
           if (ev.sfx) this.sound.play(ev.sfx, { volume: 0.32 });
+          const f = this.world.fighters.find((x) => x.id === ev.id);
+          if (f && f.team !== 'player') {
+            const m = MOVES[ev.move];
+            this.views.get(ev.id)?.telegraph((m.startup / 60) * 1000, !!m.knockdown);
+          }
+          break;
+        }
+        case 'grab':
+          this.sound.play('punch', { volume: 0.25, rate: 0.8 });
+          break;
+        case 'throw':
+          this.sound.play('superudar', { volume: 0.45 });
+          this.shake(140, 6);
+          break;
+        case 'perfect':
+          this.onPerfect(ev);
+          break;
+        case 'rage':
+          this.onRage(ev);
+          break;
+        case 'nometer':
+          this.sound.play('no_bulet', { volume: 0.3 });
+          this.popText(this.player.x, stage.groundY(this.player.z) - 250, 'Мало ярости', '#bbbbbb', 18);
           break;
         case 'hit':
           this.onHit(ev);
@@ -228,6 +256,16 @@ export class BrawlScene extends Phaser.Scene {
       });
     }
 
+    if (ev.dmg) {
+      const big = ev.dmg >= 15 || ev.reaction === 'kill';
+      this.popText(
+        x + Phaser.Math.Between(-12, 12),
+        y - 30,
+        String(ev.dmg),
+        ev.targetTeam === 'player' ? '#ff6a5a' : big ? '#ffd23f' : '#ffffff',
+        big ? 28 : 20,
+      );
+    }
     if (ev.targetTeam === 'player') {
       this.shake(160, 7);
       this.sound.play('-life', { volume: 0.35 });
@@ -236,6 +274,56 @@ export class BrawlScene extends Phaser.Scene {
       this.shake(heavy ? 120 : 70, heavy ? 6 : 3);
     }
     this.sound.play('hit', { volume: heavy ? 0.6 : 0.42, rate: heavy ? 0.9 : 1 + Math.random() * 0.15 });
+  }
+
+  popText(x, y, text, color, size = 20) {
+    const t = this.add
+      .text(x, y, text, {
+        fontFamily: 'Russo One, Impact, sans-serif',
+        fontSize: `${size}px`,
+        color,
+        stroke: '#000000',
+        strokeThickness: 4,
+      })
+      .setOrigin(0.5)
+      .setDepth(1700);
+    this.tweens.add({
+      targets: t,
+      y: y - 46,
+      alpha: 0,
+      duration: 620,
+      ease: 'Cubic.easeOut',
+      onComplete: () => t.destroy(),
+    });
+  }
+
+  onPerfect(ev) {
+    const y = stage.groundY(ev.z) - 250;
+    this.popText(ev.x, y, 'УКЛОН!', '#7fe3ff', 34);
+    this.sound.play('beep', { volume: 0.3, rate: 0.6 });
+    this.slowOverlay.setAlpha(0.22);
+    this.views.get(ev.id)?.flash(80);
+  }
+
+  onRage(ev) {
+    const y = stage.groundY(ev.z);
+    this.shake(320, 12);
+    this.sound.play('explosion2', { volume: 0.5 });
+    const flash = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0xffffff, 0.55).setOrigin(0).setScrollFactor(0).setDepth(4800);
+    this.tweens.add({ targets: flash, alpha: 0, duration: 260, onComplete: () => flash.destroy() });
+    for (let i = 0; i < 2; i += 1) {
+      const ring = this.add.ellipse(ev.x, y, 60, 18).setStrokeStyle(6 - i * 2, i ? 0xffffff : 0xffb627, 1).setDepth(stage.depth(ev.z) + 1);
+      this.tweens.add({
+        targets: ring,
+        scaleX: 7.5 - i * 2,
+        scaleY: 7.5 - i * 2,
+        alpha: 0,
+        duration: 420 + i * 120,
+        ease: 'Cubic.easeOut',
+        onComplete: () => ring.destroy(),
+      });
+    }
+    this.dust(ev.x, ev.z, 2.2);
   }
 
   dust(x, z, size) {
@@ -269,10 +357,13 @@ export class BrawlScene extends Phaser.Scene {
       hpBack: this.add.rectangle(0, 0, 260, 18, 0x000000, 0.55).setOrigin(0, 0),
       hpFill: this.add.rectangle(0, 0, 254, 12, 0x5fd35f, 1).setOrigin(0, 0),
       hpText: this.add.text(0, 0, '', { ...font, fontSize: '14px' }),
+      meterBack: this.add.rectangle(0, 0, 200, 10, 0x000000, 0.55).setOrigin(0, 0),
+      meterFill: this.add.rectangle(0, 0, 196, 6, 0xff8a2a, 1).setOrigin(0, 0),
+      meterText: this.add.text(0, 0, '', { ...font, fontSize: '12px', color: '#ffb627' }),
       kills: this.add.text(0, 0, '', { ...font, fontSize: '18px' }),
       combo: this.add.text(0, 0, '', { ...font, fontSize: '42px', color: '#ffd23f', stroke: '#000000', strokeThickness: 6 }).setOrigin(1, 0),
       fps: this.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: '11px', color: '#ffffffaa' }).setOrigin(1, 0),
-      help: this.add.text(0, 0, 'WASD — ходить · Space — прыжок · J — удар · K — тяжёлый · L/Shift — рывок · P — пауза · Esc — меню', {
+      help: this.add.text(0, 0, 'WASD — ходить · Space ×2 — сальто · J удар · K нога · L/Shift рывок · J+K ярость · в упор к врагу — захват (J колено, K бросок) · P пауза · Esc меню', {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: '#ffffff',
@@ -288,7 +379,9 @@ export class BrawlScene extends Phaser.Scene {
       }).setOrigin(0.5).setVisible(false),
     };
     this.hurtOverlay = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0xff0000, 1).setOrigin(0).setAlpha(0);
-    for (const o of [...Object.values(this.hud), this.hurtOverlay]) o.setScrollFactor(0).setDepth(5000);
+    this.slowOverlay = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x3aa8ff, 1).setOrigin(0).setAlpha(0);
+    for (const o of [...Object.values(this.hud), this.hurtOverlay, this.slowOverlay]) o.setScrollFactor(0).setDepth(5000);
+    this.slowOverlay.setDepth(4850);
     this.hurtOverlay.setDepth(4900);
     this.comboShown = 0;
     this.layoutHud();
@@ -299,12 +392,16 @@ export class BrawlScene extends Phaser.Scene {
     h.hpBack.setPosition(16, 16);
     h.hpFill.setPosition(19, 19);
     h.hpText.setPosition(282, 15);
-    h.kills.setPosition(16, 42);
+    h.meterBack.setPosition(16, 38);
+    h.meterFill.setPosition(18, 40);
+    h.meterText.setPosition(222, 36);
+    h.kills.setPosition(16, 54);
     h.combo.setPosition(VIEW_W - 20, 60);
     h.fps.setPosition(VIEW_W - 8, 6);
     h.help.setPosition(VIEW_W / 2, VIEW_H - 8);
     h.dead.setPosition(VIEW_W / 2, VIEW_H / 2);
     this.hurtOverlay.setSize(VIEW_W, VIEW_H);
+    this.slowOverlay.setSize(VIEW_W, VIEW_H);
   }
 
   updateHud() {
@@ -314,6 +411,11 @@ export class BrawlScene extends Phaser.Scene {
     h.hpFill.width = 254 * k;
     h.hpFill.fillColor = k > 0.5 ? 0x5fd35f : k > 0.25 ? 0xffc23f : 0xe2463b;
     h.hpText.setText(`${p.hp}`);
+    const mk = Math.min(1, p.meter / METER_MAX);
+    h.meterFill.width = 196 * mk;
+    const full = mk >= 1;
+    h.meterFill.fillColor = full ? (Math.floor(this.time.now / 160) % 2 ? 0xffe14a : 0xff5a1f) : 0xff8a2a;
+    h.meterText.setText(full ? 'ЯРОСТЬ: J+K или I' : 'ярость');
     h.kills.setText(`Уложено: ${this.world.kills}   Врагов: ${this.world.enemiesAlive()}`);
     if (p.combo >= 2) {
       if (p.combo !== this.comboShown) {

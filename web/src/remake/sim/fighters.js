@@ -14,7 +14,8 @@ export const FIGHTERS = {
     dashSpeed: 15,
     dashTicks: 14,
     dashIframes: 9,
-    moves: { light: 'jab1', heavy: 'kick', air: 'airkick', dash: 'dashpunch' },
+    canGrab: true,
+    moves: { light: 'jab1', heavy: 'kick', air: 'airkick', dash: 'dashpunch', special: 'rage' },
   },
   nikita: {
     team: 'enemy',
