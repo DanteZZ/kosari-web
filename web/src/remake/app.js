@@ -22,7 +22,7 @@ export function createApp() {
 
   const updateHud = () => {};
 
-  const go = (screen) => {
+  const go = (screen, opts = {}) => {
     if (cleanup) {
       cleanup();
       cleanup = null;
@@ -72,7 +72,7 @@ export function createApp() {
     if (screen === 'brawl') {
       stopMenuMusic();
       setGameVisible(true);
-      startBrawl({ parent: gameStage, onExit: () => go('menu') });
+      startBrawl({ parent: gameStage, onExit: () => go('menu'), map: opts.map });
       return;
     }
     if (screen === 'bones' || screen === 'bones-nikita') {

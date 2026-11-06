@@ -7,6 +7,7 @@ import { SandboxDirector } from '../sim/sandbox.js';
 import { MapDirector } from '../sim/director.js';
 import { FIGHTERS } from '../sim/fighters.js';
 import { MAPS, DEFAULT_MAP } from '../maps/index.js';
+import { saveBest } from '../ui/Menu.js';
 import { DT, METER_MAX } from '../sim/constants.js';
 import { MOVES } from '../sim/moves.js';
 import { FighterView } from './FighterView.js';
@@ -940,6 +941,7 @@ export class BrawlScene extends Phaser.Scene {
     // Grade: fast + healthy + big combos
     const score = (secs < 150 ? 2 : secs < 220 ? 1 : 0) + (hpK > 0.6 ? 2 : hpK > 0.3 ? 1 : 0) + (st.maxCombo >= 25 ? 2 : st.maxCombo >= 12 ? 1 : 0);
     const grade = score >= 6 ? 'S' : score >= 4 ? 'A' : score >= 2 ? 'B' : 'C';
+    if (this.map) saveBest(this.map.id, grade, secs);
     const mm = Math.floor(secs / 60);
     const ss = String(secs % 60).padStart(2, '0');
     this.hud.results

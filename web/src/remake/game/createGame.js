@@ -100,10 +100,10 @@ export function startAnimEditor({ parent, onExit }) {
 }
 
 /** Milestone-1 core: fixed-tick sim on a lane with depth (uncapped render). */
-export function startBrawl({ parent, onExit }) {
+export function startBrawl({ parent, onExit, map }) {
   stopGame();
   game = makeGame(parent, { legacy30: false });
-  game.scene.add('Preload', PreloadScene, true, { onExit, next: 'Brawl' });
+  game.scene.add('Preload', PreloadScene, true, { onExit, next: 'Brawl', map });
   game.scene.add('Brawl', BrawlScene, false);
   window.__kosariRemake = game;
   return game;
