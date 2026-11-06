@@ -6,7 +6,21 @@ import {
   KICK_BRUCE_L,
   FLIP,
   RECOIL,
+  KICK_SNAP_R,
+  KICK_HEAD_R,
+  KICK_SPIN_R,
+  KICK_FLY_R,
+  PUNCH_SUPERMAN_R,
 } from './anims.js';
+
+/** Brawl-core strikes (editable in the anim editor as extra clips). */
+const BRAWL_CLIPS = [
+  ['kick_snap_r', 'K1 Прямой ногой', KICK_SNAP_R, 0.42, 'r', 'kick'],
+  ['kick_head_r', 'K2 Брюс Ли в голову', KICK_HEAD_R, 0.55, 'r', 'kick'],
+  ['kick_spin_r', 'Вертушка', KICK_SPIN_R, 0.55, 'r', 'kick'],
+  ['kick_fly_r', 'Удар в прыжке', KICK_FLY_R, 0.4, 'r', 'kick'],
+  ['punch_superman_r', 'Удар с рывка', PUNCH_SUPERMAN_R, 0.38, 'r', 'punch'],
+];
 
 function clone(v) {
   return JSON.parse(JSON.stringify(v));
@@ -25,11 +39,12 @@ export const animState = {
     kick_knockout: clip('kick_knockout', 'X1 Нокаут', KICK_KNOCKOUT, 0.42, 'l', 'knockout'),
     kick_bruce: clip('kick_bruce', 'X2 Брюс Ли', KICK_BRUCE_L, 0.5, 'l', 'bruce'),
     flip: clip('flip', 'Сальто (группировка)', FLIP, 0.85, 'l', 'flip'),
+    ...Object.fromEntries(BRAWL_CLIPS.map((a) => [a[0], clip(...a)])),
   },
   zOrder: ['punch_r', 'punch_l', 'punch_upper_r'],
   xOrder: ['kick_knockout', 'kick_bruce'],
   /** Clips not in punch combos (editor + runtime oneshots). */
-  miscOrder: ['flip'],
+  miscOrder: ['flip', ...BRAWL_CLIPS.map((a) => a[0])],
   recoil: clone(RECOIL),
 };
 
@@ -83,7 +98,8 @@ export function resetAnimState() {
   );
   animState.clips.kick_bruce = clip('kick_bruce', 'X2 Брюс Ли', KICK_BRUCE_L, 0.5, 'l', 'bruce');
   animState.clips.flip = clip('flip', 'Сальто (группировка)', FLIP, 0.85, 'l', 'flip');
-  animState.miscOrder = ['flip'];
+  for (const a of BRAWL_CLIPS) animState.clips[a[0]] = clip(...a);
+  animState.miscOrder = ['flip', ...BRAWL_CLIPS.map((a) => a[0])];
   animState.recoil = clone(RECOIL);
 }
 

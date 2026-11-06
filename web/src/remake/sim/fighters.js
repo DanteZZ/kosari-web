@@ -8,7 +8,9 @@ export const FIGHTERS = {
     hp: 200,
     speedX: 5.2,
     speedZ: 3.4,
-    jumpV: 15,
+    jumpV: 13.5,
+    /** Second (air) jump — always a somersault. */
+    jumpV2: 12,
     dashSpeed: 15,
     dashTicks: 14,
     dashIframes: 9,

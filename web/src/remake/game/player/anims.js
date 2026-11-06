@@ -741,6 +741,159 @@ export const KICK_BRUCE_L = [
   },
 ];
 
+// ---------------------------------------------------------------------------
+// Brawl-core strikes. Each clip has one "impact" key — the brawl view lines it
+// up with the first active tick of the move, so the limb lands exactly when
+// the hitbox does (see brawl/clips.js).
+// Facing +x: negative thigh angle = leg forward/up; negative torso = lean back.
+
+/** K1 — fast front snap kick with the right leg, mid height. */
+export const KICK_SNAP_R = [
+  { t: 0, pose: { leg_r_u: 0, leg_r_l: 0, torso: 0, hipsY: 0 } },
+  {
+    t: 0.24,
+    pose: {
+      leg_r_u: -72, leg_r_l: 100, leg_l_u: 4, leg_l_l: 10,
+      torso: -6, head: 2, hipsY: 3,
+      arm_l_u: 22, arm_l_l: -14, arm_r_u: -18, arm_r_l: 24,
+    },
+  },
+  {
+    t: 0.42,
+    pose: {
+      leg_r_u: -96, leg_r_l: 2, leg_l_u: 8, leg_l_l: 2,
+      torso: -16, head: 8, hipsY: -7,
+      arm_l_u: 34, arm_l_l: -22, arm_r_u: -34, arm_r_l: 34,
+    },
+  },
+  {
+    t: 0.62,
+    pose: {
+      leg_r_u: -62, leg_r_l: 86, leg_l_u: 4, leg_l_l: 6,
+      torso: -6, head: 2, hipsY: 2,
+      arm_l_u: 18, arm_r_u: -14,
+    },
+  },
+  { t: 1, pose: { leg_r_u: 0, leg_r_l: 0, leg_l_u: 0, leg_l_l: 0, torso: 0, head: 0, hipsY: 0, arm_l_u: 0, arm_l_l: 0, arm_r_u: 0, arm_r_l: 0 } },
+];
+
+/** K2 — Bruce Lee high kick to the head: knee chambers high, leg snaps up near vertical, torso leans back. */
+export const KICK_HEAD_R = [
+  { t: 0, pose: { leg_r_u: 0, leg_r_l: 0, torso: 0, hipsY: 0 } },
+  {
+    t: 0.18,
+    pose: {
+      leg_r_u: -108, leg_r_l: 118, leg_l_u: 4, leg_l_l: 8,
+      torso: -10, head: 4, hipsY: 5,
+      arm_l_u: 36, arm_l_l: -32, arm_r_u: -26, arm_r_l: 42,
+    },
+  },
+  {
+    t: 0.36,
+    pose: {
+      leg_r_u: -152, leg_r_l: -4, leg_l_u: 10, leg_l_l: 0,
+      torso: -32, head: 16, hipsY: -12,
+      arm_l_u: 58, arm_l_l: -18, arm_r_u: -42, arm_r_l: 18,
+    },
+  },
+  {
+    t: 0.6,
+    pose: {
+      leg_r_u: -142, leg_r_l: 6, leg_l_u: 8, leg_l_l: 2,
+      torso: -27, head: 13, hipsY: -9,
+      arm_l_u: 50, arm_l_l: -16, arm_r_u: -36, arm_r_l: 20,
+    },
+  },
+  {
+    t: 0.8,
+    pose: {
+      leg_r_u: -80, leg_r_l: 96, leg_l_u: 4, leg_l_l: 6,
+      torso: -10, head: 4, hipsY: 2,
+      arm_l_u: 20, arm_r_u: -16,
+    },
+  },
+  { t: 1, pose: { leg_r_u: 0, leg_r_l: 0, leg_l_u: 0, leg_l_l: 0, torso: 0, head: 0, hipsY: 0, arm_l_u: 0, arm_l_l: 0, arm_r_u: 0, arm_r_l: 0 } },
+];
+
+/** Spinning hook kick (the view turns the body 360° around it). */
+export const KICK_SPIN_R = [
+  { t: 0, pose: { leg_r_u: 0, leg_r_l: 0, torso: 0, hipsY: 0 } },
+  {
+    t: 0.18,
+    pose: {
+      leg_r_u: -24, leg_r_l: 56, leg_l_u: 6, leg_l_l: 14,
+      torso: 10, head: -4, hipsY: 9,
+      arm_l_u: 34, arm_l_l: -30, arm_r_u: -30, arm_r_l: 36,
+    },
+  },
+  {
+    t: 0.4,
+    pose: {
+      leg_r_u: -108, leg_r_l: 2, leg_l_u: 10, leg_l_l: 2,
+      torso: -20, head: 9, hipsY: -9,
+      arm_l_u: 64, arm_l_l: -8, arm_r_u: -54, arm_r_l: 10,
+    },
+  },
+  {
+    t: 0.72,
+    pose: {
+      leg_r_u: -100, leg_r_l: 8, leg_l_u: 8, leg_l_l: 4,
+      torso: -17, head: 7, hipsY: -6,
+      arm_l_u: 56, arm_l_l: -10, arm_r_u: -46, arm_r_l: 12,
+    },
+  },
+  { t: 1, pose: { leg_r_u: 0, leg_r_l: 0, leg_l_u: 0, leg_l_l: 0, torso: 0, head: 0, hipsY: 0, arm_l_u: 0, arm_l_l: 0, arm_r_u: 0, arm_r_l: 0 } },
+];
+
+/** Flying kick: lead leg spears forward-down, rear leg tucked. Held until landing. */
+export const KICK_FLY_R = [
+  {
+    t: 0,
+    pose: {
+      leg_r_u: -30, leg_r_l: 60, leg_l_u: -20, leg_l_l: 70,
+      torso: -4, head: 2, arm_l_u: -20, arm_r_u: 20,
+    },
+  },
+  {
+    t: 0.22,
+    pose: {
+      leg_r_u: -72, leg_r_l: 0, leg_l_u: -34, leg_l_l: 118,
+      torso: -16, head: 8, hipsY: -4,
+      arm_l_u: 44, arm_l_l: -40, arm_r_u: -32, arm_r_l: 52,
+    },
+  },
+  {
+    t: 1,
+    pose: {
+      leg_r_u: -66, leg_r_l: 4, leg_l_u: -30, leg_l_l: 112,
+      torso: -14, head: 7, hipsY: -4,
+      arm_l_u: 40, arm_l_l: -36, arm_r_u: -28, arm_r_l: 48,
+    },
+  },
+];
+
+/** Dash punch: whole body flies behind a straight right. */
+export const PUNCH_SUPERMAN_R = [
+  { t: 0, pose: { arm_r_u: 0, arm_r_l: 0, torso: 0, hipsY: 0 } },
+  {
+    t: 0.2,
+    pose: {
+      arm_r_u: -96, arm_r_l: 8, arm_l_u: 42, arm_l_l: -30,
+      torso: 28, head: -12, hipsY: -10,
+      leg_l_u: 34, leg_l_l: 46, leg_r_u: -28, leg_r_l: 22,
+    },
+  },
+  {
+    t: 0.55,
+    pose: {
+      arm_r_u: -86, arm_r_l: 18, arm_l_u: 34, arm_l_l: -24,
+      torso: 22, head: -9, hipsY: -6,
+      leg_l_u: 24, leg_l_l: 30, leg_r_u: -18, leg_r_l: 14,
+    },
+  },
+  { t: 1, pose: { arm_r_u: 0, arm_r_l: 0, arm_l_u: 0, arm_l_l: 0, torso: 0, head: 0, hipsY: 0, leg_l_u: 0, leg_l_l: 0, leg_r_u: 0, leg_r_l: 0 } },
+];
+
 /** Z: right → left → uppercut right */
 export const PUNCH_Z_COMBO = [
   { frames: PUNCH_R, dur: 0.32, hand: 'r', style: 'punch' },

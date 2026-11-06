@@ -505,10 +505,13 @@ export class BonePuppet {
       falling = false,
       walkAmp = 1,
       walkSpeed = 1,
+      dtBlend = false,
     } = {},
   ) {
     if (!this.animate) return;
     this.time += dt;
+    // Brawl core passes dtBlend so blending is frame-rate independent
+    this._blendDt = dtBlend ? dt : undefined;
     let pose;
     const walkOpts = { speed: walkSpeed, amp: walkAmp };
 
@@ -518,7 +521,7 @@ export class BonePuppet {
       this.clip = 'flip';
       // Linear spin + tuck (no easing)
       pose = sampleKeyframes(this.oneshot.frames || FLIP, raw, { ease: false });
-      this._applyPose(pose);
+      this._applyPose(pose, this._blendDt);
       if (raw >= 1) {
         const done = this.oneshot.onDone;
         this.oneshot = null;
@@ -578,34 +581,55 @@ export class BonePuppet {
       else pose = idlePose(this.time);
     }
 
-    this._applyPose(pose || {});
+    this._applyPose(pose || {}, this._blendDt);
     this._syncWeaponMount();
   }
 
-  _applyPose(pose) {
+  /**
+   * Apply an externally sampled pose (sim-driven clips in the brawl core).
+   * Cancels any running oneshot; `snap` is the per-1/30s blend rate.
+   */
+  drive(dt, pose, { snap = 0.9 } = {}) {
+    if (!this.animate) return;
+    this.time += dt;
+    this.oneshot = null;
+    this.clip = 'drive';
+    this._applyPose(pose || {}, dt, snap);
+    this._syncWeaponMount();
+  }
+
+  /**
+   * @param {object} pose
+   * @param {number} [dt] seconds since last apply — makes blending frame-rate independent
+   *   (rates below are tuned per 1/30 s; omitted dt = legacy per-call blending)
+   * @param {number} [forceSnap] override blend rate for every bone
+   */
+  _applyPose(pose, dt, forceSnap) {
     const hipsRest = this.hipsRestY ?? this._layout().hips?.y ?? -95;
+    const k = (r) => (dt == null || r >= 1 ? r : 1 - Math.pow(1 - r, Math.max(0, dt) * 30));
     // Walk/run needs snappier follow so knees don't look laggy/stiff
     const runUnderPunch =
       this.oneshot && this.isHandStrike(this.oneshot.style) && this.clip === 'walk';
     const snap =
-      this.oneshot && !runUnderPunch
+      forceSnap ??
+      (this.oneshot && !runUnderPunch
         ? 0.9
         : this.clip === 'flip'
           ? 0.92
           : this.clip === 'walk'
-            ? 1
+            ? (dt == null ? 1 : 0.75)
             : this.clip === 'aim'
               ? 0.55
-              : 0.32;
+              : 0.32);
     const snapPunch = 0.9;
     if (pose.hipsY != null && this.nodes.hips) {
       this.nodes.hips.y = Phaser.Math.Linear(
         this.nodes.hips.y,
         hipsRest + pose.hipsY,
-        runUnderPunch ? 0.4 : this.oneshot ? 0.85 : this.clip === 'walk' ? 1 : 0.25,
+        k(forceSnap ?? (runUnderPunch ? 0.4 : this.oneshot ? 0.85 : this.clip === 'walk' ? (dt == null ? 1 : 0.75) : 0.25)),
       );
     } else if (this.nodes.hips) {
-      this.nodes.hips.y = Phaser.Math.Linear(this.nodes.hips.y, hipsRest, 0.2);
+      this.nodes.hips.y = Phaser.Math.Linear(this.nodes.hips.y, hipsRest, k(0.2));
     }
 
     const LEG_BONES = new Set(['leg_l_u', 'leg_l_l', 'leg_r_u', 'leg_r_l']);
@@ -615,7 +639,7 @@ export class BonePuppet {
       const rest = this.restAngles[bone] || 0;
       const target = rest + (pose[bone] ?? 0);
       const rate = runUnderPunch && !LEG_BONES.has(bone) ? snapPunch : snap;
-      node.angle = Phaser.Math.Linear(node.angle, target, rate);
+      node.angle = Phaser.Math.Linear(node.angle, target, k(rate));
     }
   }
 }

@@ -22,3 +22,6 @@ export const CHAIN_WINDOW = 14;
 
 /** Max enemies allowed to actively attack one player at once. */
 export const ATTACK_TOKENS = 2;
+
+/** Somersault length (ticks) on the double jump. */
+export const FLIP_TICKS = 26;

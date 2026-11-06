@@ -174,6 +174,14 @@ export class BrawlScene extends Phaser.Scene {
           break;
         case 'land':
           this.dust(ev.x, ev.z, 0.6);
+          this.views.get(ev.id)?.squash(0.14);
+          break;
+        case 'jump':
+          this.views.get(ev.id)?.squash(-0.1);
+          break;
+        case 'jump2':
+          this.views.get(ev.id)?.squash(-0.12);
+          this.sound.play('beep', { volume: 0.12, rate: 1.6 });
           break;
         case 'dash':
           this.dust(ev.x, ev.z, 0.5);

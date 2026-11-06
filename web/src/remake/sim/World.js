@@ -5,6 +5,7 @@ import {
   BODY_RADIUS,
   INPUT_BUFFER,
   CHAIN_WINDOW,
+  FLIP_TICKS,
 } from './constants.js';
 import { BTN, ACTION_BTNS, axisX, axisZ } from './input.js';
 import { MOVES, moveTotal } from './moves.js';
@@ -64,6 +65,9 @@ export class World {
       chain: null,
       airAttackUsed: false,
       flip: false,
+      flipT: 0,
+      /** Air jump still available. */
+      djump: false,
       cmd: 0,
       prevCmd: 0,
       buf: { btn: 0, t: 0 },
@@ -272,7 +276,8 @@ export class World {
       f.vy = def.jumpV;
       f.vx = ax * def.speedX * 1.1;
       f.vz = az * def.speedZ;
-      f.flip = ax !== 0;
+      f.flip = false;
+      f.djump = !!def.jumpV2;
       f.airAttackUsed = false;
       this.events.push({ type: 'jump', id: f.id });
       return true;
@@ -311,9 +316,23 @@ export class World {
     f.vz += (az * def.speedZ - f.vz) * 0.12;
     f.x += f.vx;
     f.z += f.vz;
-    if (ax && !f.flip) f.facing = ax;
+    const spinning = f.flip && f.flipT < FLIP_TICKS;
+    if (f.flip) f.flipT += 1;
+    if (ax && !spinning) f.facing = ax;
 
     const b = f.buf.btn;
+    if (b === BTN.JUMP && f.djump) {
+      // Double jump = somersault (facing locks for the spin)
+      this._consume(f);
+      if (ax) f.facing = ax;
+      f.djump = false;
+      f.vy = def.jumpV2;
+      if (ax) f.vx = ax * def.speedX * 1.15;
+      f.flip = true;
+      f.flipT = 0;
+      this.events.push({ type: 'jump2', id: f.id });
+      return;
+    }
     if ((b === BTN.LIGHT || b === BTN.HEAVY) && !f.airAttackUsed && def.moves?.air) {
       this._consume(f);
       f.airAttackUsed = true;
@@ -330,6 +349,8 @@ export class World {
     f.y = 0;
     f.vy = 0;
     f.flip = false;
+    f.flipT = 0;
+    f.djump = false;
     this._setState(f, 'idle');
     this.events.push({ type: 'land', id: f.id, x: f.x, z: f.z });
   }
@@ -351,7 +372,8 @@ export class World {
       this._setState(f, 'jump');
       f.vy = def.jumpV;
       f.vx = f.facing * def.speedX * 1.6;
-      f.flip = true;
+      f.flip = false;
+      f.djump = !!def.jumpV2;
       f.airAttackUsed = false;
       this.events.push({ type: 'jump', id: f.id });
       return;
