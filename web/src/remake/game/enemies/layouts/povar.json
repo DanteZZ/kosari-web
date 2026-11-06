@@ -33,10 +33,10 @@
   "arm_l_l": {
     "parent": "arm_l_u",
     "tex": "arm_l_l",
-    "originX": 0.5,
-    "originY": 0.1,
-    "x": -286.5,
-    "y": 76.9,
+    "originX": 0.25,
+    "originY": 0.92,
+    "x": 34.5,
+    "y": 137.8,
     "angle": 0
   },
   "arm_r_u": {
@@ -98,8 +98,8 @@
     "tex": null,
     "originX": 0.5,
     "originY": 0.5,
-    "x": 0,
-    "y": 164.8,
+    "x": 28,
+    "y": -150,
     "angle": 0
   },
   "hand_r": {
