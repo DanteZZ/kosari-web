@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { GameState } from '../state/GameState.js';
 import { VIEW_W, VIEW_H } from '../game/constants.js';
-import { createParallax } from '../game/parallax.js';
+import { ForestWorld, WORLD_GEOM } from './world/ForestWorld.js';
 import { World } from '../sim/World.js';
 import { SandboxDirector } from '../sim/sandbox.js';
 import { MapDirector } from '../sim/director.js';
@@ -12,6 +12,9 @@ import { MOVES } from '../sim/moves.js';
 import { FighterView } from './FighterView.js';
 import { KeyboardInput } from './keyboard.js';
 import { stage, LANE_DEPTH } from './stage.js';
+
+/** Slight over-zoom so camera roll never shows the edges. */
+const BASE_ZOOM = 1.015;
 
 const SANDBOX_LEN = 7200;
 /** Never run more than this many sim ticks per frame (avoid spiral of death after a stall). */
@@ -41,10 +44,7 @@ export class BrawlScene extends Phaser.Scene {
     this.shakeT = 0;
     this.fpsAvg = 60;
 
-    this.parallax = createParallax(this, {
-      factors: { clouds: 0.06, far: 0.18, mid: 0.35, fog: 0.45, world: 1, grass: 1.18 },
-      grassDepth: 2000,
-    });
+    this.setupCameras();
 
     this.worldLen = this.map ? this.map.length : SANDBOX_LEN;
     this.world = new World({
@@ -56,12 +56,25 @@ export class BrawlScene extends Phaser.Scene {
     this.director = this.map ? new MapDirector(this.world, this.map) : new SandboxDirector(this.world);
     this.lock = null;
     this.finished = false;
+    this.forest = new ForestWorld(this, {
+      length: this.worldLen,
+      seed: this.map ? hashSeed(this.map.id) : 7,
+      tagBg: (o) => this.tagBg(o),
+    });
     this.startTick = 0;
     this.pickupViews = new Map();
     this.keys = new KeyboardInput(this);
 
     this.camX = Math.max(0, this.player.x - VIEW_W * 0.4);
-    this.cameras.main.setScroll(this.camX, 0);
+    this.camY = 0;
+    this.swayT = 0;
+    this.bobAmp = 0;
+    this.kick = 0;
+    this.kickV = 0;
+    this.roll = 0;
+    this.zoom = BASE_ZOOM;
+    this.layoutCameras();
+    this.camY = this.baseY;
 
     this.fx = this.add.group();
     this.buildHud();
@@ -86,7 +99,7 @@ export class BrawlScene extends Phaser.Scene {
     });
 
     this._onResize = () => {
-      this.parallax.resize();
+      this.layoutCameras();
       this.layoutHud();
     };
     this.game.events.on('remake-resize', this._onResize);
@@ -98,6 +111,59 @@ export class BrawlScene extends Phaser.Scene {
     if (this.map) this.banner(this.map.name, 'Иди вперёд →', 1800);
 
     window.__brawl = this;
+  }
+
+  /**
+   * Three cameras: bg (forest + road, desaturated so fighters pop) → main
+   * (fighters, FX, foreground) → ui (HUD, never zoomed/rolled).
+   * Objects default to the main camera; tagBg / tagUi move them.
+   */
+  setupCameras() {
+    const main = this.cameras.main;
+    main.transparent = true;
+    this.bgCam = this.cameras.add(0, 0, VIEW_W, VIEW_H, false, 'bg');
+    this.uiCam = this.cameras.add(0, 0, VIEW_W, VIEW_H, false, 'ui');
+    // Render order: bg first
+    const list = this.cameras.cameras;
+    list.splice(list.indexOf(this.bgCam), 1);
+    list.unshift(this.bgCam);
+    this.bgCam.setBackgroundColor('#a9c6d8');
+    const grade = this.bgCam.postFX.addColorMatrix();
+    grade.saturate(-0.45);
+    grade.brightness(0.88, true);
+    this.bgCam.postFX.addVignette(0.5, 0.5, 0.95, 0.35);
+    this._worldMask = this.bgCam.id | this.uiCam.id;
+    this.events.on('addedtoscene', (go) => {
+      if (go.__camTag) return;
+      go.cameraFilter = this._worldMask;
+    });
+  }
+
+  tagBg(o) {
+    o.__camTag = 'bg';
+    o.cameraFilter = this.cameras.main.id | this.uiCam.id;
+    // Containers check each child's camera filter too
+    if (o.list) for (const c of o.list) this.tagBg(c);
+    return o;
+  }
+
+  tagUi(o) {
+    o.__camTag = 'ui';
+    o.cameraFilter = this.cameras.main.id | this.bgCam.id;
+    return o;
+  }
+
+  layoutCameras() {
+    this.bgCam?.setSize(VIEW_W, VIEW_H);
+    this.uiCam?.setSize(VIEW_W, VIEW_H);
+    // Road bottom near the bottom of the screen; tall screens get more sky
+    this.baseY = Math.max(-260, WORLD_GEOM.ROAD_BOTTOM + 70 - VIEW_H);
+    this.forest?.setBaseY(this.baseY, VIEW_W, VIEW_H);
+  }
+
+  /** Short zoom-in punch on big impacts. */
+  punch(amount) {
+    this.zoom = Math.max(this.zoom, BASE_ZOOM + amount);
   }
 
   togglePause() {
@@ -180,8 +246,32 @@ export class BrawlScene extends Phaser.Scene {
       sx = (Math.random() * 2 - 1) * amp;
       sy = (Math.random() * 2 - 1) * amp;
     }
-    this.cameras.main.setScroll(Math.round(this.camX + sx), Math.round(sy));
-    this.parallax.update(this.camX + sx, 0);
+    // ---- Vertical: follow jumps a little, tilt with lane depth
+    const py = p.py + (p.y - p.py) * alpha;
+    const pz = p.pz + (p.z - p.pz) * alpha;
+    const targetY = this.baseY - py * 0.35 + (pz - LANE_DEPTH / 2) * 0.22;
+    this.camY += (targetY - this.camY) * (1 - Math.exp(-dt * 5));
+
+    // ---- Sway: breathing + run bob + landing spring + roll lean + zoom punch
+    this.swayT += dt;
+    const moving = p.state === 'walk' || p.state === 'dash';
+    this.bobAmp += ((moving ? 1 : 0) - this.bobAmp) * (1 - Math.exp(-dt * 6));
+    const bob =
+      Math.sin(this.swayT * Math.PI * 2 * 2.4) * 2.4 * this.bobAmp +
+      Math.sin(this.swayT * 0.8) * 1.6 +
+      Math.sin(this.swayT * 0.37) * 1.1;
+    this.kickV += (-this.kick * 160 - this.kickV * 14) * dt;
+    this.kick += this.kickV * dt;
+    const vx = (p.x - p.px) * 60;
+    const lean = Phaser.Math.Clamp(-vx * 0.000035, -0.01, 0.01) + Math.sin(this.swayT * 0.5) * 0.0015;
+    this.roll += (lean - this.roll) * (1 - Math.exp(-dt * 3));
+    this.zoom += (BASE_ZOOM - this.zoom) * (1 - Math.exp(-dt * 7));
+
+    for (const cam of [this.cameras.main, this.bgCam]) {
+      cam.setScroll(Math.round(this.camX + sx), Math.round(this.camY + bob + this.kick + sy));
+      cam.setZoom(this.zoom);
+      cam.setRotation(this.roll);
+    }
   }
 
   shake(ms, amp) {
@@ -267,6 +357,7 @@ export class BrawlScene extends Phaser.Scene {
         case 'land':
           this.dust(ev.x, ev.z, 0.6);
           this.views.get(ev.id)?.squash(0.14);
+          if (ev.id === this.player.id) this.kickV += 70;
           break;
         case 'jump':
           this.views.get(ev.id)?.squash(-0.1);
@@ -336,6 +427,7 @@ export class BrawlScene extends Phaser.Scene {
       this.hurtFlash();
     } else {
       this.shake(heavy ? 120 : 70, heavy ? 6 : 3);
+      if (heavy) this.punch(0.03);
     }
     this.sound.play('hit', { volume: heavy ? 0.6 : 0.42, rate: heavy ? 0.9 : 1 + Math.random() * 0.15 });
   }
@@ -434,8 +526,9 @@ export class BrawlScene extends Phaser.Scene {
   onRage(ev) {
     const y = stage.groundY(ev.z);
     this.shake(320, 12);
+    this.punch(0.07);
     this.sound.play('explosion2', { volume: 0.5 });
-    const flash = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0xffffff, 0.55).setOrigin(0).setScrollFactor(0).setDepth(4800);
+    const flash = this.tagUi(this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0xffffff, 0.55).setOrigin(0).setScrollFactor(0).setDepth(4800));
     this.tweens.add({ targets: flash, alpha: 0, duration: 260, onComplete: () => flash.destroy() });
     for (let i = 0; i < 2; i += 1) {
       const ring = this.add.ellipse(ev.x, y, 60, 18).setStrokeStyle(6 - i * 2, i ? 0xffffff : 0xffb627, 1).setDepth(stage.depth(ev.z) + 1);
@@ -520,7 +613,7 @@ export class BrawlScene extends Phaser.Scene {
     };
     this.hurtOverlay = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0xff0000, 1).setOrigin(0).setAlpha(0);
     this.slowOverlay = this.add.rectangle(0, 0, VIEW_W, VIEW_H, 0x3aa8ff, 1).setOrigin(0).setAlpha(0);
-    for (const o of [...Object.values(this.hud), this.hurtOverlay, this.slowOverlay]) o.setScrollFactor(0).setDepth(5000);
+    for (const o of [...Object.values(this.hud), this.hurtOverlay, this.slowOverlay]) this.tagUi(o.setScrollFactor(0).setDepth(5000));
     this.slowOverlay.setDepth(4850);
     this.hurtOverlay.setDepth(4900);
     this.comboShown = 0;
@@ -594,4 +687,14 @@ export class BrawlScene extends Phaser.Scene {
     h.bossFill.setVisible(bossOn);
     if (boss) h.bossFill.width = 414 * Math.max(0, boss.hp / boss.maxHp);
   }
+}
+
+/** Stable numeric seed from a map id. */
+function hashSeed(str) {
+  let h = 2166136261;
+  for (let i = 0; i < str.length; i += 1) {
+    h ^= str.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return (h >>> 0) || 1;
 }

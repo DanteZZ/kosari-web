@@ -46,6 +46,12 @@ export class FighterView {
       this.puppet.baseScale = skin.scale;
       this.puppet.root.setScale(skin.scale);
     }
+    // Thin dark outline so fighters read against the busy forest
+    try {
+      this.visual.postFX.addGlow(f.team === 'player' ? 0x101820 : 0x1a0f0f, 2.2, 0, false, 0.1, 5);
+    } catch (_) {
+      /* Canvas renderer: no FX */
+    }
     const s = Math.abs(this.puppet.baseScale || PLAYER_SCALE);
     this.hipsH = Math.abs(this.puppet.hipsRestY ?? 222) * s;
     // Feet → top of head on screen (hips sit at ~65% of the height for these rigs)

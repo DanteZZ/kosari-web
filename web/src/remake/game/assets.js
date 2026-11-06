@@ -99,6 +99,13 @@ function spriteUrl(name, i) {
   return `assets/sprites/${name.split('/').map(encodeURIComponent).join('/')}/${i}.png`;
 }
 
+/** Painted world pieces in assets/world/sprites (see brawl/world/ForestWorld.js). */
+export const WORLD_PARTS = [
+  'birch_1', 'birch_2', 'birch_3', 'birch_far', 'bush_1', 'bush_2', 'cloud_1', 'cloud_2',
+  'flowers', 'fog', 'ground', 'hill', 'path', 'pine_1', 'pine_2', 'road', 'road_edge',
+  'rock_1', 'stump',
+];
+
 export function preloadGameAssets(scene) {
   for (const [name, frames] of Object.entries(SPRITES)) {
     for (let i = 0; i < frames; i += 1) {
@@ -120,6 +127,12 @@ export function preloadGameAssets(scene) {
   scene.load.image('layer_fog', `assets/world/layers/fog.png?v=${WV}`);
   scene.load.image('layer_world', `assets/world/layers/world.png?v=${WV}`);
   scene.load.image('layer_grass', `assets/world/layers/grass.png?v=${WV}`);
+
+  // Loose painted world parts — the brawl core assembles the forest at runtime
+  const WP = 'wp1';
+  for (const name of WORLD_PARTS) {
+    scene.load.image(`w_${name}`, `assets/world/sprites/${name}.png?v=${WP}`);
+  }
 
   // Side-view gun sprites for bone attach (cache-bust on art tweaks)
   const WPN_V = 'wpn8';
