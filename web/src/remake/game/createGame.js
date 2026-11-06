@@ -3,6 +3,7 @@ import { VIEW_W, VIEW_H, applyViewSize } from './constants.js';
 import { PreloadScene } from './PreloadScene.js';
 import { BoneEditorScene } from './BoneEditorScene.js';
 import { AnimEditorScene } from './AnimEditorScene.js';
+import { hideLoading } from '../ui/LoadingScreen.js';
 import { BrawlScene } from '../brawl/BrawlScene.js';
 
 let game = null;
@@ -91,6 +92,7 @@ export function startBrawl({ parent, onExit, map }) {
 }
 
 export function stopGame() {
+  hideLoading();
   if (game) {
     game.destroy(true);
     game = null;

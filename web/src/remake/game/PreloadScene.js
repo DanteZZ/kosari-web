@@ -1,6 +1,12 @@
 import Phaser from 'phaser';
 import { preloadGameAssets, createGameAnimations } from './assets.js';
+import { showLoading } from '../ui/LoadingScreen.js';
+import { MAPS, DEFAULT_MAP } from '../maps/index.js';
 
+/**
+ * Loads every asset behind the Witcher-style loading screen (DOM overlay),
+ * then waits for a key before the fight; editors start straight away.
+ */
 export class PreloadScene extends Phaser.Scene {
   constructor() {
     super('Preload');
@@ -11,19 +17,13 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   preload() {
-    const { width, height } = this.scale;
-    this.add
-      .text(width / 2, height / 2 - 36, 'КОСАРИ', {
-        fontFamily: 'Russo One, Impact, sans-serif',
-        fontSize: '28px',
-        color: '#ffffff',
-      })
-      .setOrigin(0.5);
-    const bar = this.add.rectangle(width / 2 - 158, height / 2, 4, 12, 0xffffff).setOrigin(0, 0.5);
-    this.add.rectangle(width / 2, height / 2, 320, 18, 0x222222);
-    this.load.on('progress', (value) => {
-      bar.width = 4 + 312 * value;
+    const next = this.playData.next || 'Brawl';
+    const map = next === 'Brawl' ? MAPS[this.playData.map || DEFAULT_MAP] : null;
+    this.loading = showLoading(document.getElementById('game-shell') || document.body, {
+      story: map?.loading,
+      interactive: next === 'Brawl',
     });
+    this.load.on('progress', (v) => this.loading.progress(v));
     this.load.on('loaderror', (file) => {
       console.warn('Missing asset', file?.key, file?.url);
     });
@@ -32,7 +32,7 @@ export class PreloadScene extends Phaser.Scene {
 
   create() {
     createGameAnimations(this);
-    const next = this.playData.next || 'Play';
-    this.scene.start(next, this.playData);
+    const next = this.playData.next || 'Brawl';
+    this.loading.done(() => this.scene.start(next, this.playData));
   }
 }

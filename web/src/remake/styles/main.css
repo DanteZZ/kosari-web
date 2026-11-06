@@ -765,3 +765,249 @@ body {
     transform: none;
   }
 }
+
+/* ================================================================
+   Loading screen — homage to The Witcher 3: ink wash on parchment,
+   narrator's recap, turning medallion, "press any key".
+   ================================================================ */
+.wl {
+  position: absolute;
+  inset: 0;
+  z-index: 50;
+  overflow: hidden;
+  background: #1b1712;
+  color: #2b2118;
+  font-family: 'Cormorant Garamond', 'Georgia', serif;
+  transition: opacity 0.4s ease;
+}
+
+.wl.out {
+  opacity: 0;
+}
+
+/* Parchment: warm paper, fibres (SVG noise), darkened edges */
+.wl-paper {
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(130% 110% at 60% 45%, transparent 45%, rgba(40, 24, 10, 0.75) 100%),
+    url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='300' height='300'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 0.35  0 0 0 0 0.27  0 0 0 0 0.18  0 0 0 0.22 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"),
+    linear-gradient(160deg, #d9c8a4, #c9b28a 55%, #b79d72);
+}
+
+/* Landscape as a grey ink wash */
+.wl-wash {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 70%;
+  background-size: cover;
+  background-position: 30% 80%;
+  filter: grayscale(1) contrast(1.5) brightness(1.05) sepia(0.35);
+  mix-blend-mode: multiply;
+  opacity: 0.5;
+  -webkit-mask-image: linear-gradient(to top, #000 30%, transparent 95%);
+  mask-image: linear-gradient(to top, #000 30%, transparent 95%);
+  animation: wl-drift 30s linear infinite alternate;
+}
+
+/* The character as an ink drawing on the right */
+.wl-art {
+  position: absolute;
+  right: 6vw;
+  bottom: 0;
+  height: 92%;
+  max-width: 55vw;
+  object-fit: contain;
+  object-position: bottom right;
+  filter: grayscale(1) contrast(1.9) brightness(1.08) sepia(0.45);
+  mix-blend-mode: multiply;
+  opacity: 0;
+  animation: wl-ink-in 1.6s ease-out 0.1s forwards;
+  -webkit-mask-image: linear-gradient(to top, transparent 0, #000 18%);
+  mask-image: linear-gradient(to top, transparent 0, #000 18%);
+}
+
+/* Splashes of ink across the paper */
+.wl-ink {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(28% 18% at 70% 82%, rgba(30, 20, 12, 0.35), transparent 70%),
+    radial-gradient(18% 12% at 88% 30%, rgba(30, 20, 12, 0.18), transparent 70%),
+    radial-gradient(40% 10% at 20% 96%, rgba(30, 20, 12, 0.3), transparent 70%);
+  mix-blend-mode: multiply;
+}
+
+@keyframes wl-ink-in {
+  from { opacity: 0; filter: grayscale(1) contrast(1.9) brightness(1.6) sepia(0.45) blur(6px); }
+  to { opacity: 0.92; }
+}
+
+@keyframes wl-drift {
+  from { transform: translateX(0) scale(1.05); }
+  to { transform: translateX(-3%) scale(1.08); }
+}
+
+.wl-story {
+  position: absolute;
+  left: 7vw;
+  top: 12vh;
+  width: min(520px, 46vw);
+  z-index: 2;
+}
+
+.wl-title {
+  margin: 0;
+  font-weight: 700;
+  font-size: clamp(34px, 5vw, 64px);
+  letter-spacing: 0.04em;
+  color: #2a1c10;
+  text-shadow: 0 1px 0 rgba(255, 240, 210, 0.4);
+}
+
+.wl-rule {
+  width: 70%;
+  height: 2px;
+  margin: 10px 0 22px;
+  background: linear-gradient(90deg, #5a3a1c, rgba(90, 58, 28, 0));
+}
+
+.wl-text p {
+  margin: 0 0 14px;
+  font-size: clamp(16px, 1.55vw, 21px);
+  line-height: 1.5;
+  font-style: italic;
+  font-weight: 500;
+  color: #2f2216;
+  opacity: 0;
+  animation: wl-para 1.2s ease forwards;
+}
+
+.wl-text p:first-child::first-letter {
+  float: left;
+  margin: 4px 8px 0 0;
+  font-size: 3.2em;
+  line-height: 0.8;
+  font-style: normal;
+  font-weight: 700;
+  color: #7a1d12;
+}
+
+@keyframes wl-para {
+  from { opacity: 0; transform: translateY(6px); filter: blur(2px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+
+.wl-tip {
+  margin-top: 26px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(90, 58, 28, 0.45);
+  font-size: clamp(14px, 1.3vw, 18px);
+  line-height: 1.45;
+  color: #3a2a1a;
+}
+
+.wl-tip b {
+  color: #7a1d12;
+  font-weight: 700;
+}
+
+/* Medallion: metal disc with an engraved head, turning while loading */
+.wl-medallion {
+  position: absolute;
+  right: 3.2vw;
+  bottom: 4.5vh;
+  z-index: 3;
+  width: 74px;
+  height: 74px;
+  perspective: 300px;
+}
+
+.wl-coin {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #e9e4d8, #9a948a 45%, #4d4943 80%, #2e2b27);
+  box-shadow:
+    inset 0 0 0 4px #6f6a62,
+    inset 0 0 0 6px #d8d2c4,
+    inset 0 0 12px rgba(0, 0, 0, 0.6),
+    0 4px 10px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  animation: wl-spin 2.6s linear infinite;
+}
+
+.wl-coin img {
+  width: 62%;
+  filter: grayscale(1) contrast(1.6) brightness(0.9) sepia(0.2);
+  mix-blend-mode: multiply;
+}
+
+.wl.ready .wl-coin {
+  animation: wl-spin 6s linear infinite;
+}
+
+@keyframes wl-spin {
+  from { transform: rotateY(0deg); }
+  to { transform: rotateY(360deg); }
+}
+
+.wl-bar {
+  position: absolute;
+  right: calc(3.2vw + 92px);
+  bottom: calc(4.5vh + 34px);
+  z-index: 3;
+  width: 160px;
+  height: 3px;
+  background: rgba(60, 40, 20, 0.25);
+}
+
+.wl-bar-fill {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: #5a3a1c;
+  transition: width 0.2s;
+}
+
+.wl.ready .wl-bar {
+  opacity: 0;
+  transition: opacity 0.4s;
+}
+
+.wl-prompt {
+  position: absolute;
+  left: 7vw;
+  bottom: 6vh;
+  z-index: 3;
+  font-size: clamp(15px, 1.4vw, 19px);
+  font-weight: 700;
+  color: #2a1c10;
+  opacity: 0;
+}
+
+.wl.ready .wl-prompt {
+  animation: wl-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes wl-pulse {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+@media (max-width: 760px) {
+  .wl-story {
+    width: auto;
+    right: 6vw;
+    top: 6vh;
+  }
+  .wl-art {
+    opacity: 0.35 !important;
+  }
+}
