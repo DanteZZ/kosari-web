@@ -8,6 +8,7 @@ export class SandboxDirector {
     this.target = start;
     this.max = max;
     this.cd = 30;
+    world.crateEvery = [900, 1500];
   }
 
   step() {

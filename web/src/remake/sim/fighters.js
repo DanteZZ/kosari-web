@@ -37,6 +37,17 @@ export const FIGHTERS = {
     moves: { light: 'e_heavy' },
     ai: { standoff: 210, aggression: 0.55, attackCd: [60, 110], retreat: [30, 60] },
   },
+  /** Breakable loot crate dropped from the sky (team 'prop': anyone can smash it). */
+  crate: {
+    team: 'prop',
+    prop: true,
+    noGrab: true,
+    hp: 36,
+    speedX: 0,
+    speedZ: 0,
+    jumpV: 0,
+    moves: {},
+  },
   /** Map boss: big, armored, two attacks, ignores the crowd attack-token limit. */
   boss1: {
     team: 'enemy',

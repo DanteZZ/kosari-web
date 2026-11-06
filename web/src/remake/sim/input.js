@@ -13,7 +13,20 @@ export const BTN = {
   DASH: 128,
   /** Rage special (also J+K together). */
   SPECIAL: 256,
+  WNEXT: 512,
+  WPREV: 1024,
+  /** With the SEL field: buy shop item instead of selecting a weapon slot. */
+  BUY: 1 << 14,
 };
+
+/** 3-bit field (bits 11–13): 0 = none, n = weapon slot / shop item n−1. */
+export const SEL_SHIFT = 11;
+export function selField(bits) {
+  return (bits >> SEL_SHIFT) & 7;
+}
+export function withSel(bits, n) {
+  return (bits & ~(7 << SEL_SHIFT)) | ((n & 7) << SEL_SHIFT);
+}
 
 /** Buttons that are edge-triggered and buffered. */
 export const ACTION_BTNS = [BTN.JUMP, BTN.LIGHT, BTN.HEAVY, BTN.DASH, BTN.SPECIAL];

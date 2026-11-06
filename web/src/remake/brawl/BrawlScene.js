@@ -10,6 +10,9 @@ import { MAPS, DEFAULT_MAP } from '../maps/index.js';
 import { DT, METER_MAX } from '../sim/constants.js';
 import { MOVES } from '../sim/moves.js';
 import { FighterView } from './FighterView.js';
+import { CrateView } from './CrateView.js';
+import { WEAPONS, WEAPON_SLOTS, SHOP } from '../sim/items.js';
+import { WEAPON_DEFS } from '../game/player/weapons.js';
 import { KeyboardInput } from './keyboard.js';
 import { stage, LANE_DEPTH } from './stage.js';
 
@@ -63,6 +66,8 @@ export class BrawlScene extends Phaser.Scene {
     });
     this.startTick = 0;
     this.pickupViews = new Map();
+    this.projViews = new Map();
+    this.shopOpen = false;
     this.keys = new KeyboardInput(this);
 
     this.camX = Math.max(0, this.player.x - VIEW_W * 0.4);
@@ -91,9 +96,14 @@ export class BrawlScene extends Phaser.Scene {
       else this.togglePause();
     });
     kb.on('keydown-ESC', () => {
+      if (this.shopOpen) {
+        this.toggleShop(false);
+        return;
+      }
       this.sound.stopAll();
       this.onExit?.();
     });
+    kb.on('keydown-B', () => this.toggleShop());
     kb.on('keydown-R', () => {
       if (this.player.dead) this.scene.restart();
     });
@@ -200,7 +210,7 @@ export class BrawlScene extends Phaser.Scene {
       alive.add(f.id);
       let v = this.views.get(f.id);
       if (!v) {
-        v = new FighterView(this, f);
+        v = f.kind === 'crate' ? new CrateView(this, f) : new FighterView(this, f);
         this.views.set(f.id, v);
       }
       const slowK = this.world.slowmo > 0 && f.team !== 'player' ? 0.5 : 1;
@@ -213,6 +223,7 @@ export class BrawlScene extends Phaser.Scene {
       }
     }
     this.renderPickups(alpha);
+    this.renderProjectiles(alpha);
 
     this.updateCamera(frameMs / 1000, alpha);
     this.updateHud();
@@ -338,11 +349,54 @@ export class BrawlScene extends Phaser.Scene {
           this.time.delayedCall(1400, () => this.showResults());
           break;
         case 'pickup':
-          this.sound.play('+life', { volume: 0.45 });
-          this.popText(ev.x, stage.groundY(ev.z) - 120, `+${ev.amount}`, '#7dff7a', 30);
+          if (ev.kind === 'kosar') {
+            this.sound.play('cash', { volume: 0.22, rate: 1 + Math.random() * 0.2 });
+            this.popText(ev.x, stage.groundY(ev.z) - 120, `+${ev.amount} К`, '#ffd23f', 22);
+          } else if (ev.kind === 'gun') {
+            this.sound.play('shotgun_reload', { volume: 0.45 });
+            this.popText(ev.x, stage.groundY(ev.z) - 140, `${WEAPONS[ev.weapon].name} +${ev.amount}`, '#ffffff', 22);
+          } else {
+            this.sound.play('+life', { volume: 0.45 });
+            this.popText(ev.x, stage.groundY(ev.z) - 120, `+${ev.amount}`, '#7dff7a', 30);
+          }
           break;
         case 'spawn':
           if (ev.from === 'drop') this.sound.play('beep', { volume: 0.1, rate: 0.5 });
+          break;
+        case 'shot':
+          this.onShot(ev);
+          break;
+        case 'explode':
+          this.onExplode(ev);
+          break;
+        case 'empty':
+          this.sound.play('no_bulet', { volume: 0.4 });
+          this.popText(this.player.x, stage.groundY(this.player.z) - 240, 'Патроны кончились', '#ff9a8a', 18);
+          break;
+        case 'weapon':
+          this.sound.play(ev.weapon ? 'DE_reload' : 'beep', { volume: ev.weapon ? 0.4 : 0.15 });
+          break;
+        case 'noWeapon':
+          this.sound.play('beep', { volume: 0.15, rate: 0.7 });
+          break;
+        case 'buy':
+          this.sound.play('cash', { volume: 0.5 });
+          this.popText(this.player.x, stage.groundY(this.player.z) - 240, 'Куплено!', '#ffd23f', 22);
+          break;
+        case 'cantBuy':
+          this.sound.play('no_bulet', { volume: 0.35 });
+          this.popText(this.player.x, stage.groundY(this.player.z) - 240, 'Не хватает косарей', '#ff9a8a', 18);
+          break;
+        case 'crateIncoming':
+          this.sound.play('dirigabb_poyav', { volume: 0.25 });
+          break;
+        case 'crateLand':
+          this.shake(140, 5);
+          this.dust(ev.x, ev.z, 1.4);
+          this.sound.play('punch', { volume: 0.4, rate: 0.7 });
+          break;
+        case 'crateBreak':
+          this.onCrateBreak(ev);
           break;
         case 'nometer':
           this.sound.play('no_bulet', { volume: 0.3 });
@@ -376,6 +430,11 @@ export class BrawlScene extends Phaser.Scene {
   }
 
   onHit(ev) {
+    if (ev.reaction === 'prop') {
+      this.sound.play('punch', { volume: 0.3, rate: 0.6 + Math.random() * 0.2 });
+      this.splinters(ev.x, ev.z, 4);
+      return;
+    }
     const v = this.views.get(ev.target);
     const bodyH = v?.bodyH ?? 200;
     const x = ev.x - ev.dir * 10;
@@ -432,6 +491,167 @@ export class BrawlScene extends Phaser.Scene {
     this.sound.play('hit', { volume: heavy ? 0.6 : 0.42, rate: heavy ? 0.9 : 1 + Math.random() * 0.15 });
   }
 
+  renderProjectiles(alpha) {
+    const seen = new Set();
+    for (const pr of this.world.projectiles) {
+      seen.add(pr.id);
+      let img = this.projViews.get(pr.id);
+      if (!img) {
+        const key = `proj_${pr.spec.tex}`;
+        img = this.add.image(0, 0, this.textures.exists(key) ? key : '__DEFAULT').setOrigin(0.5);
+        img.setScale(pr.spec.kind === 'rocket' ? 0.75 : pr.spec.kind === 'pellet' ? 0.5 : 0.55);
+        img.setFlipX(pr.vx < 0);
+        this.projViews.set(pr.id, img);
+      }
+      const x = pr.px + (pr.x - pr.px) * alpha;
+      const z = pr.pz + (pr.z - pr.pz) * alpha;
+      img.setPosition(x, stage.groundY(z) - pr.y).setDepth(stage.depth(z) + 2);
+      if (pr.spec.kind === 'rocket' && Math.random() < 0.6) {
+        const puff = this.add.circle(x - Math.sign(pr.vx) * 26, stage.groundY(z) - pr.y, 6, 0xdddddd, 0.6).setDepth(stage.depth(z) + 1);
+        this.tweens.add({ targets: puff, scale: 3, alpha: 0, duration: 420, onComplete: () => puff.destroy() });
+      }
+    }
+    for (const [id, img] of this.projViews) {
+      if (!seen.has(id)) {
+        img.destroy();
+        this.projViews.delete(id);
+      }
+    }
+  }
+
+  onShot(ev) {
+    const w = WEAPONS[ev.weapon];
+    const v = this.views.get(ev.id);
+    v?.recoil?.();
+    if (w?.sfx) this.sound.play(w.sfx, { volume: ev.weapon === 3 ? 0.25 : 0.45 });
+    const m = v?.muzzle?.();
+    if (m) {
+      const f = this.add.circle(m.x, m.y, ev.weapon === 2 ? 16 : 11, 0xfff2a8, 0.95).setDepth(1300);
+      this.tweens.add({ targets: f, scale: 1.8, alpha: 0, duration: 70, onComplete: () => f.destroy() });
+    }
+    if (ev.weapon === 2) this.shake(90, 5);
+    else if (ev.weapon === 4) this.shake(160, 7);
+    else this.shake(40, 1.5);
+  }
+
+  onExplode(ev) {
+    const y = stage.groundY(ev.z) - ev.y * 0.5;
+    if (this.anims.exists('explosion_anim')) {
+      const ex = this.add.sprite(ev.x, y, 'explosion_0').setScale(2.4).setDepth(1400);
+      ex.play('explosion_anim');
+      ex.once('animationcomplete', () => ex.destroy());
+    }
+    const flash = this.add.circle(ev.x, y, 40, 0xffe0a0, 0.9).setDepth(1401);
+    this.tweens.add({ targets: flash, scale: 4, alpha: 0, duration: 260, onComplete: () => flash.destroy() });
+    this.sound.play('explosion', { volume: 0.55 });
+    this.shake(320, 12);
+    this.punch(0.05);
+    this.dust(ev.x, ev.z, 2.4);
+  }
+
+  onCrateBreak(ev) {
+    this.sound.play('superudar', { volume: 0.35, rate: 1.2 });
+    this.shake(120, 4);
+    this.splinters(ev.x, ev.z, 12);
+  }
+
+  splinters(x, z, n) {
+    const y = stage.groundY(z) - 34;
+    for (let i = 0; i < n; i += 1) {
+      const sp = this.add
+        .rectangle(x + Phaser.Math.Between(-20, 20), y + Phaser.Math.Between(-20, 20), Phaser.Math.Between(6, 16), 4, i % 2 ? 0x9a6532 : 0x6b4321)
+        .setDepth(stage.depth(z) + 1)
+        .setAngle(Phaser.Math.Between(0, 180));
+      this.tweens.add({
+        targets: sp,
+        x: sp.x + Phaser.Math.Between(-70, 70),
+        y: sp.y + Phaser.Math.Between(-60, 30),
+        angle: sp.angle + Phaser.Math.Between(-300, 300),
+        alpha: 0,
+        duration: 420 + Math.random() * 200,
+        ease: 'Quad.easeOut',
+        onComplete: () => sp.destroy(),
+      });
+    }
+  }
+
+  // ------------------------------------------------------------------ shop + weapons HUD
+
+  toggleShop(force) {
+    this.shopOpen = force ?? !this.shopOpen;
+    this.keys.shopOpen = this.shopOpen;
+    this.shop.setVisible(this.shopOpen);
+    this.sound.play('beep', { volume: 0.2 });
+  }
+
+  buildShop() {
+    const font = { fontFamily: 'Russo One, Impact, sans-serif', color: '#ffffff' };
+    const W = 290;
+    const rowH = 44;
+    const H = 64 + SHOP.length * rowH + 30;
+    this.shop = this.add.container(16, 96).setScrollFactor(0).setDepth(5200).setVisible(false);
+    const bg = this.add.rectangle(0, 0, W, H, 0x101015, 0.92).setOrigin(0).setStrokeStyle(2, 0xf0c040);
+    const title = this.add.text(14, 12, 'ЗАКУПКА', { ...font, fontSize: '20px', color: '#f0c040' });
+    this.shopMoney = this.add.text(W - 14, 15, '', { ...font, fontSize: '15px' }).setOrigin(1, 0);
+    const hint = this.add.text(14, H - 22, '1–5 купить · B / Esc закрыть · бой идёт', { fontFamily: 'sans-serif', fontSize: '11px', color: '#9a9a9a' });
+    this.shop.add([bg, title, this.shopMoney, hint]);
+    this.shopRows = SHOP.map((item, i) => {
+      const y = 48 + i * rowH;
+      const box = this.add.rectangle(8, y, W - 16, rowH - 6, 0x24242c).setOrigin(0).setStrokeStyle(1, 0x444450);
+      const num = this.add.text(18, y + 19, String(i + 1), { ...font, fontSize: '16px', color: '#f0c040' }).setOrigin(0, 0.5);
+      const icon = item.weapon && this.textures.exists(WEAPON_DEFS[item.weapon]?.key)
+        ? this.add.image(64, y + 19, WEAPON_DEFS[item.weapon].key)
+        : this.add.image(64, y + 19, this.textures.exists('1up_0') ? '1up_0' : '__DEFAULT');
+      const big = Math.max(icon.width, icon.height) || 1;
+      icon.setScale((item.weapon ? 54 : 30) / big);
+      const name = this.add.text(100, y + 8, item.title, { ...font, fontSize: '14px' });
+      const sub = this.add.text(100, y + 25, item.weapon ? `+${WEAPONS[item.weapon].pack} патронов` : `+${item.heal} HP`, {
+        fontFamily: 'sans-serif',
+        fontSize: '11px',
+        color: '#a0a0a0',
+      });
+      const price = this.add.text(W - 18, y + 19, `${item.price} К`, { ...font, fontSize: '15px', color: '#f0c040' }).setOrigin(1, 0.5);
+      this.shop.add([box, num, icon, name, sub, price]);
+      return { item, price };
+    });
+    this.tagUi(this.shop);
+    for (const o of this.shop.list) this.tagUi(o);
+  }
+
+  /** Right-hand weapon column: fists + every owned gun with ammo. */
+  updateWeaponHud() {
+    const p = this.player;
+    const owned = WEAPON_SLOTS.filter((w) => w === 0 || p.weapons[w] > 0);
+    const sig = owned.map((w) => `${w}:${p.weapons[w] || 0}`).join(',') + `|${p.weapon}|${VIEW_W}`;
+    if (sig === this.weaponSig) return;
+    this.weaponSig = sig;
+    this.weaponHud?.destroy(true);
+    const font = { fontFamily: 'Russo One, Impact, sans-serif', color: '#ffffff' };
+    const c = this.add.container(VIEW_W - 16, 128).setScrollFactor(0).setDepth(5000);
+    owned.forEach((w, i) => {
+      const y = i * 58;
+      const on = p.weapon === w;
+      const box = this.add.rectangle(0, y, 150, 50, on ? 0x2c2610 : 0x000000, on ? 0.85 : 0.45).setOrigin(1, 0).setStrokeStyle(on ? 2 : 1, on ? 0xf0c040 : 0x555555);
+      const key = this.add.text(-142, y + 4, String(WEAPON_SLOTS.indexOf(w) + 1), { ...font, fontSize: '12px', color: '#f0c040' });
+      c.add([box, key]);
+      if (w === 0) {
+        c.add(this.add.text(-75, y + 25, 'КУЛАКИ', { ...font, fontSize: '15px', color: on ? '#ffd23f' : '#cccccc' }).setOrigin(0.5));
+      } else {
+        const tex = WEAPON_DEFS[w]?.key;
+        if (tex && this.textures.exists(tex)) {
+          const im = this.add.image(-96, y + 25, tex);
+          im.setScale(66 / (Math.max(im.width, im.height) || 1));
+          c.add(im);
+        }
+        c.add(this.add.text(-10, y + 25, String(p.weapons[w]), { ...font, fontSize: '18px', color: on ? '#ffd23f' : '#ffffff' }).setOrigin(1, 0.5));
+      }
+    });
+    c.add(this.add.text(0, owned.length * 58 + 2, 'Q / E · 1–5', { fontFamily: 'sans-serif', fontSize: '11px', color: '#ffffffaa' }).setOrigin(1, 0));
+    this.tagUi(c);
+    for (const o of c.list) this.tagUi(o);
+    this.weaponHud = c;
+  }
+
   /** Big centred banner (screen space). */
   banner(title, sub, ms = 1200, danger = false) {
     const b = this.hud.banner;
@@ -449,10 +669,19 @@ export class BrawlScene extends Phaser.Scene {
       seen.add(it.id);
       let img = this.pickupViews.get(it.id);
       if (!img) {
-        const key = this.textures.exists('1up_0') ? '1up_0' : '__DEFAULT';
+        let key = '1up_0';
+        let size = 54;
+        if (it.kind === 'kosar') {
+          key = it.amount >= 10 ? '10 kosarei_0' : it.amount >= 5 ? '5 kosarei_0' : 'kosar_0';
+          size = it.amount >= 5 ? 44 : 34;
+        } else if (it.kind === 'gun') {
+          key = WEAPON_DEFS[it.weapon]?.key || '1up_0';
+          size = 60;
+        }
+        if (!this.textures.exists(key)) key = '__DEFAULT';
         img = this.add.image(0, 0, key).setOrigin(0.5, 1);
-        const h = img.height || 40;
-        img.setScale(Math.min(1.2, 54 / h));
+        const big = Math.max(img.width || 40, img.height || 40);
+        img.setScale(size / big);
         this.pickupViews.set(it.id, img);
       }
       const x = it.px + (it.x - it.px) * alpha;
@@ -580,9 +809,12 @@ export class BrawlScene extends Phaser.Scene {
       meterFill: this.add.rectangle(0, 0, 196, 6, 0xff8a2a, 1).setOrigin(0, 0),
       meterText: this.add.text(0, 0, '', { ...font, fontSize: '12px', color: '#ffb627' }),
       kills: this.add.text(0, 0, '', { ...font, fontSize: '18px' }),
+      moneyIcon: this.add.image(0, 0, this.textures.exists('kosar_0') ? 'kosar_0' : '__DEFAULT').setOrigin(0, 0.5),
+      money: this.add.text(0, 0, '', { ...font, fontSize: '20px', color: '#ffd23f', stroke: '#000000', strokeThickness: 4 }).setOrigin(0, 0.5),
+      shopHint: this.add.text(0, 0, 'B — закупка', { fontFamily: 'sans-serif', fontSize: '12px', color: '#ffffffbb' }).setOrigin(0, 0.5),
       combo: this.add.text(0, 0, '', { ...font, fontSize: '42px', color: '#ffd23f', stroke: '#000000', strokeThickness: 6 }).setOrigin(1, 0),
       fps: this.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: '11px', color: '#ffffffaa' }).setOrigin(1, 0),
-      help: this.add.text(0, 0, 'WASD — ходить · Space ×2 — сальто · J удар · K нога · L/Shift рывок · J+K ярость · в упор к врагу — захват (J колено, K бросок) · P пауза · Esc меню', {
+      help: this.add.text(0, 0, 'WASD ходить · Space×2 сальто · J удар/выстрел · K нога · L рывок · J+K ярость · в упор — захват · Q/E оружие · B закупка · P пауза · Esc меню', {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: '#ffffff',
@@ -617,6 +849,7 @@ export class BrawlScene extends Phaser.Scene {
     this.slowOverlay.setDepth(4850);
     this.hurtOverlay.setDepth(4900);
     this.comboShown = 0;
+    this.buildShop();
     this.layoutHud();
   }
 
@@ -629,6 +862,10 @@ export class BrawlScene extends Phaser.Scene {
     h.meterFill.setPosition(18, 40);
     h.meterText.setPosition(222, 36);
     h.kills.setPosition(16, 54);
+    h.moneyIcon.setPosition(16, 88).setScale(34 / (Math.max(h.moneyIcon.width, 1)));
+    h.money.setPosition(58, 88);
+    h.shopHint.setPosition(130, 89);
+    this.weaponSig = null;
     h.combo.setPosition(VIEW_W - 20, 60);
     h.fps.setPosition(VIEW_W - 8, 6);
     h.help.setPosition(VIEW_W / 2, VIEW_H - 8);
@@ -652,6 +889,12 @@ export class BrawlScene extends Phaser.Scene {
     h.hpFill.width = 254 * k;
     h.hpFill.fillColor = k > 0.5 ? 0x5fd35f : k > 0.25 ? 0xffc23f : 0xe2463b;
     h.hpText.setText(`${p.hp}`);
+    h.money.setText(`× ${p.money}`);
+    this.updateWeaponHud();
+    if (this.shopOpen) {
+      this.shopMoney.setText(`${p.money} К`);
+      for (const r of this.shopRows) r.price.setColor(p.money >= r.item.price ? '#f0c040' : '#666666');
+    }
     const mk = Math.min(1, p.meter / METER_MAX);
     h.meterFill.width = 196 * mk;
     const full = mk >= 1;

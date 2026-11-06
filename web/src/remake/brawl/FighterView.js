@@ -61,6 +61,7 @@ export class FighterView {
       .map((n) => n.sprite)
       .filter(Boolean);
     this.flashT = 0;
+    this.shownWeapon = 0;
     this.squashT = 0;
     this.squashAmt = 0;
     this.jolt = 0;
@@ -129,6 +130,13 @@ export class FighterView {
       this.visual.setScale(1, 1);
     }
 
+    // Gun in hand (players)
+    if (f.team === 'player' && f.weapon !== this.shownWeapon) {
+      this.shownWeapon = f.weapon;
+      if (f.weapon) this.puppet.attachWeapon(f.weapon);
+      else this.puppet.clearWeapon();
+    }
+
     const flipU = f.state === 'jump' && f.flip ? Math.min(1, Math.max(0, (f.flipT - 1 + alpha) / FLIP_TICKS)) : 1;
 
     if (f.state === 'attack' && f.move) {
@@ -177,6 +185,7 @@ export class FighterView {
         moving: f.state === 'walk' || f.state === 'dash',
         airborne: f.y > 2 && f.state !== 'airhit',
         falling: f.state === 'jump' && (f.flip || f.vy < 0),
+        aiming: !!f.weapon && (f.state === 'idle' || f.state === 'walk'),
         walkAmp: f.state === 'dash' ? 1.2 : 1,
         walkSpeed: f.team === 'player' ? 1.2 : 0.95,
         dtBlend: true,
@@ -221,6 +230,16 @@ export class FighterView {
         this.hpBar.fillStyle(0xe2463b, 1).fillRect(bx, by, Math.max(0, (w * f.hp) / f.maxHp), 5);
       }
     }
+  }
+
+  recoil() {
+    this.puppet.playRecoil();
+  }
+
+  /** World position of the gun barrel tip (null without a gun). */
+  muzzle() {
+    if (!this.puppet.weaponImage) return null;
+    return this.puppet.getMuzzleWorld();
   }
 
   /** Enemy wind-up warning above the head for `ms`. */

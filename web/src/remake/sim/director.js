@@ -15,6 +15,8 @@ export class MapDirector {
     this.waveIds = [];
     this.arenaIds = [];
     world.bounds.xMax = map.length;
+    // Loot crates every ~25–40 s unless the map says otherwise
+    world.crateEvery = map.crates === false ? null : map.crates || [1500, 2400];
     world.playerBounds = { xMin: 0, xMax: map.arenas[0]?.right ?? map.length };
   }
 

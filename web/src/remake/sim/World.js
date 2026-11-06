@@ -12,7 +12,8 @@ import {
   GRAB_CONTACT,
   STAGGER_LIMIT,
 } from './constants.js';
-import { BTN, ACTION_BTNS, axisX, axisZ } from './input.js';
+import { BTN, ACTION_BTNS, axisX, axisZ, selField } from './input.js';
+import { WEAPONS, WEAPON_SLOTS, SHOP, KILL_LOOT, CRATE_GUNS } from './items.js';
 import { MOVES, moveTotal } from './moves.js';
 import { FIGHTERS } from './fighters.js';
 import { createRng } from './rng.js';
@@ -51,7 +52,12 @@ export class World {
     this.playerBounds = null;
     /** Items on the road (heal etc.). */
     this.pickups = [];
-    this.stats = { maxCombo: 0, damageTaken: 0 };
+    this.stats = { maxCombo: 0, damageTaken: 0, kosari: 0 };
+    /** Bullets / rockets in flight. */
+    this.projectiles = [];
+    /** Loot crates dropping from the sky: [min, max] ticks between drops, or null. */
+    this.crateEvery = null;
+    this.crateT = 0;
   }
 
   spawn(kind, x, z, opts = {}) {
@@ -108,6 +114,14 @@ export class World {
       bumped: [],
       /** Player who sent this body flying (combo/meter credit). */
       creditId: null,
+      /** Economy + guns (players). weapons: slot id -> ammo. */
+      money: 0,
+      weapons: {},
+      weapon: 0,
+      fireCd: 0,
+      looted: false,
+      /** Props (crates): height it fell from. */
+      dropH: 0,
       /** Bumped whenever a new one-shot animation should start (view watches it). */
       animSeq: 0,
       anim: null,
@@ -160,8 +174,11 @@ export class World {
     }
     this._bodyCollisions();
     this._resolveAttacks();
+    this._updateProjectiles();
     this._separate();
     this._updatePickups();
+    this._dropLoot();
+    this._crateDropper();
 
     for (const f of this.fighters) {
       this._clamp(f);
@@ -190,6 +207,14 @@ export class World {
         ((pressed & BTN.HEAVY) && prevBuf.btn === BTN.LIGHT && prevBuf.t >= INPUT_BUFFER - 3);
       if (both || late) f.buf = { btn: BTN.SPECIAL, t: INPUT_BUFFER };
     }
+    // Weapon select / shop purchase: act on the field changing (edge)
+    const sel = selField(f.cmd);
+    if (sel && (sel !== selField(f.prevCmd) || (f.cmd & BTN.BUY) !== (f.prevCmd & BTN.BUY))) {
+      if (f.cmd & BTN.BUY) this._buy(f, sel - 1);
+      else this._selectWeapon(f, sel - 1);
+    }
+    if (pressed & BTN.WNEXT) this._cycleWeapon(f, 1);
+    if (pressed & BTN.WPREV) this._cycleWeapon(f, -1);
     f.prevCmd = f.cmd;
     if (!frozen && f.buf.t > 0) {
       f.buf.t -= 1;
@@ -212,7 +237,12 @@ export class World {
 
   _update(f) {
     const def = FIGHTERS[f.kind];
+    if (def.prop) {
+      this._prop(f);
+      return;
+    }
     if (f.iframes > 0) f.iframes -= 1;
+    if (f.fireCd > 0) f.fireCd -= 1;
     if (f.chain && --f.chain.t <= 0) f.chain = null;
     if (f.stagger > 0) f.stagger = Math.max(0, f.stagger - 0.3);
     f.st += 1;
@@ -289,6 +319,8 @@ export class World {
   _ground(f, def) {
     const ax = axisX(f.cmd);
     const az = axisZ(f.cmd);
+    // Automatic guns keep firing while LIGHT is held
+    if (f.weapon && WEAPONS[f.weapon]?.auto && f.cmd & BTN.LIGHT && f.fireCd <= 0) this._fire(f);
     if (this._tryAct(f, def, ax, az)) return;
 
     // Walk into a stunned / idle enemy -> grab
@@ -323,6 +355,13 @@ export class World {
     const b = f.buf.btn;
     if (!b) return false;
 
+    if (b === BTN.LIGHT && f.weapon) {
+      // Gun in hand: LIGHT shoots (waits in the buffer for the cooldown)
+      if (f.fireCd > 0) return false;
+      this._consume(f);
+      this._fire(f);
+      return false;
+    }
     if (b === BTN.LIGHT || b === BTN.HEAVY) {
       const key = b === BTN.LIGHT ? 'light' : 'heavy';
       let id = f.chain ? MOVES[f.chain.from]?.next?.[key] : null;
@@ -589,11 +628,24 @@ export class World {
     }
   }
 
-  _applyHit(att, tgt, m) {
-    att.hitIds.push(tgt.id);
-    att.connected = true;
-    const dir = Math.sign(tgt.x - att.x) || att.facing;
+  /**
+   * @param {object} att attacker (credited for combo / meter)
+   * @param {object} tgt victim
+   * @param {object} m move or projectile hit spec
+   * @param {{x:number, facing:number}} [src] where the hit came from (projectiles); skips per-swing tracking
+   */
+  _applyHit(att, tgt, m, src = null) {
+    if (!src) {
+      att.hitIds.push(tgt.id);
+      att.connected = true;
+    }
+    const dir = Math.sign(tgt.x - (src ? src.x : att.x)) || (src ? src.facing : att.facing);
     const def = FIGHTERS[tgt.kind];
+
+    if (def.prop) {
+      this._hitProp(tgt, m, dir);
+      return;
+    }
 
     tgt.hp = Math.max(0, tgt.hp - m.dmg);
     this.hitstop = Math.max(this.hitstop, m.hitstop);
@@ -914,7 +966,9 @@ export class World {
         const nx = dx / d;
         const nz = dz / d;
         // Players hold their ground; enemies yield
-        const wa = a.team === 'player' && b.team !== 'player' ? 0.2 : b.team === 'player' && a.team !== 'player' ? 0.8 : 0.5;
+        let wa = a.team === 'player' && b.team !== 'player' ? 0.2 : b.team === 'player' && a.team !== 'player' ? 0.8 : 0.5;
+        if (a.team === 'prop') wa = b.team === 'prop' ? 0.5 : 0;
+        else if (b.team === 'prop') wa = 1;
         const wb = 1 - wa;
         a.x -= nx * push * wa;
         b.x += nx * push * wb;
@@ -935,9 +989,16 @@ export class World {
 
   // ------------------------------------------------------------------ pickups
 
-  spawnPickup(kind, x, z, amount = 0) {
-    const y = 180;
-    this.pickups.push({ id: this.nextId++, kind, amount, x, z, y, px: x, pz: z, py: y, vy: 0, t: 0, taken: false });
+  /**
+   * @param {'heal'|'kosar'|'gun'} kind
+   * @param {{ y?: number, vx?: number, vy?: number, weapon?: number }} [o]
+   */
+  spawnPickup(kind, x, z, amount = 0, o = {}) {
+    const y = o.y ?? 180;
+    this.pickups.push({
+      id: this.nextId++, kind, amount, weapon: o.weapon ?? 0,
+      x, z, y, px: x, pz: z, py: y, vx: o.vx ?? 0, vy: o.vy ?? 0, t: 0, taken: false,
+    });
   }
 
   _updatePickups() {
@@ -947,6 +1008,17 @@ export class World {
       it.pz = it.z;
       it.py = it.y;
       it.t += 1;
+      it.x += it.vx;
+      it.vx *= it.y > 0 ? 0.985 : 0.8;
+      if (it.x < this.bounds.xMin + 20 || it.x > this.bounds.xMax - 20) it.vx = -it.vx;
+      // Money flies to a nearby player
+      if (it.kind === 'kosar' && it.t > 24) {
+        const p = this._nearestPlayer(it.x, it.z, 110);
+        if (p) {
+          it.x += Math.sign(p.x - it.x) * Math.min(7, Math.abs(p.x - it.x));
+          it.z += Math.sign(p.z - it.z) * Math.min(4, Math.abs(p.z - it.z));
+        }
+      }
       if (it.y > 0 || it.vy > 0) {
         it.vy -= GRAVITY;
         it.y += it.vy;
@@ -960,12 +1032,266 @@ export class World {
         if (p.team !== 'player' || p.dead) continue;
         if (Math.abs(p.x - it.x) > 42 || Math.abs(p.z - it.z) > 22) continue;
         if (it.kind === 'heal') p.hp = Math.min(p.maxHp, p.hp + it.amount);
+        else if (it.kind === 'kosar') {
+          p.money += it.amount;
+          this.stats.kosari += it.amount;
+        } else if (it.kind === 'gun') {
+          p.weapons[it.weapon] = (p.weapons[it.weapon] || 0) + it.amount;
+          if (!p.weapon) p.weapon = it.weapon;
+        }
         it.taken = true;
-        this.events.push({ type: 'pickup', id: p.id, kind: it.kind, amount: it.amount, x: it.x, z: it.z });
+        this.events.push({ type: 'pickup', id: p.id, kind: it.kind, amount: it.amount, weapon: it.weapon, x: it.x, z: it.z });
         break;
       }
     }
     this.pickups = this.pickups.filter((it) => !it.taken);
+  }
+
+  _nearestPlayer(x, z, maxD) {
+    let best = null;
+    let bd = maxD;
+    for (const p of this.fighters) {
+      if (p.team !== 'player' || p.dead) continue;
+      const d = Math.abs(p.x - x) + Math.abs(p.z - z) * 1.5;
+      if (d < bd) {
+        bd = d;
+        best = p;
+      }
+    }
+    return best;
+  }
+
+  // ------------------------------------------------------------------ guns
+
+  _selectWeapon(f, slot) {
+    if (f.team !== 'player') return;
+    if (slot === 0 || (WEAPONS[slot] && f.weapons[slot] > 0)) {
+      if (f.weapon !== slot) this.events.push({ type: 'weapon', id: f.id, weapon: slot });
+      f.weapon = slot;
+    } else {
+      this.events.push({ type: 'noWeapon', id: f.id, weapon: slot });
+    }
+  }
+
+  _cycleWeapon(f, dir) {
+    if (f.team !== 'player') return;
+    const owned = WEAPON_SLOTS.filter((w) => w === 0 || f.weapons[w] > 0);
+    const i = Math.max(0, owned.indexOf(f.weapon));
+    this._selectWeapon(f, owned[(i + dir + owned.length) % owned.length]);
+  }
+
+  _buy(f, idx) {
+    const item = SHOP[idx];
+    if (!item || f.team !== 'player') return;
+    if (f.money < item.price) {
+      this.events.push({ type: 'cantBuy', id: f.id, item: item.id });
+      return;
+    }
+    f.money -= item.price;
+    if (item.weapon) {
+      f.weapons[item.weapon] = (f.weapons[item.weapon] || 0) + WEAPONS[item.weapon].pack;
+      if (!f.weapon) f.weapon = item.weapon;
+    }
+    if (item.heal) f.hp = Math.min(f.maxHp, f.hp + item.heal);
+    this.events.push({ type: 'buy', id: f.id, item: item.id, weapon: item.weapon || 0 });
+  }
+
+  _fire(f) {
+    const w = WEAPONS[f.weapon];
+    if (!w) return;
+    if (!(f.weapons[f.weapon] > 0)) {
+      this.events.push({ type: 'empty', id: f.id, weapon: f.weapon });
+      f.weapon = 0;
+      return;
+    }
+    f.weapons[f.weapon] -= 1;
+    f.fireCd = w.cd;
+    const n = w.pellets || 1;
+    for (let i = 0; i < n; i += 1) {
+      const dz = n > 1 ? ((i / (n - 1)) - 0.5) * w.spreadZ : 0;
+      this.projectiles.push({
+        id: this.nextId++,
+        owner: f.id,
+        team: f.team,
+        spec: w.proj,
+        x: f.x + f.facing * 58,
+        z: f.z + dz * 0.3,
+        vz: dz * 0.06,
+        y: 116,
+        px: f.x + f.facing * 58,
+        pz: f.z,
+        py: 116,
+        vx: f.facing * w.proj.speed * (n > 1 ? this.rng.range(0.92, 1.05) : 1),
+        life: w.proj.life,
+        hit: [],
+        dead: false,
+      });
+    }
+    f.x -= f.facing * w.recoil;
+    this.events.push({ type: 'shot', id: f.id, weapon: f.weapon, x: f.x, z: f.z });
+    if (f.weapons[f.weapon] <= 0) {
+      this.events.push({ type: 'empty', id: f.id, weapon: f.weapon });
+      f.weapon = 0;
+    }
+  }
+
+  _updateProjectiles() {
+    if (!this.projectiles.length) return;
+    for (const pr of this.projectiles) {
+      pr.px = pr.x;
+      pr.pz = pr.z;
+      pr.py = pr.y;
+      pr.x += pr.vx;
+      pr.z += pr.vz || 0;
+      pr.life -= 1;
+      const sp = pr.spec;
+      for (const t of this.fighters) {
+        if (pr.dead) break;
+        if (t.team === pr.team || t.dead || UNHITTABLE.has(t.state) || t.iframes > 0) continue;
+        if (t.state === 'grabbed' || pr.hit.includes(t.id)) continue;
+        if (Math.abs(t.x - pr.x) > 30 + Math.abs(pr.vx) * 0.5 || Math.abs(t.z - pr.z) > 22 || t.y > 170) continue;
+        if (sp.explode) {
+          this._explode(pr);
+          break;
+        }
+        pr.hit.push(t.id);
+        const owner = this._byId(pr.owner) || { id: -1, team: pr.team, x: pr.x, facing: Math.sign(pr.vx), combo: 0, meter: 0 };
+        // Shotgun up close knocks down
+        const close = sp.kind === 'pellet' && pr.life > sp.life - 6;
+        this._applyHit(owner, t, {
+          dmg: sp.dmg,
+          hitstun: sp.hitstun,
+          kb: sp.kb,
+          hitstop: 2,
+          knockdown: close,
+          heavy: close,
+        }, { x: pr.x - Math.sign(pr.vx) * 40, facing: Math.sign(pr.vx) });
+        if (sp.kind !== 'pellet' || t.kind !== 'crate') pr.dead = true;
+      }
+      if (!pr.dead && pr.life <= 0) {
+        if (sp.explode) this._explode(pr);
+        else pr.dead = true;
+      }
+      if (pr.x < this.bounds.xMin - 200 || pr.x > this.bounds.xMax + 200) pr.dead = true;
+    }
+    this.projectiles = this.projectiles.filter((pr) => !pr.dead);
+  }
+
+  _explode(pr) {
+    pr.dead = true;
+    const e = pr.spec.explode;
+    const owner = this._byId(pr.owner) || { id: -1, team: pr.team, x: pr.x, facing: 1, combo: 0, meter: 0 };
+    this.hitstop = Math.max(this.hitstop, 7);
+    this.events.push({ type: 'explode', x: pr.x, z: pr.z, y: pr.y });
+    for (const t of this.fighters) {
+      if (t.team === pr.team || t.dead || UNHITTABLE.has(t.state)) continue;
+      if (Math.abs(t.x - pr.x) > e.radius || Math.abs(t.z - pr.z) > e.depth) continue;
+      this._applyHit(owner, t, { dmg: e.dmg, kb: e.kb, launch: e.launch, hitstop: 7, heavy: true, special: false }, { x: pr.x, facing: Math.sign(pr.vx) || 1 });
+    }
+  }
+
+  // ------------------------------------------------------------------ loot & crates
+
+  /** Enemies spill косари when they go down. */
+  _dropLoot() {
+    for (const f of this.fighters) {
+      if (!f.dead || f.looted || f.team !== 'enemy') continue;
+      f.looted = true;
+      const r = KILL_LOOT[f.kind];
+      if (!r) continue;
+      this._spillKosari(f.x, f.z, this.rng.int(r[0], r[1]), f.y + 60);
+    }
+  }
+
+  _spillKosari(x, z, total, y = 60) {
+    let left = total;
+    while (left > 0) {
+      const amount = left >= 10 ? 10 : left >= 5 ? 5 : 1;
+      left -= amount;
+      this.spawnPickup('kosar', x, z + this.rng.range(-12, 12), amount, {
+        y,
+        vx: this.rng.range(-3.5, 3.5),
+        vy: this.rng.range(6, 10),
+      });
+    }
+  }
+
+  _crateDropper() {
+    if (!this.crateEvery) return;
+    if (this.crateT <= 0) this.crateT = this.rng.int(this.crateEvery[0], this.crateEvery[1]);
+    if (--this.crateT > 0) return;
+    const crates = this.fighters.filter((f) => f.kind === 'crate' && !f.dead).length;
+    const ps = this.players();
+    if (crates >= 2 || !ps.length) return;
+    const p = ps[this.rng.int(0, ps.length - 1)];
+    const pb = this.playerBounds || this.bounds;
+    const x = Math.min(pb.xMax - 80, Math.max(pb.xMin + 80, p.x + this.rng.range(-260, 260)));
+    this.dropCrate(x, this.rng.range(this.bounds.zMin + 15, this.bounds.zMax - 15));
+  }
+
+  dropCrate(x, z) {
+    const c = this.spawn('crate', x, z);
+    c.y = c.py = 560;
+    c.vy = 0;
+    c.dropH = 560;
+    this.events.push({ type: 'crateIncoming', id: c.id, x, z });
+    return c;
+  }
+
+  _prop(f) {
+    if (f.dead) {
+      if (--f.removeT <= 0) f.removed = true;
+      return;
+    }
+    if (f.y > 0 || f.vy > 0) {
+      this._gravity(f);
+      if (f.y <= 0) {
+        f.y = 0;
+        f.vy = 0;
+        this.events.push({ type: 'crateLand', id: f.id, x: f.x, z: f.z });
+        if (f.dropH > 120) {
+          // Crushes whoever stands underneath
+          for (const t of this.fighters) {
+            if (t === f || t.dead || t.team === 'prop' || UNHITTABLE.has(t.state)) continue;
+            if (Math.abs(t.x - f.x) > 52 || Math.abs(t.z - f.z) > 26) continue;
+            this._applyHit(f, t, { dmg: 15, kb: 5, knockdown: true, hitstop: 5, heavy: true }, { x: f.x, facing: 1 });
+          }
+        }
+        f.dropH = 0;
+      }
+    }
+  }
+
+  _hitProp(c, m, dir) {
+    if (c.y > 40) return;
+    c.hp = Math.max(0, c.hp - (m.dmg || 0));
+    this.hitstop = Math.max(this.hitstop, 2);
+    this.events.push({ type: 'hit', target: c.id, targetTeam: 'prop', x: c.x, z: c.z, y: 0, dir, dmg: 0, heavy: false, reaction: 'prop' });
+    c.animSeq += 1;
+    if (c.hp > 0) return;
+    c.dead = true;
+    c.removeT = 2;
+    this.events.push({ type: 'crateBreak', id: c.id, x: c.x, z: c.z });
+    // Loot: always money, sometimes food or a gun
+    this._spillKosari(c.x, c.z, this.rng.int(2, 4), 40);
+    const roll = this.rng.next();
+    if (roll < 0.35) {
+      this.spawnPickup('heal', c.x + this.rng.range(-30, 30), c.z, 30, { y: 40, vy: 8, vx: this.rng.range(-2, 2) });
+    } else if (roll < 0.75) {
+      const total = CRATE_GUNS.reduce((a, g) => a + g[1], 0);
+      let k = this.rng.range(0, total);
+      let gun = CRATE_GUNS[0][0];
+      for (const [id, wgt] of CRATE_GUNS) {
+        k -= wgt;
+        if (k <= 0) {
+          gun = id;
+          break;
+        }
+      }
+      this.spawnPickup('gun', c.x + this.rng.range(-30, 30), c.z, WEAPONS[gun].pack, {
+        y: 40, vy: 9, vx: this.rng.range(-2, 2), weapon: gun,
+      });
+    }
   }
 
   _rollOffsets(f) {
