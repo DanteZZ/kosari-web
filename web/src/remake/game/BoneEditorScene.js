@@ -7,7 +7,7 @@ import {
   applyDefaultLayout,
 } from './player/layoutState.js';
 import { PART_LAYOUT as PLAYER_LAYOUT } from './player/parts.js';
-import { getEnemySkin, enemyPartTextureKey } from './enemies/parts.js';
+import { getEnemySkin, enemyPartTextureKey, ENEMY_SKINS } from './enemies/parts.js';
 import { VIEW_W, VIEW_H } from './constants.js';
 
 const EDITABLE = [
@@ -103,8 +103,8 @@ export class BoneEditorScene extends Phaser.Scene {
       resetLayout();
       return;
     }
-    // Reset enemy layout to a fresh player default clone
-    const fresh = JSON.parse(JSON.stringify(PLAYER_LAYOUT));
+    // Back to the layout loaded from the project file
+    const fresh = JSON.parse(JSON.stringify(this.enemySkin.defaultLayout || PLAYER_LAYOUT));
     const layout = this.enemySkin.layout;
     for (const k of Object.keys(layout)) delete layout[k];
     Object.assign(layout, fresh);
@@ -257,7 +257,7 @@ export class BoneEditorScene extends Phaser.Scene {
       panel = document.createElement('div');
       panel.id = 'bone-editor-panel';
       panel.innerHTML = `
-        <div class="be-head">Редактор костей · <span id="be-skin">—</span></div>
+        <div class="be-head">Редактор костей · <select id="be-skinsel"></select><span id="be-skin" hidden>—</span></div>
         <div class="be-row"><b id="be-sel">—</b> · режим <span id="be-mode">pos</span></div>
         <div class="be-help">
           Клик по части · Tab след.<br/>
@@ -268,6 +268,8 @@ export class BoneEditorScene extends Phaser.Scene {
         </div>
         <textarea id="be-json" spellcheck="false"></textarea>
         <div class="be-actions">
+          <button type="button" id="be-save">Сохранить в проект</button>
+          <button type="button" id="be-reset">Сброс</button>
           <button type="button" id="be-copy">Копировать JSON</button>
           <button type="button" id="be-fit">Fit по земле</button>
           <button type="button" id="be-back">В меню</button>
@@ -284,6 +286,27 @@ export class BoneEditorScene extends Phaser.Scene {
       json: panel.querySelector('#be-json'),
     };
     panel.querySelector('#be-copy').onclick = () => this._copyJson();
+    // Skin picker: player + every enemy rig
+    const sel = panel.querySelector('#be-skinsel');
+    sel.innerHTML = '';
+    for (const [id, label] of [['player', 'Игрок'], ...Object.values(ENEMY_SKINS).map((k) => [k.id, k.label || k.id])]) {
+      const o = document.createElement('option');
+      o.value = id;
+      o.textContent = label;
+      if (id === this.skinId) o.selected = true;
+      sel.appendChild(o);
+    }
+    sel.onchange = () => {
+      sel.blur();
+      this.scene.restart({ onExit: this.onExit, skinId: sel.value });
+    };
+    const save = panel.querySelector('#be-save');
+    save.hidden = this.skinId === 'player';
+    save.onclick = () => this._saveToProject();
+    panel.querySelector('#be-reset').onclick = () => {
+      this._resetSkinLayout();
+      this.scene.restart({ onExit: this.onExit, skinId: this.skinId });
+    };
     panel.querySelector('#be-fit').onclick = () => {
       this.puppet._fitToGround();
       this.puppet.writeLayoutFromNodes();
@@ -325,6 +348,26 @@ export class BoneEditorScene extends Phaser.Scene {
     const b = node.sprite.getBounds();
     this.hilite.lineStyle(2, 0x44ff88, 0.9);
     this.hilite.strokeRect(b.x, b.y, b.width, b.height);
+  }
+
+  /** Dev server writes the rig to src/remake/game/enemies/layouts/<id>.json. */
+  async _saveToProject() {
+    this.puppet.writeLayoutFromNodes();
+    const layout = this._activeLayout();
+    if (this.enemySkin) this.enemySkin.defaultLayout = JSON.parse(JSON.stringify(layout));
+    try {
+      const r = await fetch('/__kosari/save-layout', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ id: this.skinId, layout }),
+      });
+      const j = await r.json();
+      if (this.ui?.sel) this.ui.sel.textContent = j.ok ? `Сохранено: ${j.file}` : `Ошибка: ${j.error}`;
+    } catch (e) {
+      // Static build / no dev server: fall back to clipboard
+      this._copyJson();
+      if (this.ui?.sel) this.ui.sel.textContent = 'Нет dev-сервера — JSON скопирован';
+    }
   }
 
   _copyJson() {

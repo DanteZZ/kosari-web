@@ -83,7 +83,7 @@ export function renderMenu(root, { go }) {
       }),
       el('button', {
         className: 'btn',
-        text: 'Кости · Никита',
+        text: 'Кости · враги',
         onClick: () => {
           stopMusic();
           playSfx('beep.wav', { volume: 0.35 });

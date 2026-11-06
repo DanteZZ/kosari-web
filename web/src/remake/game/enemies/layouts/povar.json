@@ -1,7 +1,7 @@
 {
   "hips": {
     "x": 0,
-    "y": -235.0
+    "y": -235
   },
   "torso": {
     "parent": "hips",
@@ -9,7 +9,7 @@
     "originX": 0.5,
     "originY": 0.96,
     "x": 0,
-    "y": 8.0,
+    "y": 8,
     "angle": 0
   },
   "head": {
@@ -18,7 +18,7 @@
     "originX": 0.5,
     "originY": 0.9,
     "x": 2,
-    "y": -172.0,
+    "y": -172,
     "angle": 0
   },
   "arm_l_u": {
