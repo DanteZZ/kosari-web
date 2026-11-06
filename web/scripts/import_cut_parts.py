@@ -156,7 +156,9 @@ def main():
         im.save(out / f"{bone}.png")
         sizes[bone] = (w, h)
 
-    # ---- Layout in the player's conventions (faces right; R limbs = front, negative x)
+    # ---- Layout in the player's conventions. Left / right are the character's own
+    # (as in the pocik cut): facing right, his left side is the far one (+x, behind),
+    # his right side the near one (−x, in front).
     tw, th = sizes["torso"]
     thigh = (sizes["leg_r_u"][1] + sizes["leg_l_u"][1]) / 2
     shin = (sizes["leg_r_l"][1] + sizes["leg_l_l"][1]) / 2
@@ -168,15 +170,18 @@ def main():
         "hips": {"x": 0, "y": round(hips_y, 1)},
         "torso": {"parent": "hips", "tex": "torso", "originX": 0.5, "originY": 0.96, "x": 0, "y": round(th * 0.04, 1), "angle": 0},
         "head": {"parent": "torso", "tex": "head", "originX": 0.5, "originY": 0.9, "x": 2, "y": round(-th * 0.86, 1), "angle": 0},
-        "arm_l_u": {"parent": "torso", "tex": "arm_l_u", "originX": 0.5, "originY": 0.1, "x": round(sh_x), "y": round(sh_y), "angle": 2},
+        # Same parenting / paint order as the player (pocik): back (left) arm hangs
+        # off the hips so it draws behind the torso; front (right) arm is a torso
+        # child so it draws over the body, under the head.
+        "arm_l_u": {"parent": "hips", "tex": "arm_l_u", "originX": 0.5, "originY": 0.1, "x": round(tw * 0.28), "y": round(th * 0.04 + sh_y), "angle": 2},
         "arm_l_l": {"parent": "arm_l_u", "tex": "arm_l_l", "originX": 0.5, "originY": 0.06, "x": 0, "y": round(sizes["arm_l_u"][1] * 0.84), "angle": -48},
         "hand_l": {"parent": "arm_l_l", "tex": None, "originX": 0.5, "originY": 0.5, "x": 0, "y": round(sizes["arm_l_l"][1] * 0.82), "angle": 0},
-        "arm_r_u": {"parent": "torso", "tex": "arm_r_u", "originX": 0.5, "originY": 0.1, "x": round(-sh_x), "y": round(sh_y), "angle": -6},
+        "arm_r_u": {"parent": "torso", "tex": "arm_r_u", "originX": 0.5, "originY": 0.1, "x": round(-tw * 0.4), "y": round(sh_y), "angle": -6},
         "arm_r_l": {"parent": "arm_r_u", "tex": "arm_r_l", "originX": 0.5, "originY": 0.06, "x": 0, "y": round(sizes["arm_r_u"][1] * 0.84), "angle": -62},
         "hand_r": {"parent": "arm_r_l", "tex": None, "originX": 0.5, "originY": 0.5, "x": 0, "y": round(sizes["arm_r_l"][1] * 0.82), "angle": 0},
-        "leg_r_u": {"parent": "hips", "tex": "leg_r_u", "originX": 0.5, "originY": 0.08, "x": round(-hip_x), "y": 6, "angle": 0},
+        "leg_r_u": {"parent": "hips", "tex": "leg_r_u", "originX": 0.5, "originY": 0.08, "x": round(-tw * 0.06), "y": 6, "angle": 0},
         "leg_r_l": {"parent": "leg_r_u", "tex": "leg_r_l", "originX": 0.5, "originY": 0.05, "x": 0, "y": round(sizes["leg_r_u"][1] * 0.86), "angle": 2},
-        "leg_l_u": {"parent": "hips", "tex": "leg_l_u", "originX": 0.5, "originY": 0.08, "x": round(hip_x), "y": 6, "angle": -4},
+        "leg_l_u": {"parent": "hips", "tex": "leg_l_u", "originX": 0.5, "originY": 0.08, "x": round(tw * 0.22), "y": 6, "angle": -4},
         "leg_l_l": {"parent": "leg_l_u", "tex": "leg_l_l", "originX": 0.5, "originY": 0.05, "x": 0, "y": round(sizes["leg_l_u"][1] * 0.86), "angle": 2},
     }
     lay_dir = ROOT / "src" / "remake" / "game" / "enemies" / "layouts"

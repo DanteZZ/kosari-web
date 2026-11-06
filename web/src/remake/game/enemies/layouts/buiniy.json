@@ -22,12 +22,12 @@
     "angle": 0
   },
   "arm_l_u": {
-    "parent": "torso",
+    "parent": "hips",
     "tex": "arm_l_u",
     "originX": 0.5,
     "originY": 0.1,
-    "x": 28,
-    "y": -128,
+    "x": 29,
+    "y": -121,
     "angle": 2
   },
   "arm_l_l": {
@@ -53,7 +53,7 @@
     "tex": "arm_r_u",
     "originX": 0.5,
     "originY": 0.1,
-    "x": -28,
+    "x": -41,
     "y": -128,
     "angle": -6
   },
@@ -80,7 +80,7 @@
     "tex": "leg_r_u",
     "originX": 0.5,
     "originY": 0.08,
-    "x": -18,
+    "x": -6,
     "y": 6,
     "angle": 0
   },
@@ -98,7 +98,7 @@
     "tex": "leg_l_u",
     "originX": 0.5,
     "originY": 0.08,
-    "x": 18,
+    "x": 23,
     "y": 6,
     "angle": -4
   },
