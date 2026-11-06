@@ -92,6 +92,7 @@ export const SOUNDS = {
   dirigabb_sound: 'wav',
   superudar: 'WAV',
   thunder: 'mp3',
+  credits: 'mp3',
 };
 
 function spriteUrl(name, i) {

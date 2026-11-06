@@ -4,19 +4,22 @@ import { VIEW_W, VIEW_H } from '../game/constants.js';
 import { createParallax } from '../game/parallax.js';
 import { World } from '../sim/World.js';
 import { SandboxDirector } from '../sim/sandbox.js';
+import { MapDirector } from '../sim/director.js';
+import { FIGHTERS } from '../sim/fighters.js';
+import { MAPS, DEFAULT_MAP } from '../maps/index.js';
 import { DT, METER_MAX } from '../sim/constants.js';
 import { MOVES } from '../sim/moves.js';
 import { FighterView } from './FighterView.js';
 import { KeyboardInput } from './keyboard.js';
 import { stage, LANE_DEPTH } from './stage.js';
 
-const WORLD_LEN = 7200;
+const SANDBOX_LEN = 7200;
 /** Never run more than this many sim ticks per frame (avoid spiral of death after a stall). */
 const MAX_STEPS = 6;
 
 /**
- * Milestone 1 sandbox: fixed-tick sim + interpolated bone-puppet view on a
- * lane with depth. Crowd comes from both sides forever.
+ * Brawl core view: fixed-tick sim + interpolated bone puppets on a lane with depth.
+ * Plays a data-driven map (arenas + waves, ?map=forest) or the endless sandbox (?brawl=sandbox).
  */
 export class BrawlScene extends Phaser.Scene {
   constructor() {
@@ -25,6 +28,9 @@ export class BrawlScene extends Phaser.Scene {
 
   init(data) {
     this.onExit = data?.onExit;
+    const params = new URLSearchParams(window.location.search);
+    const wanted = data?.map || params.get('map') || (params.get('brawl') === 'sandbox' ? 'sandbox' : DEFAULT_MAP);
+    this.map = MAPS[wanted] || null;
   }
 
   create() {
@@ -40,12 +46,18 @@ export class BrawlScene extends Phaser.Scene {
       grassDepth: 2000,
     });
 
+    this.worldLen = this.map ? this.map.length : SANDBOX_LEN;
     this.world = new World({
       seed: (Date.now() & 0xffffff) | 1,
-      bounds: { xMin: 0, xMax: WORLD_LEN, zMin: 0, zMax: LANE_DEPTH },
+      bounds: { xMin: 0, xMax: this.worldLen, zMin: 0, zMax: LANE_DEPTH },
     });
-    this.player = this.world.spawn('player', 420, LANE_DEPTH * 0.55, { slot: 0 });
-    this.director = new SandboxDirector(this.world);
+    const start = this.map?.start || { x: 420, z: LANE_DEPTH * 0.55 };
+    this.player = this.world.spawn('player', start.x, Math.min(LANE_DEPTH, start.z), { slot: 0 });
+    this.director = this.map ? new MapDirector(this.world, this.map) : new SandboxDirector(this.world);
+    this.lock = null;
+    this.finished = false;
+    this.startTick = 0;
+    this.pickupViews = new Map();
     this.keys = new KeyboardInput(this);
 
     this.camX = Math.max(0, this.player.x - VIEW_W * 0.4);
@@ -61,7 +73,10 @@ export class BrawlScene extends Phaser.Scene {
 
     const kb = this.input.keyboard;
     kb.on('keydown-P', () => this.togglePause());
-    kb.on('keydown-ENTER', () => this.togglePause());
+    kb.on('keydown-ENTER', () => {
+      if (this.finished) this.scene.restart();
+      else this.togglePause();
+    });
     kb.on('keydown-ESC', () => {
       this.sound.stopAll();
       this.onExit?.();
@@ -78,13 +93,15 @@ export class BrawlScene extends Phaser.Scene {
     this.events.once('shutdown', () => {
       this.game.events.off('remake-resize', this._onResize);
       this.sound.stopByKey('game');
+      this.sound.stopByKey('boss');
     });
+    if (this.map) this.banner(this.map.name, 'Иди вперёд →', 1800);
 
     window.__brawl = this;
   }
 
   togglePause() {
-    if (this.player.dead) return;
+    if (this.player.dead || this.finished) return;
     this.paused = !this.paused;
     this.game.events.emit('remake-pause', this.paused);
   }
@@ -129,6 +146,7 @@ export class BrawlScene extends Phaser.Scene {
         this.views.delete(id);
       }
     }
+    this.renderPickups(alpha);
 
     this.updateCamera(frameMs / 1000, alpha);
     this.updateHud();
@@ -141,7 +159,17 @@ export class BrawlScene extends Phaser.Scene {
     const p = this.player;
     const px = p.px + (p.x - p.px) * alpha;
     const lead = p.facing * VIEW_W * 0.1;
-    const target = Phaser.Math.Clamp(px - VIEW_W * 0.5 + lead, 0, WORLD_LEN - VIEW_W);
+    // Locked arena: camera stays inside it (centred if the screen is wider than the arena)
+    let lo = this.world.playerBounds?.xMin ?? 0;
+    let hi = this.worldLen;
+    if (this.lock) {
+      lo = this.lock.left;
+      hi = this.lock.right;
+    }
+    let target;
+    if (hi - lo <= VIEW_W) target = (lo + hi) / 2 - VIEW_W / 2;
+    else target = Phaser.Math.Clamp(px - VIEW_W * 0.5 + lead, Math.max(0, lo - 60), hi - VIEW_W + 60);
+    target = Phaser.Math.Clamp(target, 0, Math.max(0, this.worldLen - VIEW_W));
     this.camX += (target - this.camX) * (1 - Math.exp(-dt * 6));
 
     let sx = 0;
@@ -189,6 +217,42 @@ export class BrawlScene extends Phaser.Scene {
           break;
         case 'rage':
           this.onRage(ev);
+          break;
+        case 'arenaStart':
+          this.lock = { left: ev.left, right: ev.right };
+          this.shake(120, 3);
+          if (ev.boss) {
+            this.sound.stopByKey('game');
+            if (GameState.musicPlay) this.sound.play('boss', { loop: true, volume: 0.45 });
+          }
+          break;
+        case 'wave':
+          if (ev.banner) this.banner(ev.banner, ev.boss ? null : `Волна ${ev.n}/${ev.total}`, 1300, ev.boss);
+          else this.banner(`Волна ${ev.n}/${ev.total}`, null, 900);
+          this.sound.play('warning', { volume: 0.25 });
+          break;
+        case 'arenaClear':
+          this.lock = null;
+          if (!ev.boss) this.banner('ЧИСТО!', 'Вперёд →', 1200);
+          this.sound.play('cash', { volume: 0.4 });
+          break;
+        case 'go':
+          this.goT = 0;
+          break;
+        case 'bossDown':
+          this.shake(500, 14);
+          this.sound.play('explosion', { volume: 0.5 });
+          this.sound.stopByKey('boss');
+          break;
+        case 'mapComplete':
+          this.time.delayedCall(1400, () => this.showResults());
+          break;
+        case 'pickup':
+          this.sound.play('+life', { volume: 0.45 });
+          this.popText(ev.x, stage.groundY(ev.z) - 120, `+${ev.amount}`, '#7dff7a', 30);
+          break;
+        case 'spawn':
+          if (ev.from === 'drop') this.sound.play('beep', { volume: 0.1, rate: 0.5 });
           break;
         case 'nometer':
           this.sound.play('no_bulet', { volume: 0.3 });
@@ -274,6 +338,68 @@ export class BrawlScene extends Phaser.Scene {
       this.shake(heavy ? 120 : 70, heavy ? 6 : 3);
     }
     this.sound.play('hit', { volume: heavy ? 0.6 : 0.42, rate: heavy ? 0.9 : 1 + Math.random() * 0.15 });
+  }
+
+  /** Big centred banner (screen space). */
+  banner(title, sub, ms = 1200, danger = false) {
+    const b = this.hud.banner;
+    const s = this.hud.bannerSub;
+    this.tweens.killTweensOf([b, s]);
+    b.setText(title).setColor(danger ? '#ff4d3d' : '#ffffff').setAlpha(1).setScale(1.4);
+    s.setText(sub || '').setAlpha(sub ? 1 : 0);
+    this.tweens.add({ targets: b, scale: 1, duration: 260, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: [b, s], alpha: 0, delay: ms, duration: 400 });
+  }
+
+  renderPickups(alpha) {
+    const seen = new Set();
+    for (const it of this.world.pickups) {
+      seen.add(it.id);
+      let img = this.pickupViews.get(it.id);
+      if (!img) {
+        const key = this.textures.exists('1up_0') ? '1up_0' : '__DEFAULT';
+        img = this.add.image(0, 0, key).setOrigin(0.5, 1);
+        const h = img.height || 40;
+        img.setScale(Math.min(1.2, 54 / h));
+        this.pickupViews.set(it.id, img);
+      }
+      const x = it.px + (it.x - it.px) * alpha;
+      const y = it.py + (it.y - it.py) * alpha;
+      const z = it.pz + (it.z - it.pz) * alpha;
+      const bob = it.y === 0 ? Math.sin(this.time.now / 180) * 4 : 0;
+      img.setPosition(x, stage.groundY(z) - y - 6 + bob).setDepth(stage.depth(z));
+    }
+    for (const [id, img] of this.pickupViews) {
+      if (!seen.has(id)) {
+        img.destroy();
+        this.pickupViews.delete(id);
+      }
+    }
+  }
+
+  showResults() {
+    if (this.finished) return;
+    this.finished = true;
+    const st = this.world.stats;
+    const secs = Math.round(this.world.tick / 60);
+    const hpK = this.player.hp / this.player.maxHp;
+    // Grade: fast + healthy + big combos
+    const score = (secs < 150 ? 2 : secs < 220 ? 1 : 0) + (hpK > 0.6 ? 2 : hpK > 0.3 ? 1 : 0) + (st.maxCombo >= 25 ? 2 : st.maxCombo >= 12 ? 1 : 0);
+    const grade = score >= 6 ? 'S' : score >= 4 ? 'A' : score >= 2 ? 'B' : 'C';
+    const mm = Math.floor(secs / 60);
+    const ss = String(secs % 60).padStart(2, '0');
+    this.hud.results
+      .setText(
+        `${this.map?.name || 'Карта'} пройдена!\n\n` +
+          `Время: ${mm}:${ss}\nУложено: ${this.world.kills}\nМакс. комбо: ${st.maxCombo}\nПолучено урона: ${st.damageTaken}\n\n` +
+          `Оценка: ${grade}\n\nEnter — ещё раз · Esc — меню`,
+      )
+      .setVisible(true)
+      .setAlpha(0);
+    this.tweens.add({ targets: this.hud.results, alpha: 1, duration: 400 });
+    this.sound.stopByKey('game');
+    this.sound.stopByKey('boss');
+    if (GameState.musicPlay) this.sound.play('credits', { volume: 0.4 });
   }
 
   popText(x, y, text, color, size = 20) {
@@ -370,6 +496,20 @@ export class BrawlScene extends Phaser.Scene {
         backgroundColor: '#00000088',
         padding: { x: 6, y: 3 },
       }).setOrigin(0.5, 1),
+      status: this.add.text(0, 0, '', { ...font, fontSize: '16px', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5, 0),
+      go: this.add.text(0, 0, 'ВПЕРЁД →', { ...font, fontSize: '34px', color: '#ffd23f', stroke: '#000000', strokeThickness: 6 }).setOrigin(1, 0.5).setVisible(false),
+      banner: this.add.text(0, 0, '', { ...font, fontSize: '56px', stroke: '#000000', strokeThickness: 8 }).setOrigin(0.5).setAlpha(0),
+      bannerSub: this.add.text(0, 0, '', { ...font, fontSize: '22px', stroke: '#000000', strokeThickness: 5 }).setOrigin(0.5).setAlpha(0),
+      bossName: this.add.text(0, 0, 'БОСС', { ...font, fontSize: '18px', color: '#ff4d3d', stroke: '#000000', strokeThickness: 4 }).setOrigin(0.5, 1).setVisible(false),
+      bossBack: this.add.rectangle(0, 0, 420, 16, 0x000000, 0.6).setOrigin(0.5, 0).setVisible(false),
+      bossFill: this.add.rectangle(0, 0, 414, 10, 0xe2463b, 1).setOrigin(0, 0).setVisible(false),
+      results: this.add.text(0, 0, '', {
+        ...font,
+        fontSize: '26px',
+        align: 'center',
+        backgroundColor: '#000000cc',
+        padding: { x: 34, y: 24 },
+      }).setOrigin(0.5).setVisible(false),
       dead: this.add.text(0, 0, 'Тебя унесли.\nR — заново · Esc — меню', {
         ...font,
         fontSize: '30px',
@@ -400,6 +540,14 @@ export class BrawlScene extends Phaser.Scene {
     h.fps.setPosition(VIEW_W - 8, 6);
     h.help.setPosition(VIEW_W / 2, VIEW_H - 8);
     h.dead.setPosition(VIEW_W / 2, VIEW_H / 2);
+    h.status.setPosition(VIEW_W / 2, 12);
+    h.go.setPosition(VIEW_W - 24, VIEW_H * 0.42);
+    h.banner.setPosition(VIEW_W / 2, VIEW_H * 0.3);
+    h.bannerSub.setPosition(VIEW_W / 2, VIEW_H * 0.3 + 48);
+    h.bossName.setPosition(VIEW_W / 2, VIEW_H - 44);
+    h.bossBack.setPosition(VIEW_W / 2, VIEW_H - 42);
+    h.bossFill.setPosition(VIEW_W / 2 - 207, VIEW_H - 39);
+    h.results.setPosition(VIEW_W / 2, VIEW_H / 2);
     this.hurtOverlay.setSize(VIEW_W, VIEW_H);
     this.slowOverlay.setSize(VIEW_W, VIEW_H);
   }
@@ -428,6 +576,22 @@ export class BrawlScene extends Phaser.Scene {
     }
     this.comboShown = p.combo;
     h.fps.setText(`${Math.round(this.fpsAvg)} fps · tick ${this.world.tick}`);
-    h.dead.setVisible(p.dead);
+    h.dead.setVisible(p.dead && !this.finished);
+
+    // Map progress
+    if (this.director instanceof MapDirector) {
+      const s = this.director.status();
+      if (s.state === 'locked') h.status.setText(`${s.boss ? 'Босс' : `Арена ${s.arena}/${s.arenas}`} · Волна ${s.wave}/${s.waves} · Врагов: ${s.left}`);
+      else if (s.state === 'travel') h.status.setText(`${this.map.name} · Арена ${s.arena}/${s.arenas}`);
+      else h.status.setText(`${this.map.name} — пройдено`);
+      const showGo = s.state === 'travel' && s.arena > 1 && this.world.enemiesAlive() === 0;
+      h.go.setVisible(showGo && Math.floor(this.time.now / 300) % 2 === 0);
+    }
+    const boss = this.world.fighters.find((f) => FIGHTERS[f.kind]?.boss && !f.dead);
+    const bossOn = !!boss;
+    h.bossName.setVisible(bossOn);
+    h.bossBack.setVisible(bossOn);
+    h.bossFill.setVisible(bossOn);
+    if (boss) h.bossFill.width = 414 * Math.max(0, boss.hp / boss.maxHp);
   }
 }

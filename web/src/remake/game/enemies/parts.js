@@ -28,6 +28,21 @@ function cloneLayout() {
 }
 
 /**
+ * Boss hoodie art only fills rows 37–135 of the 172px torso cut, so the player
+ * pivots leave a gap under the head and above the hips. Re-pin the torso to the
+ * art's bottom edge and pull head + shoulders down to match.
+ */
+function bossLayout() {
+  const l = cloneLayout();
+  const drop = 26;
+  l.torso.originY = 135 / 172;
+  l.head.y = -98 + 6;
+  if (l.arm_l_u) l.arm_l_u.y += drop;
+  if (l.arm_r_u) l.arm_r_u.y += drop;
+  return l;
+}
+
+/**
  * Scale so display height = player height + extraHeads × head height.
  * Nikita: +0.5 head taller than the player.
  */
@@ -180,7 +195,7 @@ export const ENEMY_SKINS = {
     defaultDir: 0,
     /** Noticeably bigger than street bots */
     scale: scaleVsPlayer(1.0),
-    layout: cloneLayout(),
+    layout: bossLayout(),
     targetH: PUPPET_TARGET_H,
     displayH: Math.round(CHAR_TARGET_H + PLAYER_HEAD_H),
     maxHp: 500,

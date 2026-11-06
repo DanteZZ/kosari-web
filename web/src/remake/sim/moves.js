@@ -122,6 +122,23 @@ export const MOVES = {
     heavy: true,
   },
 
+  // ---- Boss
+  b_jab: {
+    clip: 'punch_r',
+    startup: 12, active: 4, recovery: 16,
+    dmg: 12, reach: [10, 112], depth: 30,
+    hitstun: 20, kb: 5, hitstop: 5, lunge: 3,
+    sfx: 'udar',
+  },
+  b_slam: {
+    clip: 'rage_stomp',
+    startup: 28, active: 5, recovery: 30,
+    dmg: 22, reach: [0, 165], depth: 55, sweep: true,
+    hitstun: 0, kb: 9, knockdown: true, hitstop: 8, lunge: 0,
+    sfx: 'superudar',
+    heavy: true,
+  },
+
   // ---- Enemies: slow, readable wind-ups
   e_jab: {
     clip: 'punch_r',

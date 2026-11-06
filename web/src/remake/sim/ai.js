@@ -24,7 +24,7 @@ export function thinkAll(world) {
 
   for (const e of world.fighters) {
     if (!e.ai || e.dead) continue;
-    if (e.ai.mode === 'engage' && engaged.has(e.ai.target)) {
+    if (e.ai.mode === 'engage' && engaged.has(e.ai.target) && !FIGHTERS[e.kind].ai.ignoreTokens) {
       engaged.set(e.ai.target, engaged.get(e.ai.target) + 1);
     }
     if (e.ai.side && sides.has(e.ai.target)) sides.get(e.ai.target)[e.ai.side] += 1;
@@ -124,7 +124,10 @@ function think(world, e, players, engaged, sides) {
   }
   const side = ai.side;
   const crossing = cur !== side && Math.abs(e.x - t.x) < 160;
-  const move = MOVES[FIGHTERS[e.kind].moves.light];
+  const def = FIGHTERS[e.kind];
+  // Which attack this engage is going for (bosses mix in a heavy)
+  if (!ai.next) ai.next = cfg.heavyChance && rng.chance(cfg.heavyChance) ? 'heavy' : 'light';
+  const move = MOVES[def.moves[ai.next] || def.moves.light];
   let goalX = e.x;
   let goalZ = e.z;
   let press = 0;
@@ -136,7 +139,7 @@ function think(world, e, players, engaged, sides) {
       // Alternate ranks above/below the player's depth line
       goalZ = t.z + (rank % 2 ? -1 : 1) * Math.min(60, 18 + rank * 14) + ai.offZ * 0.3;
       const near = Math.abs(e.x - goalX) < 90;
-      const free = (engaged.get(t.id) || 0) < ATTACK_TOKENS;
+      const free = cfg.ignoreTokens || (engaged.get(t.id) || 0) < ATTACK_TOKENS;
       if (free && ai.cd <= 0 && (near || Math.abs(e.x - t.x) < cfg.standoff + 60) && rng.chance(cfg.aggression * 0.08)) {
         ai.mode = 'engage';
         ai.timer = 200;
@@ -151,7 +154,8 @@ function think(world, e, players, engaged, sides) {
       const dx = Math.abs(e.x - t.x);
       const dz = Math.abs(e.z - t.z);
       if (dx >= move.reach[0] + 10 && dx <= move.reach[1] - 6 && dz < move.depth * 0.6) {
-        press = BTN.LIGHT;
+        press = ai.next === 'heavy' ? BTN.HEAVY : BTN.LIGHT;
+        ai.next = null;
         ai.mode = 'recover';
       } else if (ai.timer <= 0) {
         ai.mode = 'approach';

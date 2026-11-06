@@ -47,6 +47,11 @@ export class World {
     /** Fire-and-forget notifications for sound/FX: the view drains this. */
     this.events = [];
     this.kills = 0;
+    /** Locked area for players (arena); enemies only respect `bounds`. */
+    this.playerBounds = null;
+    /** Items on the road (heal etc.). */
+    this.pickups = [];
+    this.stats = { maxCombo: 0, damageTaken: 0 };
   }
 
   spawn(kind, x, z, opts = {}) {
@@ -156,6 +161,7 @@ export class World {
     this._bodyCollisions();
     this._resolveAttacks();
     this._separate();
+    this._updatePickups();
 
     for (const f of this.fighters) {
       this._clamp(f);
@@ -599,6 +605,7 @@ export class World {
       tgt.creditId = att.id;
     }
     if (tgt.team === 'player') {
+      this.stats.damageTaken += m.dmg;
       tgt.meter = Math.min(METER_MAX, tgt.meter + m.dmg * 0.6);
       tgt.stagger += m.dmg;
     }
@@ -620,7 +627,13 @@ export class World {
       tgt.vx = dir * Math.max(m.kb, 6);
       reaction = 'kill';
       this.kills += tgt.team === 'enemy' ? 1 : 0;
-    } else if (def.armor && !airborne && !m.knockdown && !m.launch && tgt.armorAcc + m.dmg < def.armor) {
+    } else if (
+      def.armor &&
+      !airborne &&
+      !m.special &&
+      (def.poise || (!m.knockdown && !m.launch)) &&
+      tgt.armorAcc + m.dmg < (m.knockdown || m.launch ? def.poise ?? def.armor : def.armor)
+    ) {
       // Heavy enemy shrugs it off: no flinch, keeps attacking
       tgt.armorAcc += m.dmg;
       reaction = 'armor';
@@ -658,6 +671,12 @@ export class World {
     if (att.team === 'player') {
       att.combo += 1;
       att.comboT = 110;
+      this.stats.maxCombo = Math.max(this.stats.maxCombo, att.combo);
+    }
+    if (tgt.dead && def.boss) {
+      // Boss down: dramatic slow motion
+      this.slowmo = Math.max(this.slowmo, 90);
+      this.events.push({ type: 'bossDown', id: tgt.id, x: tgt.x, z: tgt.z });
     }
     if (tgt.team === 'player') {
       tgt.combo = 0;
@@ -690,7 +709,7 @@ export class World {
 
   _grabTarget(f, ax) {
     for (const e of this.fighters) {
-      if (e.team === f.team || e.dead || e.heldBy || e.y > 0) continue;
+      if (e.team === f.team || e.dead || e.heldBy || e.y > 0 || FIGHTERS[e.kind].noGrab) continue;
       if (!GRABBABLE.has(e.state)) continue;
       if (Math.abs(e.z - f.z) > 18) continue;
       const front = (e.x - f.x) * ax;
@@ -807,6 +826,7 @@ export class World {
       for (const t of this.fighters) {
         if (t === b || t.team !== b.team || t.dead || t.iframes > 0) continue;
         if (UNHITTABLE.has(t.state) || t.state === 'airhit' || t.state === 'grabbed') continue;
+        if (FIGHTERS[t.kind].boss) continue;
         if (b.bumped.includes(t.id)) continue;
         if (Math.abs(t.x - b.x) > 46 || Math.abs(t.z - b.z) > 28) continue;
         b.bumped.push(t.id);
@@ -832,6 +852,7 @@ export class World {
         if (credit) {
           credit.combo += 1;
           credit.comboT = 110;
+          this.stats.maxCombo = Math.max(this.stats.maxCombo, credit.combo);
           credit.meter = Math.min(METER_MAX, credit.meter + dmg * 0.5);
         }
         this.events.push({
@@ -905,10 +926,46 @@ export class World {
 
   _clamp(f) {
     const b = this.bounds;
-    if (f.x < b.xMin + 30) f.x = b.xMin + 30;
-    if (f.x > b.xMax - 30) f.x = b.xMax - 30;
+    const pb = f.team === 'player' && this.playerBounds ? this.playerBounds : b;
+    if (f.x < pb.xMin + 30) f.x = pb.xMin + 30;
+    if (f.x > pb.xMax - 30) f.x = pb.xMax - 30;
     if (f.z < b.zMin) f.z = b.zMin;
     if (f.z > b.zMax) f.z = b.zMax;
+  }
+
+  // ------------------------------------------------------------------ pickups
+
+  spawnPickup(kind, x, z, amount = 0) {
+    const y = 180;
+    this.pickups.push({ id: this.nextId++, kind, amount, x, z, y, px: x, pz: z, py: y, vy: 0, t: 0, taken: false });
+  }
+
+  _updatePickups() {
+    if (!this.pickups.length) return;
+    for (const it of this.pickups) {
+      it.px = it.x;
+      it.pz = it.z;
+      it.py = it.y;
+      it.t += 1;
+      if (it.y > 0 || it.vy > 0) {
+        it.vy -= GRAVITY;
+        it.y += it.vy;
+        if (it.y <= 0) {
+          it.y = 0;
+          it.vy = it.vy < -4 ? -it.vy * 0.35 : 0;
+        }
+      }
+      if (it.y > 30) continue;
+      for (const p of this.fighters) {
+        if (p.team !== 'player' || p.dead) continue;
+        if (Math.abs(p.x - it.x) > 42 || Math.abs(p.z - it.z) > 22) continue;
+        if (it.kind === 'heal') p.hp = Math.min(p.maxHp, p.hp + it.amount);
+        it.taken = true;
+        this.events.push({ type: 'pickup', id: p.id, kind: it.kind, amount: it.amount, x: it.x, z: it.z });
+        break;
+      }
+    }
+    this.pickups = this.pickups.filter((it) => !it.taken);
   }
 
   _rollOffsets(f) {
