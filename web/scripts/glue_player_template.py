@@ -10,8 +10,8 @@ from pathlib import Path
 from PIL import Image, ImageDraw, ImageFont
 
 ROOT = Path(__file__).resolve().parents[2]
-PARTS = ROOT / "web" / "public" / "assets" / "player" / "parts"
-OUT = ROOT / "web" / "public" / "assets" / "enemies" / "_templates"
+PARTS = ROOT / "web" / "public" / "remake" / "assets" / "player" / "parts"
+OUT = ROOT / "web" / "public" / "remake" / "assets" / "enemies" / "_templates"
 GEN = Path(r"C:\Users\uncle\.cursor\projects\d-Games-Kosari-v3-0\assets")
 
 PART_FILES = {

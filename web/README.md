@@ -1,17 +1,33 @@
-# Косари v3.0 — веб-порт (Phaser 3)
+# Косари — сайт с двумя играми (Phaser 3 + Vite)
+
+| Страница | Игра | Код | Ассеты |
+|----------|------|-----|--------|
+| `/` | стартовая страница, выбор игры | `index.html` | — |
+| `/classic/` | **Kosari Classic** — порт оригинальной Косари v3.0 (Game Maker 8, 2011) | `src/classic/` | `public/classic/assets/` |
+| `/remake/` | **Kosari Remake** — новый beat'em up: карты, волны врагов, фазы, позже сеть | `src/remake/` | `public/remake/assets/` |
+
+Обе игры грузят ассеты относительными путями `assets/...`, поэтому каждая страница берёт их из своей папки (`/classic/assets`, `/remake/assets`). Это работает и локально, и на GitHub Pages под `/<repo>/`. Общий у игр только Phaser (один чанк в сборке); код игр между собой не пересекается.
 
 ## Запуск
 
 ```bash
 cd web
 npm install
-npm run copy-assets   # при необходимости
 npm run dev
 ```
 
-Откройте URL Vite (обычно http://localhost:5173 или 5174).
+- http://localhost:5173/ — выбор игры
+- http://localhost:5173/classic/
+- http://localhost:5173/remake/ (`?play=1` — сразу на арену)
 
-## Управление
+`npm run build` собирает все три страницы в `dist/`. Деплой — `.github/workflows/deploy-pages.yml` при пуше в `main`.
+
+## Скрипты
+
+- `npm run copy-assets` — копирует спрайты/фоны/звуки из `../kosari_src` (декомпилированный GM-проект) в `public/classic/assets`.
+- `scripts/*.py` — подготовка ассетов Remake (мир, части персонажей, анимации падения) → `public/remake/assets`.
+
+## Classic: управление
 
 | Клавиша | Действие |
 |---------|----------|
@@ -25,16 +41,8 @@ npm run dev
 | P | Пауза |
 | Esc | Меню |
 
-## Flow
+Порядок экранов в оригинале (комнаты GM): danger → 1 → 2 → 3 (интро) → menu → loading → play → credits / shop / autors_r.
 
-Menu → Danger → Loading → Play → (смерть) Highscore → Credits/Dance → Menu
+## Remake: управление
 
-Магазин, авторы, save/load (L / кнопки), рекорды (R).
-
-## Что портировано
-
-- Экран смерти как в оригинале (hulitakmalo → highscore → credits/dance)
-- Косари, пачки, наковальни, Никита/Буйный, боссы
-- Оружие + магазин (цены moneyscore)
-- Rain / thunder / дирижабль
-- localStorage highscores + save/load
+WASD — ход, J/K/L/U/I/O — удары, B — магазин в сессии, 1–6 — покупки, M — музыка, P — пауза, Esc — меню (подробности в `src/remake/objects/Player.js`).

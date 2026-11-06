@@ -1,6 +1,6 @@
 """
 Slice AI kits + limb strips into BonePuppet-compatible part PNGs.
-Outputs: web/public/assets/enemies/<id>/parts/{head,torso,arm_*,leg_*}.png
+Outputs: web/public/remake/assets/enemies/<id>/parts/{head,torso,arm_*,leg_*}.png
 """
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from PIL import Image, ImageOps
 
 ROOT = Path(__file__).resolve().parents[2]
 GEN = Path(r"C:\Users\uncle\.cursor\projects\d-Games-Kosari-v3-0\assets")
-OUT = ROOT / "web" / "public" / "assets" / "enemies"
+OUT = ROOT / "web" / "public" / "remake" / "assets" / "enemies"
 
 # Match player part canvas sizes (approx) so shared layout works
 TARGET = {

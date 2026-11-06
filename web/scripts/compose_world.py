@@ -10,8 +10,8 @@ import numpy as np
 from PIL import Image, ImageDraw, ImageFilter
 
 ASSETS = Path(r"C:/Users/uncle/.cursor/projects/d-Games-Kosari-v3-0/assets")
-OUT_SPR = Path(r"d:/Games/Kosari v3.0/web/public/assets/world/sprites")
-OUT_LAY = Path(r"d:/Games/Kosari v3.0/web/public/assets/world/layers")
+OUT_SPR = Path(r"d:/Games/Kosari v3.0/web/public/remake/assets/world/sprites")
+OUT_LAY = Path(r"d:/Games/Kosari v3.0/web/public/remake/assets/world/layers")
 OUT_SPR.mkdir(parents=True, exist_ok=True)
 random.seed(21)
 

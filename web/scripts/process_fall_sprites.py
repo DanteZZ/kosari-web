@@ -14,9 +14,9 @@ from PIL import Image, ImageChops, ImageDraw, ImageFilter
 
 ROOT = Path(__file__).resolve().parents[2]
 GEN = Path(r"C:\Users\uncle\.cursor\projects\d-Games-Kosari-v3-0\assets")
-OUT = ROOT / "web" / "public" / "assets" / "sprites"
-SRC_DIR = ROOT / "web" / "public" / "assets" / "fall" / "raw"
-BACKUP = ROOT / "web" / "public" / "assets" / "fall" / "_backup_old"
+OUT = ROOT / "web" / "public" / "remake" / "assets" / "sprites"
+SRC_DIR = ROOT / "web" / "public" / "remake" / "assets" / "fall" / "raw"
+BACKUP = ROOT / "web" / "public" / "remake" / "assets" / "fall" / "_backup_old"
 
 
 def load_rgb(path: Path) -> Image.Image:

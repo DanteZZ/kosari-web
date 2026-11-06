@@ -3,28 +3,81 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <meta name="theme-color" content="#000000" />
-    <title>Косари — Remake</title>
+    <meta name="theme-color" content="#0b0b0b" />
+    <title>Косари</title>
     <link rel="icon" href="./favicon.ico" type="image/x-icon" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="/src/styles/main.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Russo+One&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #0b0b0b;
+        --card: #161616;
+        --card-hover: #1f1f1f;
+        --text: #f2f2f2;
+        --muted: #9a9a9a;
+        --classic: #e0b341;
+        --remake: #e2463b;
+      }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; min-height: 100%; background: var(--bg); color: var(--text); }
+      body {
+        font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 32px 16px;
+      }
+      h1 {
+        font-family: 'Russo One', sans-serif;
+        font-size: clamp(40px, 9vw, 88px);
+        letter-spacing: 0.04em;
+        margin: 0 0 8px;
+      }
+      .tag { color: var(--muted); margin: 0 0 40px; text-align: center; }
+      .games {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        gap: 20px;
+        width: 100%;
+        max-width: 760px;
+      }
+      a.game {
+        display: block;
+        padding: 28px 24px;
+        background: var(--card);
+        border: 2px solid transparent;
+        border-radius: 14px;
+        color: inherit;
+        text-decoration: none;
+        transition: background 0.15s, border-color 0.15s, transform 0.15s;
+      }
+      a.game:hover, a.game:focus-visible { background: var(--card-hover); transform: translateY(-3px); outline: none; }
+      a.game.classic:hover, a.game.classic:focus-visible { border-color: var(--classic); }
+      a.game.remake:hover, a.game.remake:focus-visible { border-color: var(--remake); }
+      .game h2 { font-family: 'Russo One', sans-serif; font-size: 28px; margin: 0 0 4px; }
+      .classic h2 { color: var(--classic); }
+      .remake h2 { color: var(--remake); }
+      .game .year { color: var(--muted); font-size: 14px; margin: 0 0 14px; }
+      .game p { margin: 0; line-height: 1.45; }
+    </style>
   </head>
   <body>
-    <div id="app">
-      <div id="ui-root"></div>
-      <div id="game-shell" class="hidden" aria-hidden="true">
-        <div id="game-stage"></div>
-        <div id="pause-overlay" class="hidden">
-          <p class="display">Пауза</p>
-          <p>Enter — продолжить · Esc — в меню</p>
-        </div>
-      </div>
-    </div>
-    <script type="module" src="/src/main.js"></script>
+    <h1>КОСАРИ</h1>
+    <p class="tag">Выбери игру</p>
+    <main class="games">
+      <a class="game classic" href="./classic/">
+        <h2>Kosari Classic</h2>
+        <p class="year">2011 · Game Maker → веб</p>
+        <p>Оригинальные Косари v3.0 в браузере: тот же экран, те же звуки, те же правила.</p>
+      </a>
+      <a class="game remake" href="./remake/">
+        <h2>Kosari Remake</h2>
+        <p class="year">в разработке</p>
+        <p>Быстрый beat'em up: карты, толпы врагов, фазы. Позже — сетевая игра.</p>
+      </a>
+    </main>
   </body>
 </html>

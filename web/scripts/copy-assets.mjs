@@ -7,7 +7,7 @@ const root = path.resolve(__dirname, '../..');
 const srcSprites = path.join(root, 'kosari_src', 'Sprites');
 const srcBg = path.join(root, 'kosari_src', 'Backgrounds');
 const srcSnd = path.join(root, 'kosari_src', 'Sounds');
-const out = path.join(root, 'web', 'public', 'assets');
+const out = path.join(root, 'web', 'public', 'classic', 'assets');
 
 function ensure(dir) {
   fs.mkdirSync(dir, { recursive: true });
