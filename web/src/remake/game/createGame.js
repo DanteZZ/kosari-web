@@ -4,6 +4,7 @@ import { PreloadScene } from './PreloadScene.js';
 import { PlayScene } from './PlayScene.js';
 import { BoneEditorScene } from './BoneEditorScene.js';
 import { AnimEditorScene } from './AnimEditorScene.js';
+import { BrawlScene } from '../brawl/BrawlScene.js';
 
 let game = null;
 
@@ -15,7 +16,10 @@ function stageSize(parent) {
   return { w: VIEW_W, h: VIEW_H };
 }
 
-function makeGame(parent) {
+/**
+ * @param {{ legacy30?: boolean }} [opts] legacy30 — old frame-based scenes run at a fixed 30 fps.
+ */
+function makeGame(parent, opts = {}) {
   const { w, h } = stageSize(parent);
   const g = new Phaser.Game({
     type: Phaser.AUTO,
@@ -25,10 +29,8 @@ function makeGame(parent) {
     backgroundColor: '#7ec8f0',
     pixelArt: false,
     roundPixels: true,
-    fps: {
-      target: 30,
-      forceSetTimeOut: true,
-    },
+    // Old scenes step logic per frame at 30 fps; the brawl core is fixed-tick + interpolated
+    fps: opts.legacy30 === false ? { smoothStep: false } : { target: 30, forceSetTimeOut: true },
     physics: {
       default: 'arcade',
       arcade: {
@@ -93,6 +95,16 @@ export function startAnimEditor({ parent, onExit }) {
   });
   game.scene.add('AnimEditor', AnimEditorScene, false);
   game.scene.add('Play', PlayScene, false);
+  window.__kosariRemake = game;
+  return game;
+}
+
+/** Milestone-1 core: fixed-tick sim on a lane with depth (uncapped render). */
+export function startBrawl({ parent, onExit }) {
+  stopGame();
+  game = makeGame(parent, { legacy30: false });
+  game.scene.add('Preload', PreloadScene, true, { onExit, next: 'Brawl' });
+  game.scene.add('Brawl', BrawlScene, false);
   window.__kosariRemake = game;
   return game;
 }

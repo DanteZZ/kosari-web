@@ -53,7 +53,21 @@ function makeStrip(scene, key, y, depth) {
  * sky → clouds → far trees+fog → mid trees+fog → fog veil →
  * near world (uneven ground) → front grass.
  */
-export function createParallax(scene) {
+/**
+ * @param {Phaser.Scene} scene
+ * @param {{ factors?: Record<string, number>, grassDepth?: number }} [opts]
+ *   factors — horizontal scroll factor per layer (1 = moves with the world).
+ */
+export function createParallax(scene, opts = {}) {
+  const f = {
+    clouds: 0.08,
+    far: 0.22,
+    mid: 0.4,
+    fog: 0.48,
+    world: 0.7,
+    grass: 1.15,
+    ...(opts.factors || {}),
+  };
   scene.cameras.main.setBackgroundColor(SKY);
 
   const sky = scene.add
@@ -67,7 +81,7 @@ export function createParallax(scene) {
   const mid = makeStrip(scene, 'layer_mid', LAYER_Y, -20);
   const fog = makeStrip(scene, 'layer_fog', LAYER_Y, -15);
   const world = makeStrip(scene, 'layer_world', LAYER_Y, -10);
-  const grass = makeStrip(scene, 'layer_grass', LAYER_Y, 30);
+  const grass = makeStrip(scene, 'layer_grass', LAYER_Y, opts.grassDepth ?? 30);
 
   const layout = () => {
     sky.setSize(VIEW_W, VIEW_H);
@@ -96,12 +110,12 @@ export function createParallax(scene) {
     update(scrollX, jumpLift = 0) {
       const lift = Math.max(0, jumpLift);
       // Vertical: clouds/far drift more; grass stays glued to the road
-      clouds?.update(scrollX, 0.08, lift, 0.42);
-      far?.update(scrollX, 0.22, lift, 0.28);
-      mid?.update(scrollX, 0.4, lift, 0.16);
-      fog?.update(scrollX, 0.48, lift, 0.1);
-      world?.update(scrollX, 0.7, lift, 0.04);
-      grass?.update(scrollX, 1.15, lift, 0);
+      clouds?.update(scrollX, f.clouds, lift, 0.42);
+      far?.update(scrollX, f.far, lift, 0.28);
+      mid?.update(scrollX, f.mid, lift, 0.16);
+      fog?.update(scrollX, f.fog, lift, 0.1);
+      world?.update(scrollX, f.world, lift, 0.04);
+      grass?.update(scrollX, f.grass, lift, 0);
     },
   };
 }

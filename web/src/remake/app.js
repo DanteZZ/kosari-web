@@ -4,7 +4,7 @@ import { renderMenu, stopMenuMusic } from './ui/Menu.js';
 import { renderShop } from './ui/Shop.js';
 import { renderDanger } from './ui/Danger.js';
 import { renderHighscores } from './ui/Highscores.js';
-import { startGame, startBoneEditor, startAnimEditor, stopGame } from './game/createGame.js';
+import { startGame, startBoneEditor, startAnimEditor, startBrawl, stopGame } from './game/createGame.js';
 
 export function createApp() {
   const uiRoot = document.getElementById('ui-root');
@@ -67,6 +67,12 @@ export function createApp() {
           go('highscores');
         },
       });
+      return;
+    }
+    if (screen === 'brawl') {
+      stopMenuMusic();
+      setGameVisible(true);
+      startBrawl({ parent: gameStage, onExit: () => go('menu') });
       return;
     }
     if (screen === 'bones' || screen === 'bones-nikita') {

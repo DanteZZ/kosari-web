@@ -35,6 +35,15 @@ export function renderMenu(root, { go }) {
       }),
       el('button', {
         className: 'btn',
+        text: 'Арена — новое ядро',
+        onClick: () => {
+          stopMusic();
+          playSfx('beep.wav', { volume: 0.35 });
+          go('brawl');
+        },
+      }),
+      el('button', {
+        className: 'btn',
         text: 'Магазин — в сессии (B)',
         onClick: () => {
           playSfx('beep.wav', { volume: 0.35 });

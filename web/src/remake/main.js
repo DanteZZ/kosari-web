@@ -6,9 +6,11 @@ SaveLoad.load();
 
 const app = createApp();
 
-/** Dev shortcuts: ?play=1 skips splash/menu into the arena; ?flip=1 auto-tests somersault. */
+/** Dev shortcuts: ?brawl=1 opens the new core sandbox; ?play=1 skips splash/menu into the arena; ?flip=1 auto-tests somersault. */
 const params = new URLSearchParams(window.location.search);
-if (params.has('play') || params.has('flip')) {
+if (params.has('brawl')) {
+  app.go('brawl');
+} else if (params.has('play') || params.has('flip')) {
   GameState.resetRun?.();
   app.go('play');
   if (params.has('flip')) {
