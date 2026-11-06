@@ -26,7 +26,7 @@
     "tex": "arm_l_u",
     "originX": 0.29,
     "originY": 0.12,
-    "x": 34,
+    "x": 32,
     "y": -117,
     "angle": 2
   },
@@ -53,8 +53,8 @@
     "tex": "arm_r_u",
     "originX": 0.59,
     "originY": 0.14,
-    "x": -44,
-    "y": -119,
+    "x": -39,
+    "y": -118,
     "angle": -6
   },
   "arm_r_l": {

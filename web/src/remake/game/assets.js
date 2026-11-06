@@ -169,7 +169,7 @@ export function preloadGameAssets(scene) {
   }
 
   // Enemy / boss bone-puppet limbs (cache-bust when cuts change)
-  const EV = 'parts4';
+  const EV = 'parts5';
   for (const { key, url } of listEnemyPartLoads()) {
     scene.load.image(key, `${url}?v=${EV}`);
   }
