@@ -133,7 +133,11 @@ export class BrawlScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     kb.on('keydown-P', () => this.togglePause());
     kb.on('keydown-ENTER', () => {
-      if (this.finished) this.scene.restart({ map: this.map?.next || this.map?.id, onExit: this.onExit });
+      if (this.finished) {
+        // Next map goes through the loading screen: its kit pieces must be loaded first
+        this.sound.stopAll();
+        this.scene.start('Preload', { next: 'Brawl', map: this.map?.next || this.map?.id, onExit: this.onExit });
+      }
       else this.togglePause();
     });
     kb.on('keydown-ESC', () => {
@@ -1097,7 +1101,7 @@ export class BrawlScene extends Phaser.Scene {
       .setText(
         `${this.map?.name || 'Карта'} пройдена!\n\n` +
           `Время: ${mm}:${ss}\nУложено: ${this.world.kills}\nМакс. комбо: ${st.maxCombo}\nПолучено урона: ${st.damageTaken}\n\n` +
-          `Оценка: ${grade}\n\nEnter — ещё раз · Esc — меню`,
+          `Оценка: ${grade}\n\n${this.map?.next ? 'Enter — дальше' : 'Enter — ещё раз'} · Esc — меню`,
       )
       .setVisible(true)
       .setAlpha(0);

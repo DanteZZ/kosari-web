@@ -189,5 +189,13 @@
   "sunflowers",
   "water_pump",
   "well"
+ ],
+ "joins": [
+  "beam_steel",
+  "column_marble",
+  "pier_brick",
+  "pillar_concrete",
+  "pillar_office",
+  "trunk_oak"
  ]
 }

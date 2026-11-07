@@ -3,7 +3,8 @@
  * eraMap() so every map shares the proven arena geometry of «Опушка»:
  * three locked arenas, then the boss arena at the end of the road.
  *
- * world: background segments along the road (brawl/world/ThemeWorld.js).
+ * world: background segments along the road (brawl/world/ThemeWorld.js). Joins sit
+ *        in the gaps between arenas (1600 / 2930 / 4250), never inside a locked fight.
  * Bosses use stand-in rigs until their art exists (see sim/fighters.js).
  */
 
@@ -52,7 +53,7 @@ export const village = eraMap({
   name: 'Деревня',
   chapter: 'Глава 2 · Ранний ютуб',
   next: 'dacha',
-  world: [{ theme: 'village', to: 3900 }, { theme: 'stadium' }],
+  world: [{ theme: 'village', to: 4250 }, { theme: 'stadium' }],
   loading: {
     title: 'Деревня',
     art: 'ded.jpg',
@@ -76,7 +77,7 @@ export const dacha = eraMap({
   name: 'Дача',
   chapter: 'Глава 2 · Ранний ютуб',
   next: 'panelki',
-  world: [{ theme: 'dacha', to: 4200 }, { theme: 'cellar' }],
+  world: [{ theme: 'dacha', to: 4250 }, { theme: 'cellar' }],
   loading: {
     title: 'Дача',
     art: 'pahom.jpg',
@@ -151,7 +152,7 @@ export const gym = eraMap({
   name: 'Качалка',
   chapter: 'Глава 4 · Пабликовая эпоха',
   next: 'museum',
-  world: [{ theme: 'gym_street', to: 2000 }, { theme: 'gym' }],
+  world: [{ theme: 'gym_street', to: 1600 }, { theme: 'gym' }],
   loading: {
     title: 'Качалка',
     art: 'ruki_bazuki.jpg',
@@ -226,7 +227,7 @@ export const sigmaGym = eraMap({
   name: 'Зал сигм',
   chapter: 'Глава 5 · Сигма-эпоха',
   next: 'stream_house',
-  world: [{ theme: 'sigma_gym', to: 4100 }, { theme: 'ring' }],
+  world: [{ theme: 'sigma_gym', to: 4250 }, { theme: 'ring' }],
   loading: {
     title: 'Зал сигм',
     art: 'gigachad.jpg',
@@ -277,7 +278,7 @@ export const office = eraMap({
   name: 'Бизнес-центр',
   chapter: 'Глава 6 · Новая волна',
   next: 'concert',
-  world: [{ theme: 'office', to: 4100 }, { theme: 'trading' }],
+  world: [{ theme: 'office', to: 4250 }, { theme: 'trading' }],
   loading: {
     title: 'Бизнес-центр',
     art: 'gitelman.jpg',
@@ -302,7 +303,7 @@ export const concert = eraMap({
   chapter: 'Финал',
   next: null,
   scaling: 0.15,
-  world: [{ theme: 'night_street', to: 2000 }, { theme: 'club', to: 4200 }, { theme: 'stage' }],
+  world: [{ theme: 'night_street', to: 2930 }, { theme: 'stage' }],
   anvils: [700, 1000],
   loading: {
     title: 'Концерт',

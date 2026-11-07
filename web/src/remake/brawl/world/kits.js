@@ -283,6 +283,33 @@ Object.assign(KITS, {
 });
 KITS.club = { ...KITS.night_street, folder: 'night_street' };
 
+/**
+ * Joins between two segments: every layer of a segment is cut hard at the join
+ * (ThemeWorld masks), and a tall piece standing on the road's far edge hides
+ * the cut — like a theatre wing. `front` adds a dark copy passing in front of
+ * the camera (a doorway / passing under something).
+ * piece: assets/world/kits/joins/<piece>.webp, a vertical tile; w: width on screen.
+ */
+export const JOINS = {
+  'forest>highway': { piece: 'trunk_oak', w: 230, front: true },
+  'highway>shawarma': { piece: 'pillar_concrete', w: 270, front: true },
+  'village>stadium': { piece: 'pier_brick', w: 220, front: true },
+  'dacha>cellar': { piece: 'pier_brick', w: 270, front: true },
+  'gym_street>gym': { piece: 'pier_brick', w: 270, front: true },
+  'sigma_gym>ring': { piece: 'column_marble', w: 230, front: true },
+  'office>trading': { piece: 'pillar_office', w: 230, front: true },
+  'night_street>stage': { piece: 'beam_steel', w: 210, front: true },
+};
+const JOIN_DEFAULT = { piece: 'pillar_concrete', w: 240, front: true };
+
+export function joinFor(a, b) {
+  return JOINS[`${a}>${b}`] || JOIN_DEFAULT;
+}
+
+export const joinTexKey = (piece) => `join_${piece}`;
+export const joinUrl = (piece) => `assets/world/kits/joins/${piece}.webp`;
+export const joinReady = (piece) => (KIT_INDEX.joins || []).includes(piece);
+
 /** True once every own piece of the kit has been imported (scripts/import_kits.py). */
 export function kitReady(theme) {
   const k = KITS[theme];

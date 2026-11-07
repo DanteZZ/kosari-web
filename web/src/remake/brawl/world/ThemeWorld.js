@@ -3,7 +3,7 @@ import { createRng } from '../../sim/rng.js';
 import { ROAD_Y, LANE_DEPTH } from '../stage.js';
 import { ForestWorld, WORLD_GEOM } from './ForestWorld.js';
 import THEMES from './themes.gen.json';
-import { KITS as ALL_KITS, kitAssets, kitUrl, kitTexKey, kitReady } from './kits.js';
+import { KITS as ALL_KITS, kitAssets, kitUrl, kitTexKey, kitReady, joinFor, joinTexKey, joinUrl, joinReady } from './kits.js';
 
 /** Themes whose element kit is complete; the rest still use the painted backdrop. */
 const KITS = Object.fromEntries(Object.entries(ALL_KITS).filter(([t]) => kitReady(t)));
@@ -17,7 +17,14 @@ const KITS = Object.fromEntries(Object.entries(ALL_KITS).filter(([t]) => kitRead
  * assets/world/themes/<theme> (scripts/import_themes.py): a WALL strip with slow
  * parallax above the road, a FLOOR strip under the lane, and props standing
  * behind the lane. Strips are tiled with every other copy mirrored, so the AI
- * paintings join without seams. A segment fades in over the previous one.
+ * paintings join without seams.
+ *
+ * Joins: every scenery layer of a kit segment is masked to the segment's own
+ * road range [from, to) in world space, whatever its scroll factor, so all
+ * layers are cut on the same screen line: the join. A tall piece (tree trunk,
+ * pillar, brick pier...) stands there and hides the cut; it also gets a dark
+ * copy passing in front of the camera. Only the ground (road, below, decals,
+ * bottom row) still cross-fades.
  */
 
 const { ROAD_TOP, ROAD_BOTTOM } = WORLD_GEOM;
@@ -28,10 +35,13 @@ const WALL_MIN = 560;
 const ART_SCALE = 1.05;
 const FLOOR_H = ROAD_BOTTOM - ROAD_TOP + 420;
 const FADE = 260;
-/** Sky curtain of a segment: scroll factor and fade width (hides the previous distance). */
-const CURTAIN_FX = 0.3;
-const CURTAIN_FADE = 700;
 const PROP_Y = ROAD_TOP + 50;
+/** Wide enough for any screen: how far layers run past a join (layer px). */
+const VW_MAX = 2200;
+/** Join piece: bottom edge on the road, top far above any camera position. */
+const JOIN_BASE = ROAD_TOP + 48;
+const JOIN_TOP = -2600;
+const FG_FX = 1.28;
 
 export const themeKey = (theme, part) => `th_${theme}_${part}`;
 
@@ -41,8 +51,17 @@ export function mapThemes(map) {
   return [...new Set(segs.map((s) => s.theme).filter((t) => t !== 'forest' && (THEMES[t] || KITS[t])))];
 }
 
+/** Join pieces a map needs (one per segment boundary). */
+export function mapJoins(map) {
+  const segs = map?.world || [];
+  const out = [];
+  for (let i = 1; i < segs.length; i += 1) out.push(joinFor(segs[i - 1].theme, segs[i].theme).piece);
+  return [...new Set(out)];
+}
+
 export function preloadThemes(scene, map) {
   const V = 'th1';
+  for (const piece of mapJoins(map)) if (joinReady(piece)) scene.load.image(joinTexKey(piece), `${joinUrl(piece)}?v=${V}`);
   for (const t of mapThemes(map)) {
     if (KITS[t]) {
       for (const k of kitAssets(t)) scene.load.image(kitTexKey(t, k), `${kitUrl(t, k)}?v=${V}`);
@@ -83,14 +102,22 @@ export class ThemeWorld {
     if (forestSeg) {
       this.forest = new ForestWorld(scene, { length, seed, tagBg, endX: forestSeg.to < length ? forestSeg.to : null });
     }
-    // Screen-fixed sky per segment; neighbours cross-fade as the camera passes the join
-    this.skies = this.segs.map((sg) => {
-      if (sg.theme === 'forest') return null;
+    // Screen-fixed sky of the first segment; later ones bring their own (curtain)
+    this.skies = this.segs.map((sg, i) => {
+      if (sg.theme === 'forest' || i > 0) return null;
       const im = scene.add.image(0, 0, this._skyTexture(sg.theme)).setOrigin(0).setScrollFactor(0).setDepth(-99);
       tagBg(im);
       return im;
     });
     this.kitLayers = [];
+    // One world-space mask per segment: its road range, full height
+    this.masks = this.segs.map((sg, i) => {
+      const g = scene.make.graphics({ x: 0, y: 0 }, false);
+      const x0 = i === 0 ? -50000 : sg.from;
+      const x1 = i === this.segs.length - 1 ? 1e6 : sg.to;
+      g.fillStyle(0xffffff, 1).fillRect(x0, -50000, x1 - x0, 100000);
+      return g.createGeometryMask();
+    });
 
     this.wall = scene.add.container(0, 0).setDepth(-50);
     this.floor = scene.add.container(0, 0).setDepth(-29);
@@ -102,6 +129,8 @@ export class ThemeWorld {
       if (KITS[s.theme]) this._buildKit(s, i);
       else if (s.theme !== 'forest') this._buildSegment(s, i);
     });
+    for (let i = 1; i < this.segs.length; i += 1) this._join(this.segs[i - 1], this.segs[i], i);
+    for (const c of this.kitLayers) if (c.clip != null) c.setMask(this.masks[c.clip]);
     for (const c of this.kitLayers) {
       tagBg(c);
       c.setScrollFactor(c.fx, 1, true);
@@ -217,10 +246,12 @@ export class ThemeWorld {
   }
 
   /** New container for one kit layer of a segment. */
-  _kitLayer(fx, depth, fg = false) {
+  _kitLayer(fx, depth, fg = false, clip = null) {
     const c = this.scene.add.container(0, 0).setDepth(depth);
     c.fx = fx;
     c.isFg = fg;
+    /** Segment index whose mask cuts this layer (null: not masked). */
+    c.clip = clip;
     this.kitLayers.push(c);
     return c;
   }
@@ -234,6 +265,19 @@ export class ThemeWorld {
     // Strips run on under the next segment's faded edge; the last one covers the map end
     const to = last ? lx(this.length + 400) + vw * 1.3 + 300 : lx(seg.to) + FADE * 0.6;
     return [from, to];
+  }
+
+  /**
+   * Span a masked layer must cover so that, with the mask cutting it at the
+   * joins, nothing behind ever shows: from the join seen at the screen's left
+   * edge to the next join seen at its right edge.
+   */
+  _clipSpan(seg, fx, i) {
+    const first = i === 0;
+    const last = i === this.segs.length - 1;
+    const x0 = first ? -600 : seg.from * fx - 500;
+    const x1 = last ? this.length * fx + VW_MAX + 400 : seg.to * fx + VW_MAX * (1 - fx) + 500;
+    return [x0, x1];
   }
 
   /** Scatter kit items along [x0, x1) in container c. */
@@ -269,21 +313,23 @@ export class ThemeWorld {
     const base = -19.9 + i * 2;
     let d = base + 0.05;
     let near = -4.6 + i * 2;
-    this._curtain(seg, i, CURTAIN_FX, base);
-    // Far → near layers
+    this._curtain(seg, i, base);
+    // Far → near layers, all cut hard at the joins by the segment mask
     for (const l of kit.layers) {
       const fx = l.fx;
-      const c = this._kitLayer(fx, fx < 1 ? (d += 0.1) : (near += 0.05));
-      let [x0, x1] = this._layerSpan(seg, fx, i);
-      // Distant layers start a little before the join so the horizon is never empty
-      if (fx < 1 && i > 0) x0 -= (1 - fx) * 500;
-      const x1Items = i === this.segs.length - 1 ? x1 : x1 - FADE * 0.6;
+      const c = this._kitLayer(fx, fx < 1 ? (d += 0.1) : (near += 0.05), false, i);
+      const [x0, x1] = this._clipSpan(seg, fx, i);
       if (l.strip) {
         const key = kitTexKey(t, l.strip.key);
-        this._strip(c, key, x0, x1, l.strip.y - l.strip.h, l.strip.h, fadeIn, null, false);
+        this._strip(c, key, x0, x1, l.strip.y - l.strip.h, l.strip.h, false, null, false);
         if (l.tint) for (const im of c.list) im.setTint(l.tint);
       }
-      if (l.items) this._scatter(c, t, l.items, x0 + (fadeIn ? FADE : 0), x1Items, l.tint);
+      if (l.items) {
+        // Near items keep clear of the join pieces so none is cut in half
+        const ix0 = fx >= 1 && i > 0 ? seg.from + 150 : x0;
+        const ix1 = fx >= 1 && i < this.segs.length - 1 ? seg.to - 150 : x1;
+        this._scatter(c, t, l.items, ix0, ix1, l.tint);
+      }
       if (l.blur) {
         try {
           c.postFX.addBlur(0, 1, 1, l.blur);
@@ -300,8 +346,10 @@ export class ThemeWorld {
     if (kit.below?.color != null) below.add(s.add.rectangle(r0 + (fadeIn ? FADE : 0), ROAD_BOTTOM - 10, r1 - r0 - (fadeIn ? FADE : 0), bh, kit.below.color).setOrigin(0, 0));
     if (kit.road) this._strip(road, kitTexKey(t, kit.road.key), r0, r1, ROAD_TOP, kit.road.h, fadeIn, null, false);
     if (kit.edge) {
-      const edge = this._kitLayer(1, -4.85 + i * 2);
-      this._strip(edge, kitTexKey(t, kit.edge.key), r0, r1, ROAD_TOP - kit.edge.h * 0.35, kit.edge.h, fadeIn, null, false);
+      // The far road edge pokes above the road: cut it at the join like the scenery
+      const edge = this._kitLayer(1, -4.85 + i * 2, false, i);
+      const [e0, e1] = this._clipSpan(seg, 1, i);
+      this._strip(edge, kitTexKey(t, kit.edge.key), e0, e1, ROAD_TOP - kit.edge.h * 0.35, kit.edge.h, false, null, false);
     }
     if (kit.decals?.length) this._scatter(this._kitLayer(1, -4 + i * 2), t, kit.decals, r0 + FADE, r1 - FADE * 0.6);
     if (kit.bottom?.length) this._bottomRow(this._kitLayer(1, -3.5 + i * 2), t, kit.bottom, r0 + FADE * 0.5, r1 - FADE * 0.6);
@@ -321,38 +369,90 @@ export class ThemeWorld {
   }
 
   /**
-   * Sky curtain: the segment's sky gradient as a layer behind its own far
-   * layers, so it hides whatever the previous segment had in the distance.
+   * Sky curtain: the segment's sky gradient behind its own far layers. The
+   * segment mask cuts it at the join, so it hides everything of the previous
+   * segment to the right of the join piece.
    */
-  _curtain(seg, i, fx, depth) {
+  _curtain(seg, i, depth) {
     if (i === 0) return;
     const s = this.scene;
-    const c = this._kitLayer(fx, depth);
-    const [x0, x1] = this._layerSpan(seg, fx, i);
-    const top = -1400;
+    const c = this._kitLayer(1, depth, false, i);
+    const [, x1] = this._clipSpan(seg, 1, i);
+    const top = JOIN_TOP;
     const h = ROAD_TOP + 60 - top;
-    const fadeKey = this._skyFadeTexture(seg.theme);
-    const fw = CURTAIN_FADE;
-    c.add(s.add.image(x0 - fw / 2, top, fadeKey).setOrigin(0, 0).setDisplaySize(fw, h));
-    c.add(s.add.image(x0 + fw / 2 - 1, top, this._skyTexture(seg.theme)).setOrigin(0, 0).setDisplaySize(x1 - x0 - fw / 2 + 1, h));
+    c.add(s.add.image(seg.from - 40, top, this._skyTexture(seg.theme)).setOrigin(0, 0).setDisplaySize(x1 - seg.from + 40, h));
   }
 
-  _skyFadeTexture(theme) {
-    const key = `skyfade_${theme}`;
+  /** Vertical tile of a join piece (falls back to a plain painted column). */
+  _joinTexture(piece) {
     const s = this.scene;
+    const key = joinTexKey(piece);
     if (s.textures.exists(key)) return key;
-    const src = s.textures.get(this._skyTexture(theme)).getSourceImage();
-    const tex = s.textures.createCanvas(key, 64, 512);
+    const fk = `${key}__fallback`;
+    if (s.textures.exists(fk)) return fk;
+    const tex = s.textures.createCanvas(fk, 128, 384);
     const ctx = tex.getContext();
-    ctx.drawImage(src, 0, 0, 64, 512);
-    ctx.globalCompositeOperation = 'destination-in';
-    const g = ctx.createLinearGradient(0, 0, 64, 0);
-    g.addColorStop(0, 'rgba(0,0,0,0)');
-    g.addColorStop(1, 'rgba(0,0,0,1)');
+    const g = ctx.createLinearGradient(0, 0, 128, 0);
+    g.addColorStop(0, '#3a3a3c');
+    g.addColorStop(0.3, '#8a8a86');
+    g.addColorStop(0.75, '#5c5c5a');
+    g.addColorStop(1, '#2c2c2e');
     ctx.fillStyle = g;
-    ctx.fillRect(0, 0, 64, 512);
+    ctx.fillRect(0, 0, 128, 384);
+    tex.refresh();
+    return fk;
+  }
+
+  /** Bottom-to-top gradient that grounds a join piece (contact shadow). */
+  _aoTexture() {
+    const s = this.scene;
+    const key = 'join_ao';
+    if (s.textures.exists(key)) return key;
+    const tex = s.textures.createCanvas(key, 4, 128);
+    const ctx = tex.getContext();
+    const g = ctx.createLinearGradient(0, 0, 0, 128);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.55)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, 4, 128);
     tex.refresh();
     return key;
+  }
+
+  /** Stack a vertical tile from y1 (bottom) up past y0 in container c, centred on x. */
+  _column(c, key, x, y0, y1, w, tint) {
+    const s = this.scene;
+    const src = s.textures.get(key).getSourceImage();
+    const k = w / src.width;
+    const h = src.height * k;
+    for (let y = y1; y > y0; y -= h - 1) {
+      const im = s.add.image(x, y, key).setOrigin(0.5, 1).setScale(k);
+      if (tint != null) im.setTint(tint);
+      c.add(im);
+    }
+  }
+
+  /**
+   * The piece standing at the join between segments a and b. It is drawn above
+   * every scenery layer, on the road's far edge, and hides their hard cut; a
+   * dark copy passes in front of the camera (doorway / under a bridge / trunk).
+   */
+  _join(a, b, i) {
+    const s = this.scene;
+    const cfg = joinFor(a.theme, b.theme);
+    const key = this._joinTexture(cfg.piece);
+    const x = b.from;
+    const w = cfg.w;
+    const back = this._kitLayer(1, 40 + i * 0.1);
+    back.add(s.add.ellipse(x, JOIN_BASE - 4, w * 1.7, 34, 0x000000, 0.35));
+    this._column(back, key, x, JOIN_TOP, JOIN_BASE, w, 0xd8d8d2);
+    back.add(s.add.image(x, JOIN_BASE, this._aoTexture()).setOrigin(0.5, 1).setDisplaySize(w + 2, 150));
+    if (!cfg.front) return;
+    // Same scroll rule as the kit foreground: passes mid-screen together with the join
+    const vw = Math.max(this.viewW, 1400);
+    const fx = (x - vw / 2) * FG_FX + vw / 2;
+    const front = this._kitLayer(FG_FX, 3001 + i * 0.1, true);
+    this._column(front, key, fx, JOIN_TOP - 1200, ROAD_BOTTOM + 900, w * 1.35, 0x5a5a60);
   }
 
   /**
@@ -393,14 +493,10 @@ export class ThemeWorld {
   update(camX) {
     if (!this.skies) return;
     const mid = camX + this.viewW / 2;
-    this.skies.forEach((im, i) => {
-      if (!im) return;
-      const sg = this.segs[i];
-      const a = Math.min(1, Math.max(0, (mid - (sg.from - 500)) / 1000));
-      const b = i + 1 < this.segs.length ? Math.min(1, Math.max(0, (sg.to + 500 - mid) / 1000)) : 1;
-      im.setAlpha(i === 0 ? b : Math.min(a, b));
-      im.setVisible(im.alpha > 0.01);
-    });
+    // The first segment's screen-fixed sky can rest once the camera is far past
+    // its join (later segments draw their own sky curtain over it)
+    const im = this.skies[0];
+    if (im && this.segs.length > 1) im.setVisible(mid < this.segs[0].to + VW_MAX);
   }
 
   setBaseY(baseY, viewW, viewH) {

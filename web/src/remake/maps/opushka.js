@@ -10,7 +10,7 @@ export default {
   chapter: 'Глава 1 · 2011',
   next: 'village',
   /** Forest → highway → shawarma kiosk (brawl/world/ThemeWorld.js). */
-  world: [{ theme: 'forest', to: 1900 }, { theme: 'highway', to: 4300 }, { theme: 'shawarma' }],
+  world: [{ theme: 'forest', to: 1600 }, { theme: 'highway', to: 4250 }, { theme: 'shawarma' }],
   length: 5600,
   start: { x: 260, z: 80 },
   scaling: 0.1,
