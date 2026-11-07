@@ -400,6 +400,44 @@ body {
   border-color: #fff;
 }
 
+#bone-editor-panel .be-actions button.on,
+#bone-editor-panel .be-parts button.on {
+  background: #3a3410;
+  border-color: #ffee00;
+}
+
+#bone-editor-panel select {
+  background: #111;
+  color: #fff;
+  border: 1px solid #666;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  padding: 2px 4px;
+  max-width: 220px;
+}
+
+#bone-editor-panel .be-nums {
+  font-family: Consolas, monospace;
+  color: #cfc;
+}
+
+#bone-editor-panel .be-parts {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+#bone-editor-panel .be-parts button {
+  background: #111;
+  color: #ddd;
+  border: 1px solid #555;
+  padding: 4px 2px;
+  font-family: var(--font-ui);
+  font-size: 11px;
+  cursor: pointer;
+}
+
 #anim-editor-panel {
   position: absolute;
   top: 8px;

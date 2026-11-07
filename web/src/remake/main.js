@@ -11,5 +11,7 @@ const app = createApp();
  */
 const params = new URLSearchParams(window.location.search);
 if (params.get('hero')) GameState.hero = params.get('hero');
-if (params.has('brawl')) app.go('brawl', { map: params.get('map') || undefined });
+// ?bones or ?bones=<skin id> opens the bone editor directly
+if (params.has('bones')) app.go('bones', { skin: params.get('bones') || undefined });
+else if (params.has('brawl')) app.go('brawl', { map: params.get('map') || undefined });
 else app.go('splash');

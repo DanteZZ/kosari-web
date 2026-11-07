@@ -20,20 +20,20 @@ export const VARIANTS = {
   blocker: { skin: 'nikita', scale: 1.12, tint: 0x7f93b8 },
   /** Original boss 1 uses the masked-hoodie rig. */
   borsch: { skin: 'boss1', scale: 1, tint: null },
-  // Meme-era bosses: stand-in rigs until their own parts are drawn
-  ded: { skin: 'nikita', scale: 0.95, tint: 0xc8c8c8 },
-  pahom: { skin: 'buiniy', scale: 1.05, tint: 0x6fae6f },
-  glad: { skin: 'nikita', scale: 1.05, tint: 0xffb070 },
-  mongol: { skin: 'buiniy', scale: 1.25, tint: 0xa08060 },
-  papich: { skin: 'nikita', scale: 1.08, tint: 0x8899ff },
-  vertuha: { skin: 'nikita', scale: 1, tint: 0x5a5a5a },
-  ruki: { skin: 'buiniy', scale: 1.38, tint: 0xff9a9a },
-  ponasenkov: { skin: 'povar', scale: 1, tint: 0x3a3a46 },
-  reka: { skin: 'nikita', scale: 1, tint: 0x9fc8ff },
-  gigachad: { skin: 'boss1', scale: 1.35, tint: 0xe0e0e0 },
-  zubarev: { skin: 'nikita', scale: 1.1, tint: 0xff60ff },
-  gitelman: { skin: 'povar', scale: 1, tint: 0x50607a },
-  klas: { skin: 'boss1', scale: 1.2, tint: 0xffd23f },
+  // Meme-era bosses: their own rigs
+  ded: { skin: 'ded', scale: 0.98, tint: null },
+  pahom: { skin: 'pahom', scale: 1.05, tint: null },
+  glad: { skin: 'glad', scale: 1.02, tint: null },
+  mongol: { skin: 'mongol', scale: 1.12, tint: null },
+  papich: { skin: 'papich', scale: 1.04, tint: null },
+  vertuha: { skin: 'vertuha', scale: 1, tint: null },
+  ruki: { skin: 'ruki', scale: 1.2, tint: null },
+  ponasenkov: { skin: 'ponasenkov', scale: 1.02, tint: null },
+  reka: { skin: 'reka', scale: 1, tint: null },
+  gigachad: { skin: 'gigachad', scale: 1.22, tint: null },
+  zubarev: { skin: 'zubarev', scale: 1.05, tint: null },
+  gitelman: { skin: 'gitelman', scale: 1, tint: null },
+  klas: { skin: 'klas', scale: 1.15, tint: null },
 };
 
 const PLAYER_SCALE = 1 / 1.5;

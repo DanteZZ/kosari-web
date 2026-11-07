@@ -17,13 +17,23 @@ const base = process.env.VITE_BASE || (repo ? `/${repo}/` : '/');
  */
 /**
  * Dev-only: the bone editor's «Сохранить в проект» posts an enemy rig here and
- * it is written to src/remake/game/enemies/layouts/<id>.json.
+ * it is written to src/remake/game/enemies/layouts/<id>.json (the player rig:
+ * src/remake/game/player/layout.json).
  */
 function saveLayoutPlugin() {
   const dir = resolve(__dirname, 'src/remake/game/enemies/layouts');
+  /** file → time it was written by the editor */
+  const recent = new Map();
   return {
     name: 'kosari-save-layout',
     apply: 'serve',
+    // A rig saved from the editor is already live in the page: no reload
+    // (it used to reload and drop the editor back to the menu / first skin)
+    handleHotUpdate(ctx) {
+      const f = ctx.file.replace(/\\/g, '/');
+      if (recent.has(f) && Date.now() - recent.get(f) < 3000) return [];
+      return undefined;
+    },
     configureServer(server) {
       server.middlewares.use('/__kosari/save-layout', (req, res) => {
         if (req.method !== 'POST') {
@@ -40,12 +50,13 @@ function saveLayoutPlugin() {
           try {
             const { id, layout } = JSON.parse(body);
             if (!/^[a-z0-9_]+$/.test(id) || !layout || typeof layout !== 'object') throw new Error('bad payload');
-            const file = resolve(dir, `${id}.json`);
+            const file = id === 'player' ? resolve(__dirname, 'src/remake/game/player/layout.json') : resolve(dir, `${id}.json`);
             if (!fs.existsSync(file)) throw new Error(`no layout file for ${id}`);
+            recent.set(file.replace(/\\/g, '/'), Date.now());
             fs.writeFileSync(file, `${JSON.stringify(layout, null, 2)}
 `);
             res.setHeader('content-type', 'application/json');
-            res.end(JSON.stringify({ ok: true, file: `src/remake/game/enemies/layouts/${id}.json` }));
+            res.end(JSON.stringify({ ok: true, file: file.slice(__dirname.length + 1).replace(/\\/g, '/') }));
           } catch (e) {
             res.statusCode = 400;
             res.end(JSON.stringify({ ok: false, error: String(e.message || e) }));

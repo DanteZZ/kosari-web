@@ -8,7 +8,7 @@ import { ERA_THROWS, SHOCKWAVE } from './eraHazards.js';
 export const FIGHTERS = {
   player: {
     team: 'player',
-    hp: 200,
+    hp: 400,
     speedX: 5.2,
     speedZ: 3.4,
     jumpV: 13.5,

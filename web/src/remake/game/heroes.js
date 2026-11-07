@@ -1,6 +1,6 @@
 /**
- * Playable heroes. Until their own part sheets are drawn, the new heroes wear
- * an existing rig (skin) with a clothes tint — swap `skin` for their own parts later.
+ * Playable heroes. Поцык uses the player rig; the others wear their own cut
+ * rigs (enemies/parts.js skins of the same id).
  *
  * Stats are multipliers on the base `player` fighter (sim/fighters.js).
  */
@@ -18,8 +18,8 @@ export const HEROES = {
     id: 'svidetel',
     label: 'Свидетель из Фрязино',
     blurb: 'Быстрый: появляется там, где его не ждут.',
-    skin: 'nikita',
-    tint: 0x6f7f9a,
+    skin: 'svidetel',
+    tint: null,
     scale: 0.94,
     hp: 0.85,
     speed: 1.18,
@@ -29,8 +29,8 @@ export const HEROES = {
     id: 'pistoletov',
     label: 'Александр Пистолетов',
     blurb: 'Стартует с пистолетом, бьёт сильнее.',
-    skin: 'buiniy',
-    tint: 0x9a3a3a,
+    skin: 'pistoletov',
+    tint: null,
     scale: 1,
     hp: 1,
     speed: 0.95,
@@ -43,8 +43,8 @@ export const HEROES = {
     id: 'kama',
     label: 'Кама Пуля',
     blurb: 'Танк: много здоровья, тяжёлый удар.',
-    skin: 'buiniy',
-    tint: 0x3f3f3f,
+    skin: 'kama',
+    tint: null,
     scale: 1.08,
     hp: 1.3,
     speed: 0.88,

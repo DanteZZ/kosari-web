@@ -11,6 +11,28 @@ import BUINIY_LAYOUT from './layouts/buiniy.json';
 import BORSCH_LAYOUT from './layouts/boss1.json';
 import POVAR_LAYOUT from './layouts/povar.json';
 
+// Meme-era characters cut from bodies/*.psd (web/scripts/export_psd_parts.py →
+// register_parts.py). figH: native figure height in px (head top → shoes).
+const MEME_LAYOUTS = import.meta.glob('./layouts/*.json', { eager: true, import: 'default' });
+const MEME = {
+  ded: ['Дед', 1016],
+  pahom: ['Пахом', 1053],
+  gigachad: ['Гигачад', 1069],
+  gitelman: ['Гительман', 991],
+  glad: ['Глад Валакас', 1082],
+  kama: ['Кама Пуля', 1067],
+  mongol: ['Олег Монгол', 1058],
+  papich: ['Папич', 1042],
+  pistoletov: ['Александр Пистолетов', 1083],
+  ponasenkov: ['Понасенков', 1074],
+  reka: ['Идущий к реке', 1037],
+  ruki: ['Руки базуки', 1051],
+  svidetel: ['Свидетель из Фрязино', 1067],
+  vertuha: ['Чувак с вертухой', 1085],
+  zubarev: ['Зубарев', 1089],
+  klas: ['1Kla$', 1054],
+};
+
 const PART_NAMES = [
   'head',
   'torso',
@@ -95,6 +117,23 @@ export const ENEMY_SKINS = {
     maxHp: 100,
   },
 };
+
+// Scaled to player height here; bigger bosses get their size from VARIANTS / heroes
+for (const [id, [label, figH]] of Object.entries(MEME)) {
+  const layout = MEME_LAYOUTS[`./layouts/${id}.json`];
+  if (!layout) continue;
+  ENEMY_SKINS[id] = {
+    id,
+    label,
+    folder: id,
+    defaultDir: 0,
+    scale: PLAYER_SCALE * (470 / figH),
+    layout: JSON.parse(JSON.stringify(layout)),
+    targetH: PUPPET_TARGET_H,
+    displayH: CHAR_TARGET_H,
+    maxHp: 200,
+  };
+}
 
 /** Layout as loaded from the project file (bone editor «Сброс» goes back to it). */
 for (const skin of Object.values(ENEMY_SKINS)) skin.defaultLayout = JSON.parse(JSON.stringify(skin.layout));
