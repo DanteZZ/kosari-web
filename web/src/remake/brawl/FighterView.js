@@ -14,7 +14,7 @@ const SQUASH_MS = 130;
  * New enemy types reuse the existing rigs: skin + size + a tint on the
  * clothes (the head stays untinted so faces still read).
  */
-const VARIANTS = {
+export const VARIANTS = {
   runner: { skin: 'nikita', scale: 0.9, tint: 0x86c8ff },
   thrower: { skin: 'buiniy', scale: 0.95, tint: 0xb3c79a },
   blocker: { skin: 'nikita', scale: 1.12, tint: 0x7f93b8 },

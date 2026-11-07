@@ -51,6 +51,10 @@ export const KILL_LOOT = {
   boss1: [18, 18],
   borsch: [25, 25],
   povar: [25, 25],
+  // Meme-era bosses and mini-bosses
+  ded: [25, 25], pahom: [25, 25], mongol: [28, 28], papich: [28, 28], ruki: [30, 30], ponasenkov: [30, 30],
+  reka: [32, 32], gigachad: [34, 34], zubarev: [34, 34], gitelman: [36, 36], klas: [60, 60],
+  glad: [10, 10], vertuha: [10, 10],
 };
 
 /** Weighted gun drop from crates. */
@@ -60,3 +64,10 @@ export const CRATE_GUNS = [
   [3, 20],
   [4, 5],
 ];
+
+/** Timed pickups: duration in ticks (60/s) and the multiplier they apply. */
+export const BUFFS = {
+  speed: { ticks: 600, mul: 1.35, title: 'Энергетик — скорость!' },
+  power: { ticks: 600, mul: 1.5, title: 'Протеин — сила!' },
+  shield: { ticks: 300, mul: 1, title: 'Очки сигмы — неуязвимость!' },
+};

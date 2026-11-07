@@ -7,6 +7,7 @@
 export default {
   id: 'opushka',
   name: 'Опушка',
+  chapter: 'Глава 1 · 2011',
   next: 'village',
   /** Forest → highway → shawarma kiosk (brawl/world/ThemeWorld.js). */
   world: [{ theme: 'forest', to: 1900 }, { theme: 'highway', to: 4300 }, { theme: 'shawarma' }],

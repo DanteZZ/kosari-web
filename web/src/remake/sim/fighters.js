@@ -1,3 +1,6 @@
+import { MOVES } from './moves.js';
+import { ERA_THROWS, SHOCKWAVE } from './eraHazards.js';
+
 /**
  * Fighter archetypes (stats only — visuals live in the view layer by `kind`).
  * Speeds in px/tick @ 60 Hz.
@@ -160,8 +163,11 @@ export const FIGHTERS = {
  */
 function eraBoss(base, extra) {
   const src = { reflect: FIGHTERS.borsch, phases: FIGHTERS.povar, brawler: FIGHTERS.boss1 }[base];
-  return { ...src, ...extra, ai: { ...(src.ai || {}), ...(extra.ai || {}) } };
+  return { ...src, ...extra, moves: { ...src.moves, ...(extra.moves || {}) }, ai: { ...(src.ai || {}), ...(extra.ai || {}) } };
 }
+
+/** Ground slam that sends a shockwave along the lane (brawler bosses). */
+MOVES.b_quake = { ...MOVES.b_slam, projectile: SHOCKWAVE };
 
 Object.assign(FIGHTERS, {
   ded: eraBoss('reflect', { title: 'Дед «я футбольный мячик»', hint: 'Отбей его снаряд обратно ударом!', hazards: false, hp: 3 }),
@@ -179,3 +185,22 @@ Object.assign(FIGHTERS, {
   gitelman: eraBoss('phases', { title: 'Гительман', hint: 'Инвестируй в удар: отбей снаряд!', hp: 60, phases: [60, 95, 130] }),
   klas: eraBoss('phases', { title: '1Kla$', hint: 'Финал! Отбей снаряды в него и не стой под бас-дропом.', hp: 70, phases: [70, 110, 150] }),
 });
+
+/**
+ * Give each era boss its own throws (re-skinned original throw moves) and the
+ * thing that rains down between its phases.
+ */
+for (const [id, t] of Object.entries(ERA_THROWS)) {
+  const def = FIGHTERS[id];
+  const base = def.bossAI === 'borsch' ? MOVES.b_bomb : MOVES.p_pot;
+  if (t.light) {
+    MOVES[`t_${id}_l`] = { ...base, projectile: t.light };
+    def.moves = { ...def.moves, light: `t_${id}_l` };
+  }
+  if (t.heavy && def.bossAI === 'povar') {
+    MOVES[`t_${id}_h`] = { ...MOVES.p_pan, projectile: t.heavy };
+    def.moves = { ...def.moves, heavy: `t_${id}_h` };
+  }
+  if (t.rain) def.rain = t.rain;
+}
+for (const id of ['mongol', 'ruki', 'gigachad']) FIGHTERS[id].moves = { ...FIGHTERS[id].moves, heavy: 'b_quake' };

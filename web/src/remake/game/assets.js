@@ -123,6 +123,12 @@ export const WORLD_PARTS = [
   'rock_1', 'stump',
 ];
 
+/** assets/items/<name>.webp */
+export const ITEM_ART = [
+  'football', 'jar', 'donation_bomb', 'book', 'dumbbell', 'coin', 'money_pack', 'music_note', 'brick',
+  'shawarma', 'stone', 'shockwave', 'doshik', 'energy', 'protein', 'sigma_glasses',
+];
+
 export function preloadGameAssets(scene) {
   for (const [name, frames] of Object.entries(SPRITES)) {
     for (let i = 0; i < frames; i += 1) {
@@ -137,6 +143,9 @@ export function preloadGameAssets(scene) {
   for (const name of WORLD_PARTS) {
     scene.load.image(`w_${name}`, `assets/world/sprites/${name}.png?v=${WP}`);
   }
+
+  // Boss projectiles and pickups of the meme eras (scripts/import_items.py)
+  for (const name of ITEM_ART) scene.load.image(`item_${name}`, `assets/items/${name}.webp?v=it1`);
 
   // Side-view gun sprites for bone attach (cache-bust on art tweaks)
   const WPN_V = 'wpn8';

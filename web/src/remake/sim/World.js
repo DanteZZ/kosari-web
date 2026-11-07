@@ -13,7 +13,7 @@ import {
   STAGGER_LIMIT,
 } from './constants.js';
 import { BTN, ACTION_BTNS, axisX, axisZ, selField } from './input.js';
-import { WEAPONS, WEAPON_SLOTS, SHOP, KILL_LOOT, CRATE_GUNS } from './items.js';
+import { WEAPONS, WEAPON_SLOTS, SHOP, KILL_LOOT, CRATE_GUNS, BUFFS } from './items.js';
 import { DIRIG_BOMB, FORK, ANVIL_FLY } from './hazards.js';
 import { MOVES, moveTotal } from './moves.js';
 import { FIGHTERS } from './fighters.js';
@@ -193,6 +193,7 @@ export class World {
     this._updateProjectiles();
     this._separate();
     this._updatePickups();
+    this._updateBuffs();
     this._dropLoot();
     this._crateDropper();
     this._hazards();
@@ -1071,7 +1072,7 @@ export class World {
   spawnPickup(kind, x, z, amount = 0, o = {}) {
     const y = o.y ?? 180;
     this.pickups.push({
-      id: this.nextId++, kind, amount, weapon: o.weapon ?? 0,
+      id: this.nextId++, kind, amount, weapon: o.weapon ?? 0, buff: o.buff ?? null,
       x, z, y, px: x, pz: z, py: y, vx: o.vx ?? 0, vy: o.vy ?? 0, t: 0, taken: false,
     });
   }
@@ -1113,13 +1114,35 @@ export class World {
         } else if (it.kind === 'gun') {
           p.weapons[it.weapon] = (p.weapons[it.weapon] || 0) + it.amount;
           if (!p.weapon) p.weapon = it.weapon;
+        } else if (it.kind === 'buff') {
+          p.buffs = p.buffs || {};
+          p.buffs[it.buff] = Math.max(p.buffs[it.buff] || 0, it.amount);
         }
         it.taken = true;
-        this.events.push({ type: 'pickup', id: p.id, kind: it.kind, amount: it.amount, weapon: it.weapon, x: it.x, z: it.z });
+        this.events.push({ type: 'pickup', id: p.id, kind: it.kind, amount: it.amount, weapon: it.weapon, buff: it.buff, x: it.x, z: it.z });
         break;
       }
     }
     this.pickups = this.pickups.filter((it) => !it.taken);
+  }
+
+  /**
+   * Timed buffs from pickups: speed (энергетик), power (протеин), shield (очки
+   * сигмы — no damage taken). Base values are remembered on first use.
+   */
+  _updateBuffs() {
+    for (const p of this.fighters) {
+      if (!p.buffs) continue;
+      p.speedBase ??= p.speedMul || 1;
+      p.dmgBase ??= p.dmgMul || 1;
+      for (const k of Object.keys(p.buffs)) {
+        if (p.buffs[k] > 0) p.buffs[k] -= 1;
+        if (p.buffs[k] <= 0) delete p.buffs[k];
+      }
+      p.speedMul = p.speedBase * (p.buffs.speed ? BUFFS.speed.mul : 1);
+      p.dmgMul = p.dmgBase * (p.buffs.power ? BUFFS.power.mul : 1);
+      if (p.buffs.shield) p.iframes = Math.max(p.iframes, 2);
+    }
   }
 
   _nearestPlayer(x, z, maxD) {
@@ -1467,7 +1490,7 @@ export class World {
         const p = near();
         const x = Math.min(pb.xMax - 30, Math.max(pb.xMin + 30, p.x + this.rng.range(-280, 280)));
         const z = this.rng.range(this.bounds.zMin + 8, this.bounds.zMax - 8);
-        this._spawnProj({ id: -1, team: 'hazard', x, z, y: 0, facing: 1, dmgMul: 1 }, FORK, { x, y: 640, z });
+        this._spawnProj({ id: -1, team: 'hazard', x, z, y: 0, facing: 1, dmgMul: 1 }, this.rainSpec || FORK, { x, y: 640, z });
       }
     }
 
@@ -1598,9 +1621,13 @@ export class World {
     // Loot: always money, sometimes food or a gun
     this._spillKosari(c.x, c.z, this.rng.int(2, 4), 40);
     const roll = this.rng.next();
-    if (roll < 0.35) {
+    if (roll < 0.3) {
       this.spawnPickup('heal', c.x + this.rng.range(-30, 30), c.z, 30, { y: 40, vy: 8, vx: this.rng.range(-2, 2) });
-    } else if (roll < 0.75) {
+    } else if (roll < 0.45) {
+      // Энергетик / протеин / очки сигмы
+      const buff = this.rng.pick(['speed', 'power', 'shield']);
+      this.spawnPickup('buff', c.x + this.rng.range(-30, 30), c.z, BUFFS[buff].ticks, { y: 40, vy: 8, vx: this.rng.range(-2, 2), buff });
+    } else if (roll < 0.8) {
       const total = CRATE_GUNS.reduce((a, g) => a + g[1], 0);
       let k = this.rng.range(0, total);
       let gun = CRATE_GUNS[0][0];

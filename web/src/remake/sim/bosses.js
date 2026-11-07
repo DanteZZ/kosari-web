@@ -111,6 +111,7 @@ function povar(world, e, players) {
     if ((home > 0 && e.x >= exitX - 20) || (home < 0 && e.x <= exitX + 20)) {
       e.away = true;
       world.forkRainT = 600;
+      world.rainSpec = def.rain || null;
       world.events.push({ type: 'forkRain', id: e.id });
     }
     return;

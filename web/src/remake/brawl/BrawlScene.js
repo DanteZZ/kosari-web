@@ -4,10 +4,14 @@ import { VIEW_W, VIEW_H } from '../game/constants.js';
 import { WORLD_GEOM } from './world/ForestWorld.js';
 import { ThemeWorld } from './world/ThemeWorld.js';
 import { getHero } from '../game/heroes.js';
+import { Cinema } from './Cinema.js';
+import { INTRO, BOSSES, HERO_VOICE } from './dialogue.js';
+import { VARIANTS } from './FighterView.js';
+import { enemyPartTextureKey } from '../game/enemies/parts.js';
+import { FIGHTERS } from '../sim/fighters.js';
 import { World } from '../sim/World.js';
 import { SandboxDirector } from '../sim/sandbox.js';
 import { MapDirector } from '../sim/director.js';
-import { FIGHTERS } from '../sim/fighters.js';
 import { MAPS, DEFAULT_MAP } from '../maps/index.js';
 import { saveBest } from '../ui/Menu.js';
 import { DT, METER_MAX } from '../sim/constants.js';
@@ -16,7 +20,7 @@ import { FighterView } from './FighterView.js';
 import { CrateView } from './CrateView.js';
 import { SpriteFighterView, SPRITE_KINDS } from './SpriteFighterView.js';
 import { ROAD_Y } from './stage.js';
-import { WEAPONS, WEAPON_SLOTS, SHOP } from '../sim/items.js';
+import { WEAPONS, WEAPON_SLOTS, SHOP, BUFFS } from '../sim/items.js';
 import { WEAPON_DEFS } from '../game/player/weapons.js';
 import { KeyboardInput } from './keyboard.js';
 import { stage, LANE_DEPTH } from './stage.js';
@@ -29,7 +33,21 @@ const ORIG_PROJ = {
   fork: { key: 'povar_vilka_0', size: 130, angle: 180 },
   dirigbomb: { key: 'dirig_bomb_0', anim: 'dirig_bomb_fall', size: 64 },
   anvil: { key: 'nakovalna_0', size: 90, spin: 9 },
+  // Meme-era bosses (assets/items, Cursor art)
+  football: { key: 'item_football', size: 44, spin: 12 },
+  jar: { key: 'item_jar', size: 52, spin: 7 },
+  brick: { key: 'item_brick', size: 46, spin: 10 },
+  donation_bomb: { key: 'item_donation_bomb', size: 54, spin: 4 },
+  book: { key: 'item_book', size: 50, spin: 9 },
+  stone: { key: 'item_stone', size: 40, spin: 8 },
+  money_pack: { key: 'item_money_pack', size: 58, spin: 8 },
+  coin: { key: 'item_coin', size: 44, spin: 10 },
+  music_note: { key: 'item_music_note', size: 52 },
+  shockwave: { key: 'item_shockwave', size: 190 },
 };
+
+/** Pickup art by kind (food heals pick big or small by amount). */
+const BUFF_ART = { speed: 'item_energy', power: 'item_protein', shield: 'item_sigma_glasses' };
 
 /** Slight over-zoom so camera roll never shows the edges. */
 const BASE_ZOOM = 1.015;
@@ -104,6 +122,8 @@ export class BrawlScene extends Phaser.Scene {
 
     this.fx = this.add.group();
     this.buildHud();
+    this.cine = new Cinema(this);
+    this.introduced = new Set();
 
     if (GameState.musicPlay) {
       this.sound.stopAll();
@@ -132,6 +152,7 @@ export class BrawlScene extends Phaser.Scene {
     this._onResize = () => {
       this.layoutCameras();
       this.layoutHud();
+      this.cine?.layout();
     };
     this.game.events.on('remake-resize', this._onResize);
     this.events.once('shutdown', () => {
@@ -140,7 +161,8 @@ export class BrawlScene extends Phaser.Scene {
       this.sound.stopByKey('boss');
       this.sound.stopByKey('dirigabb_sound');
     });
-    if (this.map) this.banner(this.map.name, 'Иди вперёд →', 1800);
+    if (this.map) this.playIntro();
+    else this.banner('Песочница', 'Иди вперёд →', 1800);
 
     window.__brawl = this;
   }
@@ -199,7 +221,8 @@ export class BrawlScene extends Phaser.Scene {
   }
 
   togglePause() {
-    if (this.player.dead || this.finished) return;
+    // Enter / Space advance cutscene dialogue instead
+    if (this.player.dead || this.finished || this.cine?.active) return;
     this.paused = !this.paused;
     this.game.events.emit('remake-pause', this.paused);
   }
@@ -209,11 +232,12 @@ export class BrawlScene extends Phaser.Scene {
     this.fpsAvg += (1000 / Math.max(1, delta) - this.fpsAvg) * 0.05;
     if (this.paused) return;
 
-    // ---- Fixed-tick simulation
-    this.acc += frameMs / 1000;
+    // ---- Fixed-tick simulation (cutscenes can freeze it and take the controls)
+    if (this.cine?.freeze) this.acc = 0;
+    else this.acc += frameMs / 1000;
     let steps = 0;
     while (this.acc >= DT && steps < MAX_STEPS) {
-      this.world.setInput(0, this.keys.read());
+      this.world.setInput(0, this.cine?.active ? 0 : this.keys.read());
       this.world.step();
       this.director.step();
       this.acc -= DT;
@@ -288,7 +312,13 @@ export class BrawlScene extends Phaser.Scene {
     if (hi - lo <= VIEW_W) target = (lo + hi) / 2 - VIEW_W / 2;
     else target = Phaser.Math.Clamp(px - VIEW_W * 0.5 + lead, Math.max(0, lo - 60), hi - VIEW_W + 60);
     target = Phaser.Math.Clamp(target, 0, Math.max(0, this.worldLen - VIEW_W));
-    this.camX += (target - this.camX) * (1 - Math.exp(-dt * 6));
+    const cc = this.cine?.camera();
+    if (cc) {
+      // Zoom is around the screen centre: keep the visible edges inside the world
+      const m = (VIEW_W / 2) * (1 - 1 / cc.zoom);
+      target = Phaser.Math.Clamp(cc.x, -m, Math.max(-m, this.worldLen - VIEW_W + m));
+    }
+    this.camX += (target - this.camX) * (1 - Math.exp(-dt * (cc ? cc.speed : 6)));
 
     let sx = 0;
     let sy = 0;
@@ -301,8 +331,9 @@ export class BrawlScene extends Phaser.Scene {
     // ---- Vertical: follow jumps a little, tilt with lane depth
     const py = p.py + (p.y - p.py) * alpha;
     const pz = p.pz + (p.z - p.pz) * alpha;
-    const targetY = this.baseY - py * 0.35 + (pz - LANE_DEPTH / 2) * 0.22;
-    this.camY += (targetY - this.camY) * (1 - Math.exp(-dt * 5));
+    let targetY = this.baseY - py * 0.35 + (pz - LANE_DEPTH / 2) * 0.22;
+    if (cc) targetY = Math.min(this.baseY + 120, cc.y);
+    this.camY += (targetY - this.camY) * (1 - Math.exp(-dt * (cc ? cc.speed : 5)));
 
     // ---- Sway: breathing + run bob + landing spring + roll lean + zoom punch
     this.swayT += dt;
@@ -317,7 +348,7 @@ export class BrawlScene extends Phaser.Scene {
     const vx = (p.x - p.px) * 60;
     const lean = Phaser.Math.Clamp(-vx * 0.000035, -0.01, 0.01) + Math.sin(this.swayT * 0.5) * 0.0015;
     this.roll += (lean - this.roll) * (1 - Math.exp(-dt * 3));
-    this.zoom += (BASE_ZOOM - this.zoom) * (1 - Math.exp(-dt * 7));
+    this.zoom += ((cc ? cc.zoom : BASE_ZOOM) - this.zoom) * (1 - Math.exp(-dt * (cc ? cc.speed : 7)));
 
     for (const cam of [this.cameras.main, this.bgCam]) {
       cam.setScroll(Math.round(this.camX + sx), Math.round(this.camY + bob + this.kick + sy));
@@ -325,6 +356,104 @@ export class BrawlScene extends Phaser.Scene {
       cam.setRotation(this.roll);
     }
     this.forest?.update?.(this.camX);
+  }
+
+  // ------------------------------------------------------------------ cutscenes
+
+  heroSpeaker() {
+    const h = getHero(GameState.hero);
+    return {
+      name: h.label,
+      face: h.skin ? enemyPartTextureKey(h.skin, 'head') : 'player_head',
+      color: '#8fe3ff',
+      ...(HERO_VOICE[h.id] || HERO_VOICE.pocik),
+    };
+  }
+
+  bossSpeaker(kind) {
+    const skin = VARIANTS[kind]?.skin || (kind === 'borsch' ? 'boss1' : kind);
+    return {
+      name: FIGHTERS[kind]?.title || kind,
+      face: enemyPartTextureKey(skin, 'head'),
+      flip: true,
+      color: '#ffd23f',
+      ...(BOSSES[kind]?.voice || {}),
+    };
+  }
+
+  /** Point (world) a little above a fighter's feet. */
+  focusOf(f) {
+    return { x: f.x, y: stage.groundY(f.z) - 150 };
+  }
+
+  /** Map start: bars, a slow glide from ahead of the hero back to him, one line. */
+  playIntro() {
+    const lines = INTRO[this.map.id];
+    const p = this.player;
+    this.cine.play(async (c) => {
+      const f = this.focusOf(p);
+      c.camSnap(f.x + 520, f.y - 40, 1.05);
+      await c.wait(150);
+      this.banner(this.map.name, this.map.chapter || '', 2200);
+      await c.camTo(f.x + 60, f.y, 1.22, 1700);
+      for (const text of lines || []) await c.say(this.heroSpeaker(), text);
+      c.hideBox();
+      await c.camTo(f.x, f.y + 40, BASE_ZOOM, 300);
+    });
+  }
+
+  /** Boss walks in, the world freezes, name card, then the exchange of lines. */
+  playBossArrival(id, kind) {
+    const data = BOSSES[kind];
+    this.cine.play(
+      async (c) => {
+        const boss = () => this.world.fighters.find((x) => x.id === id) || null;
+        const lockR = this.lock?.right ?? this.player.x + 600;
+        const fp = this.focusOf(this.player);
+        await c.camTo(lockR - 260, fp.y, 1.15, 1300);
+        c.setFreeze(true);
+        const b = boss();
+        if (b) await c.camTo(Math.min(b.x, lockR - 120), this.focusOf(b).y, 1.35, 450);
+        await c.title(FIGHTERS[kind]?.title || '', this.map?.chapter || '', 1300);
+        for (const [who, text] of data?.arrive || []) {
+          const f = who === 'boss' ? boss() : this.player;
+          if (f) await c.camTo(who === 'boss' ? Math.min(f.x, lockR - 120) : f.x, this.focusOf(f).y, 1.4, 260);
+          await c.say(who === 'boss' ? this.bossSpeaker(kind) : this.heroSpeaker(), text);
+        }
+        c.hideBox();
+        c.flash(0xffffff, 300, 0.5);
+        this.sound.play('superudar', { volume: 0.4 });
+      },
+      { freeze: false },
+    );
+  }
+
+  /** Killing blow: stop-frame, white flash, snap zoom, slow fall, last words. */
+  playFinisher(ev) {
+    const kind = this.world.fighters.find((f) => f.id === ev.id)?.kind;
+    const data = kind ? BOSSES[kind] : null;
+    this.cine.play(
+      async (c) => {
+        const y = stage.groundY(ev.z) - 150;
+        c.setFreeze(true);
+        c.flash(0xffffff, 420, 1);
+        c.impact(560);
+        c.camSnap(ev.x, y, 1.55);
+        this.sound.play('superudar', { volume: 0.6, rate: 0.7 });
+        await c.wait(520);
+        c.setFreeze(false);
+        this.shake(700, 16);
+        await c.camTo(ev.x, y + 30, 1.3, 1500);
+        if (data?.defeat?.length) {
+          c.setFreeze(true);
+          for (const [who, text] of data.defeat) {
+            if (who === 'hero') await c.camTo(this.player.x, this.focusOf(this.player).y, 1.35, 300);
+            await c.say(who === 'boss' ? this.bossSpeaker(kind) : this.heroSpeaker(), text);
+          }
+        }
+      },
+      { freeze: false },
+    );
   }
 
   shake(ms, amp) {
@@ -386,9 +515,10 @@ export class BrawlScene extends Phaser.Scene {
           this.shake(500, 14);
           this.sound.play('explosion', { volume: 0.5 });
           this.sound.stopByKey('boss');
+          this.playFinisher(ev);
           break;
         case 'mapComplete':
-          this.time.delayedCall(1400, () => this.showResults());
+          this.time.delayedCall(1400, () => this.cine.after(() => this.showResults()));
           break;
         case 'pickup':
           if (ev.kind === 'kosar') {
@@ -397,6 +527,9 @@ export class BrawlScene extends Phaser.Scene {
           } else if (ev.kind === 'gun') {
             this.sound.play('shotgun_reload', { volume: 0.45 });
             this.popText(ev.x, stage.groundY(ev.z) - 140, `${WEAPONS[ev.weapon].name} +${ev.amount}`, '#ffffff', 22);
+          } else if (ev.kind === 'buff') {
+            this.sound.play('+life', { volume: 0.5, rate: 1.2 });
+            this.popText(ev.x, stage.groundY(ev.z) - 140, BUFFS[ev.buff]?.title || '', '#8fe3ff', 24);
           } else {
             this.sound.play('+life', { volume: 0.45 });
             this.popText(ev.x, stage.groundY(ev.z) - 120, `+${ev.amount}`, '#7dff7a', 30);
@@ -406,6 +539,10 @@ export class BrawlScene extends Phaser.Scene {
           if (ev.from === 'drop') this.sound.play('beep', { volume: 0.1, rate: 0.5 });
           if (ev.kind === 'borsch') this.sound.play('eto_vlad_borsh', { volume: 0.6 });
           if (ev.kind === 'povar') this.sound.play('professiya_', { volume: 0.6 });
+          if (FIGHTERS[ev.kind]?.boss && !this.introduced.has(ev.kind)) {
+            this.introduced.add(ev.kind);
+            this.playBossArrival(ev.id, ev.kind);
+          }
           break;
         case 'shot':
           this.onShot(ev);
@@ -916,6 +1053,13 @@ export class BrawlScene extends Phaser.Scene {
         } else if (it.kind === 'gun') {
           key = WEAPON_DEFS[it.weapon]?.key || '1up_0';
           size = 60;
+        } else if (it.kind === 'buff') {
+          key = BUFF_ART[it.buff] || '1up_0';
+          size = 50;
+        } else if (it.kind === 'heal' && this.textures.exists('item_shawarma')) {
+          // Food: shawarma for big heals, instant noodles for small ones
+          key = it.amount >= 50 ? 'item_shawarma' : 'item_doshik';
+          size = it.amount >= 50 ? 62 : 48;
         }
         if (!this.textures.exists(key)) key = '__DEFAULT';
         img = this.add.image(0, 0, key).setOrigin(0.5, 1);
