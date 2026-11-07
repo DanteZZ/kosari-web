@@ -324,6 +324,7 @@ export class BrawlScene extends Phaser.Scene {
       cam.setZoom(this.zoom);
       cam.setRotation(this.roll);
     }
+    this.forest?.update?.(this.camX);
   }
 
   shake(ms, amp) {

@@ -90,7 +90,9 @@ export class ForestWorld {
   _span(fx) {
     if (this.endX != null) {
       // Distant layers only need to reach past the join (the next wall covers them)
-      return fx >= 1 ? this.endX + 260 : (this.endX + 1400) * fx + this.viewW + 600;
+      // Same join rule as ThemeWorld: the seam is mid-screen when the road join is
+      const vw = Math.max(this.viewW, 1400);
+      return fx >= 1 ? this.endX + 260 : (this.endX - vw / 2) * fx + vw / 2 + 420;
     }
     return this.length * fx + this.viewW * 1.6 + 400;
   }

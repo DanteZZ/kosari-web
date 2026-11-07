@@ -1,0 +1,36 @@
+{
+ "highway": [
+  "billboard",
+  "bus_stop",
+  "bush_dry",
+  "car_lada",
+  "cone",
+  "far_fields",
+  "far_hills",
+  "guardrail",
+  "lamp_post",
+  "mid_embankment",
+  "power_pole",
+  "road",
+  "road_sign_km",
+  "roadside",
+  "sign_blue",
+  "tires",
+  "trash_bin",
+  "truck_far",
+  "weeds"
+ ],
+ "shawarma": [
+  "dog",
+  "drinks_fridge",
+  "far_city",
+  "far_garages",
+  "grill",
+  "ground",
+  "kiosk",
+  "pallets",
+  "plastic_chair",
+  "plastic_table",
+  "street_lamp"
+ ]
+}

@@ -176,7 +176,7 @@ def flatten(im: Image.Image, bg=(0, 0, 0)) -> Image.Image:
     return base.convert("RGB")
 
 
-def key_background(im: Image.Image, tol: int = 38) -> Image.Image:
+def key_background(im: Image.Image, tol: int = 38, force_magenta: bool = False) -> Image.Image:
     """Make the flat background transparent: flood-fill from every border pixel
     whose colour is close to the dominant corner colour (black / white / magenta /
     checkerboard greys). Interior areas of the same colour are kept."""
@@ -184,13 +184,13 @@ def key_background(im: Image.Image, tol: int = 38) -> Image.Image:
     w, h = im.size
     px = im.load()
     corners = [px[0, 0], px[w - 1, 0], px[0, h - 1], px[w - 1, h - 1]]
-    if all(c[3] < 10 for c in corners):
+    if all(c[3] < 10 for c in corners) and not force_magenta:
         return im  # already cut out
     refs = {c[:3] for c in corners}
     # checkerboard: also accept the light greys around it
     refs |= {(255, 255, 255), (204, 204, 204), (230, 230, 230)} if any(min(c[:3]) > 180 for c in corners) else set()
 
-    magenta = all(c[0] > 120 and c[2] > 50 and c[0] - c[1] > 70 for c in corners)
+    magenta = force_magenta or all(c[0] > 120 and c[2] > 50 and c[0] - c[1] > 70 for c in corners)
 
     def close(c):
         if c[3] < 10:
