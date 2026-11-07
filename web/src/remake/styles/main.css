@@ -906,6 +906,14 @@ body {
   text-shadow: 0 1px 0 rgba(255, 240, 210, 0.4);
 }
 
+.wl-goal {
+  margin-top: 4px;
+  font-size: clamp(13px, 1.3vw, 17px);
+  font-style: italic;
+  letter-spacing: 0.03em;
+  color: #6a4a2a;
+}
+
 .wl-rule {
   width: 70%;
   height: 2px;

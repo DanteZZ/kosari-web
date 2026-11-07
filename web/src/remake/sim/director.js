@@ -101,7 +101,7 @@ export class MapDirector {
     for (const s of wv.spawns) {
       const every = s.every ?? 30;
       for (let k = 0; k < s.count; k += 1) {
-        this.queue.push({ at: 20 + k * every, kind: s.kind, from: s.from || 'right', k });
+        this.queue.push({ at: 20 + k * every, kind: s.kind, from: s.from || 'right', k, elite: s.elite || 1 });
       }
     }
     this.queue.sort((p, q) => p.at - q.at);
@@ -116,7 +116,8 @@ export class MapDirector {
     let f;
     // Later arenas hit harder and take more punishment
     const k = this.idx * (this.map.scaling ?? 0.12);
-    const scale = { hpMul: 1 + k, dmgMul: 1 + k * 0.5 };
+    // Elite (a meme enemy's debut): tougher and hits a bit harder
+    const scale = { hpMul: (1 + k) * q.elite, dmgMul: (1 + k * 0.5) * (q.elite > 1 ? 1.2 : 1) };
     if (q.from === 'drop') {
       // Drops out of the trees onto the road
       const x = rng.range(a.left + 140, a.right - 140);
@@ -132,7 +133,7 @@ export class MapDirector {
     }
     this.waveIds.push(f.id);
     this.arenaIds.push(f.id);
-    w.events.push({ type: 'spawn', id: f.id, kind: q.kind, from: q.from });
+    w.events.push({ type: 'spawn', id: f.id, kind: q.kind, from: q.from, elite: q.elite > 1 });
   }
 
   _clear(a) {

@@ -543,7 +543,8 @@ export class BrawlScene extends Phaser.Scene {
           if (ev.from === 'drop') this.sound.play('beep', { volume: 0.1, rate: 0.5 });
           if (ev.kind === 'borsch') this.sound.play('eto_vlad_borsh', { volume: 0.6 });
           if (ev.kind === 'povar') this.sound.play('professiya_', { volume: 0.6 });
-          if (FIGHTERS[ev.kind]?.boss && !this.introduced.has(ev.kind)) {
+          // Bosses, and meme enemies on the map where they debut, get a meeting scene
+          if ((FIGHTERS[ev.kind]?.boss || this.map?.debuts?.includes(ev.kind)) && !this.introduced.has(ev.kind)) {
             this.introduced.add(ev.kind);
             this.playBossArrival(ev.id, ev.kind);
           }

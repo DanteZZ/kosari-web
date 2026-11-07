@@ -3,7 +3,9 @@
  *
  * intro[mapId]   — when a map starts
  * bosses[kind]   — { voice, arrive: [...], defeat: [...] }; each line is
- *                  [who, text] where who is 'boss' or 'hero'
+ *                  [who, text] where who is 'boss' or 'hero'. Meme enemies
+ *                  (not bosses) only use `arrive`, once, on the map where
+ *                  they debut — keep it short.
  * voice          — blip pitch (Hz) and oscillator wave for the typed text
  */
 
@@ -52,8 +54,7 @@ export const BOSSES = {
   ded: {
     voice: { pitch: 140, wave: 'triangle' },
     arrive: [
-      ['boss', 'Внучок, а ты знаешь, кто я?'],
-      ['boss', 'Я — футбольный мячик!'],
+      ['boss', 'Внучок, а ты знаешь, кто я? Я — футбольный мячик!'],
       ['hero', 'Тогда я — вратарь.'],
     ],
     defeat: [['boss', 'Укатился… к внукам…']],
@@ -116,8 +117,8 @@ export const BOSSES = {
     voice: { pitch: 130, wave: 'sine' },
     arrive: [
       ['boss', '…'],
-      ['boss', 'Я просто иду к реке.'],
-      ['hero', 'Через меня не пройдёшь.'],
+      ['boss', 'Мы просто идём к реке.'],
+      ['hero', 'Все сразу, что ли?'],
     ],
     defeat: [['boss', 'Река… подождёт.']],
   },
@@ -133,8 +134,7 @@ export const BOSSES = {
   zubarev: {
     voice: { pitch: 300, wave: 'sawtooth' },
     arrive: [
-      ['boss', 'Всем привет, мы в эфире! Тут ко мне гость!'],
-      ['boss', 'Чат, ставим, сколько он продержится!'],
+      ['boss', 'Всем привет, мы в эфире! Чат, у нас гость!'],
       ['hero', 'Ставь на меня.'],
     ],
     defeat: [['boss', 'Стрим… окончен…']],
@@ -142,9 +142,8 @@ export const BOSSES = {
   gitelman: {
     voice: { pitch: 180, wave: 'square' },
     arrive: [
-      ['boss', 'Молодой человек, вы инвестируете или просто мимо?'],
-      ['boss', 'Входной билет — все ваши косари.'],
-      ['hero', 'Мои косари — в моих кулаках.'],
+      ['boss', 'Молодой человек, курс по инвестициям. Со скидкой.'],
+      ['hero', 'Скидка — это мой кулак.'],
     ],
     defeat: [['boss', 'Рынок… развернулся…']],
   },

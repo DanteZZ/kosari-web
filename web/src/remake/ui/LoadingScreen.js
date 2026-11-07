@@ -38,6 +38,7 @@ export function showLoading(parent, { story, interactive = true } = {}) {
     el('div', { className: 'wl-ink' }),
     el('div', { className: 'wl-story' }, [
       el('h1', { className: 'wl-title', text: s.title }),
+      s.goal ? el('div', { className: 'wl-goal', text: s.goal }) : null,
       el('div', { className: 'wl-rule' }),
       text,
       s.tip ? el('div', { className: 'wl-tip', html: `<b>Совет.</b> ${s.tip}` }) : null,
