@@ -191,7 +191,6 @@ Object.assign(KITS, {
   gym: interior({
     sky: ['#121416', '#2a2c2e'],
     items: [it('barbell_rack', 220, [700, 1100]), it('bench_press', 130, [600, 1000]), it('dumbbell_rack', 160, [800, 1300]), it('punching_bag', 230, [900, 1400])],
-    fg: [{ key: 'plates', h: 110, every: [900, 1500], y: ROAD_BOTTOM + 130 }],
   }),
   museum: interior({
     sky: ['#24160f', '#3e281a'],

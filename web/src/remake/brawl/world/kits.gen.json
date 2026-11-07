@@ -1,4 +1,41 @@
 {
+ "cellar": [
+  "bulb",
+  "crates",
+  "far_wall",
+  "jar_shelf",
+  "old_sofa",
+  "pipes",
+  "road"
+ ],
+ "dacha": [
+  "apple_tree",
+  "barrel",
+  "currant_bush",
+  "far_dachas",
+  "mid_greenhouses",
+  "road",
+  "roadside",
+  "scarecrow",
+  "shed",
+  "wheelbarrow"
+ ],
+ "gym": [
+  "barbell_rack",
+  "bench_press",
+  "dumbbell_rack",
+  "far_wall",
+  "plates",
+  "punching_bag",
+  "road"
+ ],
+ "gym_street": [
+  "far_buildings",
+  "mid_gym_front",
+  "road",
+  "street_lamp",
+  "trash_bags"
+ ],
  "highway": [
   "billboard",
   "bus_stop",
@@ -20,6 +57,75 @@
   "truck_far",
   "weeds"
  ],
+ "museum": [
+  "armor",
+  "bust",
+  "column",
+  "far_wall",
+  "piano",
+  "road",
+  "rope_barrier",
+  "vase"
+ ],
+ "night_street": [
+  "bouncer_booth",
+  "crowd_barrier",
+  "far_city",
+  "luxury_car",
+  "mid_club_front",
+  "road",
+  "velvet_rope"
+ ],
+ "office": [
+  "coffee_machine",
+  "cooler",
+  "desk",
+  "far_wall",
+  "plant",
+  "reception",
+  "road",
+  "trading_screens"
+ ],
+ "panelki": [
+  "bush",
+  "carpet_rack",
+  "far_blocks",
+  "garage",
+  "horizontal_bar",
+  "lada",
+  "mid_entrances",
+  "road",
+  "roadside",
+  "swing",
+  "trash_container",
+  "tree_poplar"
+ ],
+ "pc_club": [
+  "admin_counter",
+  "arcade",
+  "energy_cans",
+  "far_wall",
+  "gaming_chair",
+  "pc_desk",
+  "road",
+  "water_cooler"
+ ],
+ "ring": [
+  "far_wall",
+  "ring_post",
+  "road"
+ ],
+ "river": [
+  "bench",
+  "boat",
+  "far_shore",
+  "lamp",
+  "mid_water",
+  "reeds",
+  "road",
+  "roadside",
+  "willow"
+ ],
  "shawarma": [
   "dog",
   "drinks_fridge",
@@ -32,5 +138,56 @@
   "plastic_chair",
   "plastic_table",
   "street_lamp"
+ ],
+ "sigma_gym": [
+  "far_wall",
+  "greek_column",
+  "kettlebells",
+  "road",
+  "spotlight",
+  "statue"
+ ],
+ "stadium": [
+  "ball_pile",
+  "bench_subs",
+  "far_stands",
+  "floodlight",
+  "goal",
+  "mid_fence",
+  "road",
+  "scoreboard"
+ ],
+ "stage": [
+  "crowd",
+  "far_screen",
+  "pyro",
+  "road",
+  "speaker_stack",
+  "stage_light",
+  "truss"
+ ],
+ "stream_house": [
+  "boxes",
+  "far_wall",
+  "neon_sign",
+  "rgb_desk",
+  "ring_light",
+  "road",
+  "sofa"
+ ],
+ "village": [
+  "bench",
+  "cart",
+  "far_fields",
+  "far_forest",
+  "fence",
+  "hay_bale",
+  "mid_houses",
+  "nettles",
+  "road",
+  "roadside",
+  "sunflowers",
+  "water_pump",
+  "well"
  ]
 }

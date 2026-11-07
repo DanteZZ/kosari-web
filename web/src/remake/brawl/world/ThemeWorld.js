@@ -265,13 +265,15 @@ export class ThemeWorld {
     const fadeIn = i > 0;
     // Depths: forest layers are −100…−20; a kit segment draws above them so it can
     // fade in over the forest: sky curtain −19.9, far layers −19.8…, road −15, near −14…
-    let d = -19.8;
-    let near = -14;
-    this._curtain(seg, i, CURTAIN_FX);
+    // Each later segment sits above the previous one so it can fade in over it
+    const base = -19.9 + i * 2;
+    let d = base + 0.05;
+    let near = -4.6 + i * 2;
+    this._curtain(seg, i, CURTAIN_FX, base);
     // Far → near layers
     for (const l of kit.layers) {
       const fx = l.fx;
-      const c = this._kitLayer(fx, fx < 1 ? (d += 0.2) : (near += 0.1));
+      const c = this._kitLayer(fx, fx < 1 ? (d += 0.1) : (near += 0.05));
       let [x0, x1] = this._layerSpan(seg, fx, i);
       // Distant layers start a little before the join so the horizon is never empty
       if (fx < 1 && i > 0) x0 -= (1 - fx) * 500;
@@ -292,16 +294,16 @@ export class ThemeWorld {
     }
     // Road, its far edge, what lies below, decals
     const [r0, r1] = this._layerSpan(seg, 1, i);
-    const road = this._kitLayer(1, -15);
-    const below = this._kitLayer(1, -15.2);
+    const road = this._kitLayer(1, -4.9 + i * 2);
+    const below = this._kitLayer(1, -4.95 + i * 2);
     const bh = 700;
     if (kit.below?.color != null) below.add(s.add.rectangle(r0 + (fadeIn ? FADE : 0), ROAD_BOTTOM - 10, r1 - r0 - (fadeIn ? FADE : 0), bh, kit.below.color).setOrigin(0, 0));
     if (kit.road) this._strip(road, kitTexKey(t, kit.road.key), r0, r1, ROAD_TOP, kit.road.h, fadeIn, null, false);
     if (kit.edge) {
-      const edge = this._kitLayer(1, -14.9);
+      const edge = this._kitLayer(1, -4.85 + i * 2);
       this._strip(edge, kitTexKey(t, kit.edge.key), r0, r1, ROAD_TOP - kit.edge.h * 0.35, kit.edge.h, fadeIn, null, false);
     }
-    if (kit.decals?.length) this._scatter(this._kitLayer(1, -12), t, kit.decals, r0 + FADE, r1 - FADE * 0.6);
+    if (kit.decals?.length) this._scatter(this._kitLayer(1, -4 + i * 2), t, kit.decals, r0 + FADE, r1 - FADE * 0.6);
     if (kit.fgStrip) {
       const fx = 1.28;
       const [f0, f1] = this._layerSpan(seg, fx, i);
@@ -321,10 +323,10 @@ export class ThemeWorld {
    * Sky curtain: the segment's sky gradient as a layer behind its own far
    * layers, so it hides whatever the previous segment had in the distance.
    */
-  _curtain(seg, i, fx) {
+  _curtain(seg, i, fx, depth) {
     if (i === 0) return;
     const s = this.scene;
-    const c = this._kitLayer(fx, -19.9);
+    const c = this._kitLayer(fx, depth);
     const [x0, x1] = this._layerSpan(seg, fx, i);
     const top = -1400;
     const h = ROAD_TOP + 60 - top;
