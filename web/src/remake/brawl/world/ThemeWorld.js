@@ -304,6 +304,7 @@ export class ThemeWorld {
       this._strip(edge, kitTexKey(t, kit.edge.key), r0, r1, ROAD_TOP - kit.edge.h * 0.35, kit.edge.h, fadeIn, null, false);
     }
     if (kit.decals?.length) this._scatter(this._kitLayer(1, -4 + i * 2), t, kit.decals, r0 + FADE, r1 - FADE * 0.6);
+    if (kit.bottom?.length) this._bottomRow(this._kitLayer(1, -3.5 + i * 2), t, kit.bottom, r0 + FADE * 0.5, r1 - FADE * 0.6);
     if (kit.fgStrip) {
       const fx = 1.28;
       const [f0, f1] = this._layerSpan(seg, fx, i);
@@ -352,6 +353,40 @@ export class ThemeWorld {
     ctx.fillRect(0, 0, 64, 512);
     tex.refresh();
     return key;
+  }
+
+  /**
+   * Near edge of the road: a dense, slightly darkened row of pieces whose
+   * bottoms sit below the screen edge, so only their tops show (bush tops,
+   * piles, crates) — the same job the forest's bushes do.
+   */
+  _bottomRow(c, theme, pieces, x0, x1) {
+    const s = this.scene;
+    const r = this.rng;
+    const ok = pieces.filter((p) => s.textures.exists(kitTexKey(theme, p.key)));
+    if (!ok.length) return;
+    const total = ok.reduce((a, p) => a + (p.weight ?? 1), 0);
+    const pick = () => {
+      let v = r.next() * total;
+      for (const p of ok) if ((v -= p.weight ?? 1) <= 0) return p;
+      return ok[ok.length - 1];
+    };
+    for (let x = x0 + r.range(0, 80); x < x1; ) {
+      const p = pick();
+      const key = kitTexKey(theme, p.key);
+      const src = s.textures.get(key).getSourceImage();
+      const sc = (p.h * r.range(0.85, 1.15)) / src.height;
+      // Only the top ~45 % pokes above the road's near edge
+      const im = s.add
+        .image(x, ROAD_BOTTOM + src.height * sc * 0.55 + r.range(-6, 22), key)
+        .setOrigin(0.5, 1)
+        .setScale(sc)
+        .setFlipX(r.chance(0.5))
+        .setTint(0x9a9a92);
+      c.add(im);
+      // Pack them so the edge never shows gaps
+      x += Math.max(60, src.width * sc * r.range(0.45, 0.75));
+    }
   }
 
   /** Cross-fade segment skies around each join as the camera moves. */

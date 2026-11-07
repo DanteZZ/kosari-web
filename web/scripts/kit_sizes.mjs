@@ -14,6 +14,7 @@ const mod = await import(`data:text/javascript;base64,${Buffer.from(src).toStrin
 const out = {};
 const note = (folder, key, h) => {
   if (!key || key.startsWith('@')) return;
+  if (key.includes('/')) [folder, key] = key.split('/');
   out[folder] ??= {};
   out[folder][key] = Math.max(out[folder][key] || 0, h);
 };
@@ -27,5 +28,6 @@ for (const [theme, k] of Object.entries(mod.KITS)) {
   if (k.edge) note(f, k.edge.key, k.edge.h);
   for (const it of [...(k.decals || []), ...(k.fg || [])]) note(f, it.key, it.h * 1.08);
   if (k.fgStrip) note(f, k.fgStrip.key, k.fgStrip.h);
+  for (const it of k.bottom || []) note(f, it.key, it.h * 1.15);
 }
 process.stdout.write(JSON.stringify(out, null, 1));
