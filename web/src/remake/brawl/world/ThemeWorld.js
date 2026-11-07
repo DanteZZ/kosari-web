@@ -119,7 +119,7 @@ export class ThemeWorld {
   }
 
   /** Lay a strip from x0 to x1 (layer coords), mirrored every other tile. */
-  _strip(container, key, x0, x1, y, h, fadeIn, kx = null) {
+  _strip(container, key, x0, x1, y, h, fadeIn, kx = null, mirror = true) {
     const s = this.scene;
     if (!s.textures.exists(key)) return;
     const src = s.textures.get(key).getSourceImage();
@@ -131,7 +131,7 @@ export class ThemeWorld {
       const tk = n === 0 && fadeIn ? this._fadedKey(key) : key;
       const im = s.add.image(x, y, tk).setOrigin(0, 0).setScale(sx, k);
       // Mirror odd tiles (keeps the faded edge on the left for the first)
-      if (n % 2 === 1) im.setFlipX(true);
+      if (mirror && n % 2 === 1) im.setFlipX(true);
       container.add(im);
     }
   }
@@ -149,12 +149,12 @@ export class ThemeWorld {
     // Plain sky colour behind the wall top for very tall screens
     const sky = s.add.rectangle(wFrom + (fadeIn ? FADE : 0), ROAD_TOP - wallH - 1200, wTo - wFrom, 1210, Phaser.Display.Color.HexStringToColor(th.sky).color).setOrigin(0, 0);
     this.wall.add(sky);
-    this._strip(this.wall, themeKey(seg.theme, 'wall'), wFrom, wTo, ROAD_TOP - wallH + 2, wallH, fadeIn);
+    this._strip(this.wall, themeKey(seg.theme, 'wall'), wFrom, wTo, ROAD_TOP - wallH + 2, wallH, fadeIn, null, th.mirror !== false);
 
     const fFrom = i === 0 ? -400 : seg.from - FADE;
     const fTo = Math.min(seg.to, this.length + 600) + 300;
     // Floor keeps the painting's horizontal scale and only stretches in depth
-    this._strip(this.floor, themeKey(seg.theme, 'floor'), fFrom, fTo, ROAD_TOP, FLOOR_H, fadeIn, ART_SCALE * 1.4);
+    this._strip(this.floor, themeKey(seg.theme, 'floor'), fFrom, fTo, ROAD_TOP, FLOOR_H, fadeIn, ART_SCALE * 1.4, th.mirror !== false);
 
     // Props behind the lane: random picks, spaced out, a couple scaled down for depth
     const r = this.rng;
