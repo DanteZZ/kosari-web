@@ -362,7 +362,7 @@ export class World {
     }
 
     const diag = ax && az ? 0.88 : 1;
-    f.vx = ax * def.speedX * diag;
+    f.vx = ax * def.speedX * (f.speedMul || 1) * diag;
     f.vz = az * def.speedZ * diag;
     f.x += f.vx;
     f.z += f.vz;
@@ -421,7 +421,7 @@ export class World {
       if (ax) f.facing = ax;
       this._setState(f, 'jump');
       f.vy = def.jumpV;
-      f.vx = ax * def.speedX * 1.1;
+      f.vx = ax * def.speedX * (f.speedMul || 1) * 1.1;
       f.vz = az * def.speedZ;
       f.flip = false;
       f.djump = !!def.jumpV2;
@@ -459,7 +459,7 @@ export class World {
     const ax = axisX(f.cmd);
     const az = axisZ(f.cmd);
     // Light air control: steer towards held direction
-    f.vx += (ax * def.speedX * 1.1 - f.vx) * 0.12;
+    f.vx += (ax * def.speedX * (f.speedMul || 1) * 1.1 - f.vx) * 0.12;
     f.vz += (az * def.speedZ - f.vz) * 0.12;
     f.x += f.vx;
     f.z += f.vz;
@@ -474,7 +474,7 @@ export class World {
       if (ax) f.facing = ax;
       f.djump = false;
       f.vy = def.jumpV2;
-      if (ax) f.vx = ax * def.speedX * 1.15;
+      if (ax) f.vx = ax * def.speedX * (f.speedMul || 1) * 1.15;
       f.flip = true;
       f.flipT = 0;
       this.events.push({ type: 'jump2', id: f.id });
@@ -518,7 +518,7 @@ export class World {
       this._consume(f);
       this._setState(f, 'jump');
       f.vy = def.jumpV;
-      f.vx = f.facing * def.speedX * 1.6;
+      f.vx = f.facing * def.speedX * (f.speedMul || 1) * 1.6;
       f.flip = false;
       f.djump = !!def.jumpV2;
       f.airAttackUsed = false;

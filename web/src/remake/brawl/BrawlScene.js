@@ -1,7 +1,9 @@
 import Phaser from 'phaser';
 import { GameState } from '../state/GameState.js';
 import { VIEW_W, VIEW_H } from '../game/constants.js';
-import { ForestWorld, WORLD_GEOM } from './world/ForestWorld.js';
+import { WORLD_GEOM } from './world/ForestWorld.js';
+import { ThemeWorld } from './world/ThemeWorld.js';
+import { getHero } from '../game/heroes.js';
 import { World } from '../sim/World.js';
 import { SandboxDirector } from '../sim/sandbox.js';
 import { MapDirector } from '../sim/director.js';
@@ -69,10 +71,12 @@ export class BrawlScene extends Phaser.Scene {
     });
     const start = this.map?.start || { x: 420, z: LANE_DEPTH * 0.55 };
     this.player = this.world.spawn('player', start.x, Math.min(LANE_DEPTH, start.z), { slot: 0 });
+    applyHero(this.player, GameState.hero);
     this.director = this.map ? new MapDirector(this.world, this.map) : new SandboxDirector(this.world);
     this.lock = null;
     this.finished = false;
-    this.forest = new ForestWorld(this, {
+    this.forest = new ThemeWorld(this, {
+      map: this.map,
       length: this.worldLen,
       seed: this.map ? hashSeed(this.map.id) : 7,
       tagBg: (o) => this.tagBg(o),
@@ -1180,4 +1184,17 @@ function hashSeed(str) {
     h = Math.imul(h, 16777619);
   }
   return (h >>> 0) || 1;
+}
+
+/** Hero stats on top of the base player fighter (deterministic: set once at spawn). */
+function applyHero(p, heroId) {
+  const h = getHero(heroId);
+  p.hero = h.id;
+  p.hp = p.maxHp = Math.round(p.maxHp * h.hp);
+  p.speedMul = h.speed;
+  p.dmgMul = h.dmg;
+  if (h.startWeapon) {
+    p.weapons[h.startWeapon] = (p.weapons[h.startWeapon] || 0) + (h.startAmmo || 12);
+    p.weapon = h.startWeapon;
+  }
 }

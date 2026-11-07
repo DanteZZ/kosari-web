@@ -149,3 +149,33 @@ export const FIGHTERS = {
     ai: { standoff: 230, aggression: 1, attackCd: [24, 54], retreat: [20, 40], heavyChance: 0.38, ignoreTokens: true },
   },
 };
+
+/**
+ * Bosses of the meme eras. Until their own art exists they reuse the three
+ * original boss brains (sim/bosses.js) and an existing rig (brawl/FighterView.js
+ * VARIANTS):
+ *   reflect — Борщ-style: throws, only his own projectiles punched back hurt (lives)
+ *   phases  — Повар-style: 3 phases, retreats between them while things rain down
+ *   brawler — big armored melee boss (boss1 stats)
+ */
+function eraBoss(base, extra) {
+  const src = { reflect: FIGHTERS.borsch, phases: FIGHTERS.povar, brawler: FIGHTERS.boss1 }[base];
+  return { ...src, ...extra, ai: { ...(src.ai || {}), ...(extra.ai || {}) } };
+}
+
+Object.assign(FIGHTERS, {
+  ded: eraBoss('reflect', { title: 'Дед «я футбольный мячик»', hint: 'Отбей его снаряд обратно ударом!', hazards: false, hp: 3 }),
+  pahom: eraBoss('phases', { title: 'Пахом', hint: 'Отбей банку в него ударом!', hp: 45, phases: [45, 75, 105] }),
+  glad: eraBoss('brawler', { title: 'Глад Валакас', hp: 260, speedX: 3.6, armor: 18, poise: 50 }),
+  mongol: eraBoss('brawler', { title: 'Олег Монгол', hp: 520, armor: 34, poise: 80 }),
+  papich: eraBoss('reflect', { title: 'Папич', hint: 'Отбей донат-бомбу ему в лицо!', hp: 4 }),
+  vertuha: eraBoss('brawler', { title: 'Чувак с вертухой', hp: 240, speedX: 4.2, speedZ: 2.8, armor: 12, poise: 45,
+    ai: { attackCd: [20, 40], heavyChance: 0.6 } }),
+  ruki: eraBoss('brawler', { title: 'Руки базуки', hp: 680, speedX: 2.2, armor: 48, poise: 110 }),
+  ponasenkov: eraBoss('phases', { title: 'Понасенков', hint: 'Маэстро ранит только отбитое!', hp: 50, phases: [50, 80, 110] }),
+  reka: eraBoss('phases', { title: 'Идущий к реке', hint: 'Отбей снаряд обратно — и держись подальше от воды.', hp: 55, phases: [55, 85, 115] }),
+  gigachad: eraBoss('brawler', { title: 'Гигачад', hp: 820, speedX: 3.0, armor: 60, poise: 130 }),
+  zubarev: eraBoss('reflect', { title: 'Зубарев', hint: 'Отбей его «донат» обратно!', hp: 5 }),
+  gitelman: eraBoss('phases', { title: 'Гительман', hint: 'Инвестируй в удар: отбей снаряд!', hp: 60, phases: [60, 95, 130] }),
+  klas: eraBoss('phases', { title: '1Kla$', hint: 'Финал! Отбей снаряды в него и не стой под бас-дропом.', hp: 70, phases: [70, 110, 150] }),
+});

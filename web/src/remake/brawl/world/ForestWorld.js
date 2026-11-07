@@ -47,9 +47,11 @@ export class ForestWorld {
    * @param {Phaser.Scene} scene
    * @param {{ length: number, seed: number, tagBg: (o) => void }} opts
    */
-  constructor(scene, { length, seed, tagBg }) {
+  constructor(scene, { length, seed, tagBg, endX = null }) {
     this.scene = scene;
     this.length = length;
+    /** Near layers stop here when another theme takes over the road. */
+    this.endX = endX;
     this.rng = createRng(seed);
     this.tagBg = tagBg;
     this.layers = {};
@@ -86,6 +88,10 @@ export class ForestWorld {
 
   /** Width a layer must cover for the whole map at its scroll factor. */
   _span(fx) {
+    if (this.endX != null) {
+      // Distant layers only need to reach past the join (the next wall covers them)
+      return fx >= 1 ? this.endX + 260 : (this.endX + 1400) * fx + this.viewW + 600;
+    }
     return this.length * fx + this.viewW * 1.6 + 400;
   }
 

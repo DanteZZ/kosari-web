@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { preloadGameAssets, createGameAnimations } from './assets.js';
 import { showLoading } from '../ui/LoadingScreen.js';
 import { MAPS, DEFAULT_MAP } from '../maps/index.js';
+import { preloadThemes } from '../brawl/world/ThemeWorld.js';
 
 /**
  * Loads every asset behind the Witcher-style loading screen (DOM overlay),
@@ -28,6 +29,7 @@ export class PreloadScene extends Phaser.Scene {
       console.warn('Missing asset', file?.key, file?.url);
     });
     preloadGameAssets(this);
+    if (map) preloadThemes(this, map);
   }
 
   create() {

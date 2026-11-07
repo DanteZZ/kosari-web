@@ -6,6 +6,7 @@ import { MOVES, moveTotal } from '../sim/moves.js';
 import { FLIP_TICKS } from '../sim/constants.js';
 import { stage } from './stage.js';
 import { CLIP_IMPACT } from './clips.js';
+import { getHero } from '../game/heroes.js';
 
 const SQUASH_MS = 130;
 
@@ -19,6 +20,20 @@ const VARIANTS = {
   blocker: { skin: 'nikita', scale: 1.12, tint: 0x7f93b8 },
   /** Original boss 1 uses the masked-hoodie rig. */
   borsch: { skin: 'boss1', scale: 1, tint: null },
+  // Meme-era bosses: stand-in rigs until their own parts are drawn
+  ded: { skin: 'nikita', scale: 0.95, tint: 0xc8c8c8 },
+  pahom: { skin: 'buiniy', scale: 1.05, tint: 0x6fae6f },
+  glad: { skin: 'nikita', scale: 1.05, tint: 0xffb070 },
+  mongol: { skin: 'buiniy', scale: 1.25, tint: 0xa08060 },
+  papich: { skin: 'nikita', scale: 1.08, tint: 0x8899ff },
+  vertuha: { skin: 'nikita', scale: 1, tint: 0x5a5a5a },
+  ruki: { skin: 'buiniy', scale: 1.38, tint: 0xff9a9a },
+  ponasenkov: { skin: 'povar', scale: 1, tint: 0x3a3a46 },
+  reka: { skin: 'nikita', scale: 1, tint: 0x9fc8ff },
+  gigachad: { skin: 'boss1', scale: 1.35, tint: 0xe0e0e0 },
+  zubarev: { skin: 'nikita', scale: 1.1, tint: 0xff60ff },
+  gitelman: { skin: 'povar', scale: 1, tint: 0x50607a },
+  klas: { skin: 'boss1', scale: 1.2, tint: 0xffd23f },
 };
 
 const PLAYER_SCALE = 1 / 1.5;
@@ -43,12 +58,14 @@ export class FighterView {
     this.visual.add(this.spin);
     this.spin.add(this.mount);
 
-    if (f.kind === 'player') {
+    const hero = f.kind === 'player' ? getHero(f.hero) : null;
+    if (f.kind === 'player' && !hero.skin) {
       this.puppet = new BonePuppet(scene, this.mount, { fit: false });
       this.puppet.baseScale = PLAYER_SCALE;
       this.puppet.root.setScale(PLAYER_SCALE);
     } else {
-      const variant = VARIANTS[f.kind];
+      // Heroes without their own parts yet wear an existing rig
+      const variant = hero ? { skin: hero.skin, scale: hero.scale ?? 1, tint: hero.tint ?? null } : VARIANTS[f.kind];
       const skin = getEnemySkin(variant?.skin || f.kind);
       this.puppet = new BonePuppet(scene, this.mount, {
         fit: false,
