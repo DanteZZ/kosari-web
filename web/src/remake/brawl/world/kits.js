@@ -282,12 +282,12 @@ export function kitAssets(theme) {
 const SHARED = {
   '@cloud_1': 'assets/world/sprites/cloud_1.png',
   '@cloud_2': 'assets/world/sprites/cloud_2.png',
-  '@weeds_hw': 'assets/world/kits/highway/weeds.png',
+  '@weeds_hw': 'assets/world/kits/highway/weeds.webp',
 };
 
 export function kitUrl(theme, key) {
   if (key.startsWith('@')) return SHARED[key];
-  return `assets/world/kits/${KITS[theme]?.folder || theme}/${key}.png`;
+  return `assets/world/kits/${KITS[theme]?.folder || theme}/${key}.webp`;
 }
 
 /** Phaser texture key of a kit piece (shared pieces are loaded once). */

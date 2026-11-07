@@ -11,12 +11,17 @@ come from the file name (see brawl/world/kits.js for how they are used):
     guardrail / *_segment                SEGMENT — one repeating piece, trimmed on all sides
     anything else                        OBJECT — magenta keyed, trimmed
 
-Output: web/public/remake/assets/world/kits/<theme>/<name>.png (PNG only — no JPEG blur).
+Output: web/public/remake/assets/world/kits/<theme>/<name>.webp — every piece is stored at
+1.25× the largest height the game shows it at (scripts/kit_sizes.mjs reads that from
+brawl/world/kits.js), high-quality WebP with alpha.
 """
 from __future__ import annotations
 
 import importlib.util
 import json
+import math
+import shutil
+import subprocess
 import sys
 from pathlib import Path
 
@@ -79,33 +84,51 @@ def trim(im: Image.Image, keep_width: bool = False) -> Image.Image:
     return im.crop(bb)
 
 
+HEADROOM = 1.25
+WEBP_Q = 90
+
+
+def display_sizes() -> dict:
+    node = shutil.which("node") or "node"
+    out = subprocess.run([node, str(Path(__file__).with_name("kit_sizes.mjs"))], capture_output=True, text=True, check=True)
+    return json.loads(out.stdout)
+
+
 def main():
     src = Path(sys.argv[1]) if len(sys.argv) > 1 and not sys.argv[1].isidentifier() else Path.home() / "Desktop" / "Kosari_kits"
     only = [a for a in sys.argv[1:] if a.isidentifier()]
+    sizes = display_sizes()
     for theme_dir in sorted(p for p in src.iterdir() if p.is_dir() and not p.name.startswith("_")):
         if only and theme_dir.name not in only:
             continue
         dst = OUT / theme_dir.name
         dst.mkdir(parents=True, exist_ok=True)
         n = 0
+        for old in dst.glob("*.png"):
+            old.unlink()
         for f in sorted(theme_dir.glob("*.png")):
             name = f.stem
             kind = kind_of(name)
+            shown = sizes.get(theme_dir.name, {}).get(name)
+            cap = {"tile": TILE_MAX_H, "strip": STRIP_MAX_H, "segment": STRIP_MAX_H}.get(kind, OBJ_MAX_H)
+            target = min(cap * 2, max(32, math.ceil(shown * HEADROOM))) if shown else cap
             im = Image.open(f).convert("RGBA")
             if kind == "tile":
-                im = seamless(fit_h(im, TILE_MAX_H))
+                im = seamless(fit_h(im, target))
             elif kind == "strip":
                 im = trim(key_background(im, force_magenta=True), keep_width=True)
-                im = seamless(fit_h(im, STRIP_MAX_H))
+                im = seamless(fit_h(im, target))
             elif kind == "segment":
-                im = fit_h(trim(key_background(im, force_magenta=True)), STRIP_MAX_H)
+                im = fit_h(trim(key_background(im, force_magenta=True)), target)
             else:
-                im = fit_h(trim(key_background(im, force_magenta=True)), OBJ_MAX_H)
-            im.save(dst / f"{name}.png", optimize=True)
+                im = fit_h(trim(key_background(im, force_magenta=True)), target)
+            if kind == "tile":
+                im = im.convert("RGB")
+            im.save(dst / f"{name}.webp", quality=WEBP_Q, method=6)
             n += 1
             print(f"  {theme_dir.name}/{name}: {kind} {im.size}")
         print(theme_dir.name, n, "pieces")
-    index = {d.name: sorted(f.stem for f in d.glob("*.png")) for d in sorted(OUT.iterdir()) if d.is_dir()}
+    index = {d.name: sorted(f.stem for f in d.glob("*.webp")) for d in sorted(OUT.iterdir()) if d.is_dir()}
     INDEX.write_text(json.dumps(index, indent=1), encoding="utf-8")
 
 
