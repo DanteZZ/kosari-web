@@ -34,10 +34,11 @@ export function showLoading(parent, { story, interactive = true } = {}) {
   node = el('div', { className: 'wl' }, [
     el('div', { className: 'wl-paper' }),
     el('div', { className: 'wl-wash', style: `background-image:url(assets/world/layers/mid.png)` }),
-    el('img', { className: 'wl-art', src: `assets/loading/${s.art}.png`, alt: '' }),
+    el('img', { className: 'wl-art', src: `assets/loading/${s.art.includes('.') ? s.art : `${s.art}.png`}`, alt: '' }),
     el('div', { className: 'wl-ink' }),
     el('div', { className: 'wl-story' }, [
       el('h1', { className: 'wl-title', text: s.title }),
+      s.goal ? el('div', { className: 'wl-goal', text: s.goal }) : null,
       el('div', { className: 'wl-rule' }),
       text,
       s.tip ? el('div', { className: 'wl-tip', html: `<b>Совет.</b> ${s.tip}` }) : null,

@@ -45,7 +45,7 @@ export function createApp() {
       startBoneEditor({
         parent: gameStage,
         onExit: () => go('menu'),
-        skinId: screen === 'bones-nikita' ? 'nikita' : 'player',
+        skinId: opts.skin || (screen === 'bones-nikita' ? 'nikita' : 'player'),
       });
       return;
     }

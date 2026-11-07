@@ -59,9 +59,13 @@ function borsch(world, e, players) {
   const t = nearest(e, players);
   if (!t) return;
   e.faceX = t.x;
-  const phase = Math.min(3, 4 - Math.max(1, e.hp));
-  world.anvilEvery = [[230, 340], [170, 260], [120, 200]][phase - 1];
-  world.airshipEvery = phase >= 2 ? [600, 900] : null;
+  const def = FIGHTERS[e.kind];
+  const lives = def.hp;
+  const phase = Math.min(3, Math.max(1, lives + 1 - Math.max(1, e.hp)));
+  if (def.hazards !== false) {
+    world.anvilEvery = [[230, 340], [170, 260], [120, 200]][phase - 1];
+    world.airshipEvery = phase >= 2 ? [600, 900] : null;
+  }
   if (ai.lastHp == null) ai.lastHp = e.hp;
   if (e.hp < ai.lastHp) {
     ai.lastHp = e.hp;
@@ -107,6 +111,7 @@ function povar(world, e, players) {
     if ((home > 0 && e.x >= exitX - 20) || (home < 0 && e.x <= exitX + 20)) {
       e.away = true;
       world.forkRainT = 600;
+      world.rainSpec = def.rain || null;
       world.events.push({ type: 'forkRain', id: e.id });
     }
     return;

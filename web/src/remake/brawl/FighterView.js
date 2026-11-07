@@ -6,6 +6,7 @@ import { MOVES, moveTotal } from '../sim/moves.js';
 import { FLIP_TICKS } from '../sim/constants.js';
 import { stage } from './stage.js';
 import { CLIP_IMPACT } from './clips.js';
+import { getHero } from '../game/heroes.js';
 
 const SQUASH_MS = 130;
 
@@ -13,12 +14,26 @@ const SQUASH_MS = 130;
  * New enemy types reuse the existing rigs: skin + size + a tint on the
  * clothes (the head stays untinted so faces still read).
  */
-const VARIANTS = {
+export const VARIANTS = {
   runner: { skin: 'nikita', scale: 0.9, tint: 0x86c8ff },
   thrower: { skin: 'buiniy', scale: 0.95, tint: 0xb3c79a },
   blocker: { skin: 'nikita', scale: 1.12, tint: 0x7f93b8 },
   /** Original boss 1 uses the masked-hoodie rig. */
   borsch: { skin: 'boss1', scale: 1, tint: null },
+  // Meme-era bosses: their own rigs
+  ded: { skin: 'ded', scale: 0.98, tint: null },
+  pahom: { skin: 'pahom', scale: 1.05, tint: null },
+  glad: { skin: 'glad', scale: 1.02, tint: null },
+  mongol: { skin: 'mongol', scale: 1.12, tint: null },
+  papich: { skin: 'papich', scale: 1.04, tint: null },
+  vertuha: { skin: 'vertuha', scale: 1, tint: null },
+  ruki: { skin: 'ruki', scale: 1.2, tint: null },
+  ponasenkov: { skin: 'ponasenkov', scale: 1.02, tint: null },
+  reka: { skin: 'reka', scale: 1, tint: null },
+  gigachad: { skin: 'gigachad', scale: 1.22, tint: null },
+  zubarev: { skin: 'zubarev', scale: 1.05, tint: null },
+  gitelman: { skin: 'gitelman', scale: 1, tint: null },
+  klas: { skin: 'klas', scale: 1.15, tint: null },
 };
 
 const PLAYER_SCALE = 1 / 1.5;
@@ -43,12 +58,14 @@ export class FighterView {
     this.visual.add(this.spin);
     this.spin.add(this.mount);
 
-    if (f.kind === 'player') {
+    const hero = f.kind === 'player' ? getHero(f.hero) : null;
+    if (f.kind === 'player' && !hero.skin) {
       this.puppet = new BonePuppet(scene, this.mount, { fit: false });
       this.puppet.baseScale = PLAYER_SCALE;
       this.puppet.root.setScale(PLAYER_SCALE);
     } else {
-      const variant = VARIANTS[f.kind];
+      // Heroes without their own parts yet wear an existing rig
+      const variant = hero ? { skin: hero.skin, scale: hero.scale ?? 1, tint: hero.tint ?? null } : VARIANTS[f.kind];
       const skin = getEnemySkin(variant?.skin || f.kind);
       this.puppet = new BonePuppet(scene, this.mount, {
         fit: false,

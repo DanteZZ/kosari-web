@@ -2,6 +2,7 @@ import { el } from './dom.js';
 import { playSfx } from './audio.js';
 import { GameState, SaveLoad } from '../state/GameState.js';
 import { MAPS, DEFAULT_MAP } from '../maps/index.js';
+import { HEROES, HERO_IDS } from '../game/heroes.js';
 
 let menuMusic = null;
 
@@ -53,6 +54,7 @@ export function renderMenu(root, { go }) {
   const items = () => {
     const list = [
       { id: 'play', label: 'ИГРАТЬ' },
+      { id: 'hero', label: 'ГЕРОЙ', value: () => (HEROES[GameState.hero] || HEROES.pocik).label.toUpperCase(), cycle: true },
       { id: 'map', label: 'КАРТА', value: () => MAPS[mapIds[mapIdx]].name.toUpperCase(), cycle: true },
       { id: 'sound', label: 'ЗВУК', value: () => (GameState.musicPlay ? 'ВКЛ' : 'ВЫКЛ'), cycle: true },
       { id: 'credits', label: 'СОЗДАТЕЛИ' },
@@ -121,7 +123,10 @@ export function renderMenu(root, { go }) {
     });
     const m = mapIds[mapIdx];
     const b = best[m];
-    bestLine.textContent = b ? `Лучшее на карте «${MAPS[m].name}»: ${b.grade} · ${b.time}` : '';
+    const cur = items()[sel];
+    const hero = HEROES[GameState.hero] || HEROES.pocik;
+    if (cur?.id === 'hero') bestLine.textContent = hero.blurb;
+    else bestLine.textContent = b ? `Лучшее на карте «${MAPS[m].name}»: ${b.grade} · ${b.time}` : '';
   };
 
   const showMenu = () => {
@@ -137,6 +142,11 @@ export function renderMenu(root, { go }) {
     const it = items()[sel];
     if (!it?.cycle) return;
     if (it.id === 'map') mapIdx = (mapIdx + dir + mapIds.length) % mapIds.length;
+    if (it.id === 'hero') {
+      const i = Math.max(0, HERO_IDS.indexOf(GameState.hero));
+      GameState.hero = HERO_IDS[(i + dir + HERO_IDS.length) % HERO_IDS.length];
+      SaveLoad.save?.();
+    }
     if (it.id === 'sound') {
       GameState.musicPlay = !GameState.musicPlay;
       SaveLoad.save?.();
@@ -163,6 +173,7 @@ export function renderMenu(root, { go }) {
         playSfx('superudar.WAV', { volume: 0.45 });
         setTimeout(() => leave('brawl', { map: mapIds[mapIdx] }), 450);
         break;
+      case 'hero':
       case 'map':
       case 'sound':
         change(1);

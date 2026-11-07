@@ -1,0 +1,732 @@
+{
+ "highway": {
+  "wall": [
+   1280,
+   461
+  ],
+  "floor": [
+   1280,
+   252
+  ],
+  "sky": "#949aa2",
+  "mirror": true,
+  "props": [
+   {
+    "key": "cone",
+    "h": 70,
+    "place": "back"
+   },
+   {
+    "key": "pole",
+    "h": 330,
+    "place": "back"
+   },
+   {
+    "key": "road_sign",
+    "h": 190,
+    "place": "back"
+   },
+   {
+    "key": "tire_stack",
+    "h": 110,
+    "place": "back"
+   },
+   {
+    "key": "car_wreck",
+    "h": 140,
+    "place": "back"
+   },
+   {
+    "key": "barrier",
+    "h": 90,
+    "place": "back"
+   },
+   {
+    "key": "bus_stop",
+    "h": 260,
+    "place": "back"
+   }
+  ]
+ },
+ "shawarma": {
+  "wall": [
+   1280,
+   475
+  ],
+  "floor": [
+   1280,
+   238
+  ],
+  "sky": "#5e3f61",
+  "mirror": false,
+  "props": [
+   {
+    "key": "plastic_table",
+    "h": 90,
+    "place": "back"
+   },
+   {
+    "key": "plastic_chair",
+    "h": 95,
+    "place": "back"
+   },
+   {
+    "key": "shawarma_spit",
+    "h": 150,
+    "place": "back"
+   },
+   {
+    "key": "drinks_fridge",
+    "h": 200,
+    "place": "back"
+   }
+  ]
+ },
+ "village": {
+  "wall": [
+   3000,
+   610
+  ],
+  "floor": [
+   3000,
+   216
+  ],
+  "sky": "#88caed",
+  "mirror": true,
+  "props": [
+   {
+    "key": "wooden_fence",
+    "h": 130,
+    "place": "back"
+   },
+   {
+    "key": "well",
+    "h": 170,
+    "place": "back"
+   },
+   {
+    "key": "water_pump",
+    "h": 140,
+    "place": "back"
+   },
+   {
+    "key": "bicycle",
+    "h": 120,
+    "place": "back"
+   },
+   {
+    "key": "hay_bale",
+    "h": 100,
+    "place": "back"
+   },
+   {
+    "key": "bucket",
+    "h": 60,
+    "place": "back"
+   }
+  ]
+ },
+ "stadium": {
+  "wall": [
+   3000,
+   708
+  ],
+  "floor": [
+   3000,
+   255
+  ],
+  "sky": "#58aff1",
+  "mirror": true,
+  "props": [
+   {
+    "key": "goal",
+    "h": 200,
+    "place": "back"
+   },
+   {
+    "key": "ball_pile",
+    "h": 100,
+    "place": "back"
+   },
+   {
+    "key": "bench",
+    "h": 100,
+    "place": "back"
+   },
+   {
+    "key": "ball_crate",
+    "h": 90,
+    "place": "back"
+   }
+  ]
+ },
+ "dacha": {
+  "wall": [
+   3000,
+   728
+  ],
+  "floor": [
+   3000,
+   128
+  ],
+  "sky": "#81c4ee",
+  "mirror": true,
+  "props": [
+   {
+    "key": "scarecrow",
+    "h": 220,
+    "place": "back"
+   },
+   {
+    "key": "garden_bed",
+    "h": 90,
+    "place": "back"
+   },
+   {
+    "key": "watering_can",
+    "h": 60,
+    "place": "back"
+   },
+   {
+    "key": "wood_box",
+    "h": 90,
+    "place": "back"
+   }
+  ]
+ },
+ "cellar": {
+  "wall": [
+   3000,
+   492
+  ],
+  "floor": [
+   3000,
+   197
+  ],
+  "sky": "#9bc9ea",
+  "mirror": true,
+  "props": [
+   {
+    "key": "jar_shelf",
+    "h": 210,
+    "place": "back"
+   },
+   {
+    "key": "old_sofa",
+    "h": 120,
+    "place": "back"
+   },
+   {
+    "key": "pipes",
+    "h": 160,
+    "place": "back"
+   }
+  ]
+ },
+ "panelki": {
+  "wall": [
+   3000,
+   787
+  ],
+  "floor": [
+   3000,
+   217
+  ],
+  "sky": "#969594",
+  "mirror": true,
+  "props": [
+   {
+    "key": "garage",
+    "h": 230,
+    "place": "back"
+   },
+   {
+    "key": "swing",
+    "h": 200,
+    "place": "back"
+   },
+   {
+    "key": "bench_entrance",
+    "h": 100,
+    "place": "back"
+   },
+   {
+    "key": "trash_container",
+    "h": 140,
+    "place": "back"
+   },
+   {
+    "key": "zhiguli",
+    "h": 130,
+    "place": "back"
+   },
+   {
+    "key": "horizontal_bar",
+    "h": 220,
+    "place": "back"
+   },
+   {
+    "key": "carpet_rack",
+    "h": 170,
+    "place": "back"
+   }
+  ]
+ },
+ "pc_club": {
+  "wall": [
+   3000,
+   413
+  ],
+  "floor": [
+   3000,
+   432
+  ],
+  "sky": "#09090a",
+  "mirror": true,
+  "props": [
+   {
+    "key": "arcade",
+    "h": 230,
+    "place": "back"
+   },
+   {
+    "key": "gaming_chair",
+    "h": 150,
+    "place": "back"
+   },
+   {
+    "key": "water_cooler",
+    "h": 170,
+    "place": "back"
+   },
+   {
+    "key": "energy_drink_box",
+    "h": 70,
+    "place": "back"
+   },
+   {
+    "key": "crt_monitor",
+    "h": 90,
+    "place": "back"
+   }
+  ]
+ },
+ "gym_street": {
+  "wall": [
+   3000,
+   551
+  ],
+  "floor": [
+   3000,
+   275
+  ],
+  "sky": "#595259",
+  "mirror": true,
+  "props": [
+   {
+    "key": "trash_container",
+    "h": 140,
+    "place": "back"
+   },
+   {
+    "key": "cardboard_boxes",
+    "h": 110,
+    "place": "back"
+   }
+  ]
+ },
+ "gym": {
+  "wall": [
+   3000,
+   492
+  ],
+  "floor": [
+   3000,
+   217
+  ],
+  "sky": "#12110f",
+  "mirror": true,
+  "props": [
+   {
+    "key": "barbell_rack",
+    "h": 210,
+    "place": "back"
+   },
+   {
+    "key": "bench_press",
+    "h": 140,
+    "place": "back"
+   },
+   {
+    "key": "punching_bag",
+    "h": 220,
+    "place": "back"
+   },
+   {
+    "key": "dumbbell_rack",
+    "h": 170,
+    "place": "back"
+   },
+   {
+    "key": "protein_shelf",
+    "h": 200,
+    "place": "back"
+   },
+   {
+    "key": "cardio_machine",
+    "h": 170,
+    "place": "back"
+   }
+  ]
+ },
+ "museum": {
+  "wall": [
+   3000,
+   688
+  ],
+  "floor": [
+   3000,
+   295
+  ],
+  "sky": "#3f250e",
+  "mirror": true,
+  "props": [
+   {
+    "key": "column",
+    "h": 300,
+    "place": "back"
+   },
+   {
+    "key": "bust",
+    "h": 190,
+    "place": "back"
+   },
+   {
+    "key": "armor",
+    "h": 220,
+    "place": "back"
+   },
+   {
+    "key": "painting_small",
+    "h": 200,
+    "place": "back"
+   },
+   {
+    "key": "vase",
+    "h": 120,
+    "place": "back"
+   },
+   {
+    "key": "grand_piano",
+    "h": 150,
+    "place": "back"
+   }
+  ]
+ },
+ "river": {
+  "wall": [
+   3000,
+   610
+  ],
+  "floor": [
+   3000,
+   128
+  ],
+  "sky": "#98a1aa",
+  "mirror": true,
+  "props": [
+   {
+    "key": "bench_river",
+    "h": 100,
+    "place": "back"
+   },
+   {
+    "key": "fishing_rod",
+    "h": 170,
+    "place": "back"
+   },
+   {
+    "key": "fish_bucket",
+    "h": 60,
+    "place": "back"
+   },
+   {
+    "key": "buoy",
+    "h": 110,
+    "place": "back"
+   }
+  ]
+ },
+ "sigma_gym": {
+  "wall": [
+   3000,
+   610
+  ],
+  "floor": [
+   3000,
+   112
+  ],
+  "sky": "#1a1a1a",
+  "mirror": true,
+  "props": [
+   {
+    "key": "greek_column",
+    "h": 290,
+    "place": "back"
+   },
+   {
+    "key": "athlete_statue",
+    "h": 250,
+    "place": "back"
+   },
+   {
+    "key": "marble_bench",
+    "h": 90,
+    "place": "back"
+   },
+   {
+    "key": "spotlight",
+    "h": 190,
+    "place": "back"
+   }
+  ]
+ },
+ "ring": {
+  "wall": [
+   3000,
+   629
+  ],
+  "floor": [
+   3000,
+   217
+  ],
+  "sky": "#353535",
+  "mirror": true,
+  "props": [
+   {
+    "key": "spotlight",
+    "h": 190,
+    "place": "back"
+   }
+  ]
+ },
+ "stream_house": {
+  "wall": [
+   3000,
+   659
+  ],
+  "floor": [
+   3000,
+   472
+  ],
+  "sky": "#0e0a20",
+  "mirror": true,
+  "props": [
+   {
+    "key": "big_sofa",
+    "h": 110,
+    "place": "back"
+   },
+   {
+    "key": "ring_light",
+    "h": 200,
+    "place": "back"
+   },
+   {
+    "key": "neon_sign",
+    "h": 150,
+    "place": "back"
+   },
+   {
+    "key": "camera_tripod",
+    "h": 180,
+    "place": "back"
+   },
+   {
+    "key": "delivery_boxes",
+    "h": 110,
+    "place": "back"
+   },
+   {
+    "key": "fridge",
+    "h": 210,
+    "place": "back"
+   }
+  ]
+ },
+ "office": {
+  "wall": [
+   3000,
+   462
+  ],
+  "floor": [
+   3000,
+   226
+  ],
+  "sky": "#887d75",
+  "mirror": true,
+  "props": [
+   {
+    "key": "office_plant",
+    "h": 150,
+    "place": "back"
+   },
+   {
+    "key": "coffee_machine",
+    "h": 120,
+    "place": "back"
+   },
+   {
+    "key": "water_cooler_office",
+    "h": 170,
+    "place": "back"
+   },
+   {
+    "key": "office_desk",
+    "h": 110,
+    "place": "back"
+   },
+   {
+    "key": "reception",
+    "h": 130,
+    "place": "back"
+   }
+  ]
+ },
+ "trading": {
+  "wall": [
+   3000,
+   629
+  ],
+  "floor": [
+   3000,
+   217
+  ],
+  "sky": "#11141a",
+  "mirror": true,
+  "props": [
+   {
+    "key": "office_plant",
+    "h": 150,
+    "place": "back"
+   },
+   {
+    "key": "glass_partition",
+    "h": 220,
+    "place": "back"
+   },
+   {
+    "key": "trading_screens",
+    "h": 190,
+    "place": "back"
+   }
+  ]
+ },
+ "night_street": {
+  "wall": [
+   3000,
+   590
+  ],
+  "floor": [
+   3000,
+   354
+  ],
+  "sky": "#140c34",
+  "mirror": true,
+  "props": [
+   {
+    "key": "velvet_rope",
+    "h": 110,
+    "place": "back"
+   },
+   {
+    "key": "crowd_barrier",
+    "h": 110,
+    "place": "back"
+   },
+   {
+    "key": "luxury_car",
+    "h": 120,
+    "place": "back"
+   },
+   {
+    "key": "club_entrance",
+    "h": 250,
+    "place": "back"
+   }
+  ]
+ },
+ "club": {
+  "wall": [
+   3000,
+   570
+  ],
+  "floor": [
+   3000,
+   354
+  ],
+  "sky": "#070e2a",
+  "mirror": true,
+  "props": [
+   {
+    "key": "velvet_rope",
+    "h": 110,
+    "place": "back"
+   },
+   {
+    "key": "pyro",
+    "h": 190,
+    "place": "back"
+   },
+   {
+    "key": "luxury_car",
+    "h": 120,
+    "place": "back"
+   },
+   {
+    "key": "club_entrance",
+    "h": 250,
+    "place": "back"
+   },
+   {
+    "key": "dj_booth",
+    "h": 120,
+    "place": "back"
+   }
+  ]
+ },
+ "stage": {
+  "wall": [
+   1280,
+   504
+  ],
+  "floor": [
+   1280,
+   209
+  ],
+  "sky": "#020414",
+  "mirror": true,
+  "props": [
+   {
+    "key": "speaker_stack",
+    "h": 260,
+    "place": "back"
+   },
+   {
+    "key": "truss",
+    "h": 70,
+    "place": "back"
+   },
+   {
+    "key": "stage_light",
+    "h": 210,
+    "place": "back"
+   },
+   {
+    "key": "pyro",
+    "h": 190,
+    "place": "back"
+   }
+  ]
+ }
+}

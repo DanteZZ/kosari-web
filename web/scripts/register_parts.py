@@ -12,7 +12,8 @@ Register hand-cut part layers for an enemy rig — AS IS.
     A duplicated name goes to the slot that is still empty.
   * Parenting / paint order as the player: left arm on the hips (behind the
     torso), right arm on the torso, legs on the hips, lower limbs on upper ones.
-  * Rough placement only: if the folder has the full stance picture (a png
+  * Placement: offsets.json (written by export_psd_parts.py) gives each
+    layer's exact spot on the PSD canvas. Otherwise rough placement: if the folder has the full stance picture (a png
     without "__"), each part is placed where it best matches on it; pivots are
     simple defaults. Fine-tune positions and pivots in the bone editor
     («Кости · враги» → «Сохранить в проект»).
@@ -136,7 +137,14 @@ def main():
 
     # ---- Rough placement (top-left of each part in a common frame)
     tl = {}
-    if refs:
+    offs = src / "offsets.json"
+    if offs.exists():
+        # Exact top-left of every layer on the PSD canvas (export_psd_parts.py)
+        pos = json.loads(offs.read_text(encoding="utf-8"))
+        for b, f in slots.items():
+            tl[b] = tuple(pos[f.name])
+        feet = max(tl[b][1] + imgs[b].size[1] for b in BONES)
+    elif refs:
         ref = np.array(Image.open(refs[0]).convert("RGBA")).astype(float)
         hx, hy = locate(ref, np.array(imgs["head"]).astype(float), None)
         tl["head"] = (hx, hy)

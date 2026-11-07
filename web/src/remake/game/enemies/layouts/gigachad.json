@@ -1,0 +1,114 @@
+{
+  "hips": {
+    "x": 0,
+    "y": -562.7
+  },
+  "torso": {
+    "parent": "hips",
+    "tex": "torso",
+    "originX": 0.5,
+    "originY": 0.95,
+    "x": -1.8,
+    "y": -19.6,
+    "angle": 0
+  },
+  "head": {
+    "parent": "torso",
+    "tex": "head",
+    "originX": 0.5,
+    "originY": 0.9,
+    "x": 81.5,
+    "y": -310.3,
+    "angle": 0
+  },
+  "arm_l_u": {
+    "parent": "hips",
+    "tex": "arm_l_u",
+    "originX": 0.939,
+    "originY": 0.203,
+    "x": 26.4,
+    "y": -332.7,
+    "angle": -75.5
+  },
+  "arm_l_l": {
+    "parent": "arm_l_u",
+    "tex": "arm_l_l",
+    "originX": 0.669,
+    "originY": 0.131,
+    "x": -165,
+    "y": 49,
+    "angle": 0
+  },
+  "arm_r_u": {
+    "parent": "torso",
+    "tex": "arm_r_u",
+    "originX": 0.211,
+    "originY": 0.157,
+    "x": 7.1,
+    "y": -258,
+    "angle": 46.3
+  },
+  "arm_r_l": {
+    "parent": "arm_r_u",
+    "tex": "arm_r_l",
+    "originX": 0.023,
+    "originY": 0.779,
+    "x": 92.6,
+    "y": 152.8,
+    "angle": 0
+  },
+  "leg_r_u": {
+    "parent": "hips",
+    "tex": "leg_r_u",
+    "originX": 0.741,
+    "originY": 0.137,
+    "x": -4.8,
+    "y": -14.6,
+    "angle": -7.6
+  },
+  "leg_r_l": {
+    "parent": "leg_r_u",
+    "tex": "leg_r_l",
+    "originX": 0.86,
+    "originY": 0.07,
+    "x": -87.7,
+    "y": 218.5,
+    "angle": 0
+  },
+  "leg_l_u": {
+    "parent": "hips",
+    "tex": "leg_l_u",
+    "originX": 0.378,
+    "originY": 0.214,
+    "x": 48.7,
+    "y": 30,
+    "angle": 8.1
+  },
+  "leg_l_l": {
+    "parent": "leg_l_u",
+    "tex": "leg_l_l",
+    "originX": 0.375,
+    "originY": 0.099,
+    "x": 99.6,
+    "y": 168,
+    "angle": -9.7
+  },
+  "hand_l": {
+    "parent": "arm_l_l",
+    "tex": null,
+    "originX": 0.5,
+    "originY": 0.5,
+    "x": -18.3,
+    "y": 172.3,
+    "angle": 0
+  },
+  "hand_r": {
+    "parent": "arm_r_l",
+    "tex": null,
+    "originX": 0.5,
+    "originY": 0.5,
+    "x": 110.7,
+    "y": 21,
+    "angle": 0
+  }
+}

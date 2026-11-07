@@ -1,3 +1,6 @@
+import { MOVES } from './moves.js';
+import { ERA_THROWS, SHOCKWAVE } from './eraHazards.js';
+
 /**
  * Fighter archetypes (stats only — visuals live in the view layer by `kind`).
  * Speeds in px/tick @ 60 Hz.
@@ -5,7 +8,7 @@
 export const FIGHTERS = {
   player: {
     team: 'player',
-    hp: 200,
+    hp: 400,
     speedX: 5.2,
     speedZ: 3.4,
     jumpV: 13.5,
@@ -149,3 +152,112 @@ export const FIGHTERS = {
     ai: { standoff: 230, aggression: 1, attackCd: [24, 54], retreat: [20, 40], heavyChance: 0.38, ignoreTokens: true },
   },
 };
+
+/**
+ * Bosses of the meme eras (one per chapter). They reuse the three
+ * original boss brains (sim/bosses.js) and an existing rig (brawl/FighterView.js
+ * VARIANTS):
+ *   reflect — Борщ-style: throws, only his own projectiles punched back hurt (lives)
+ *   phases  — Повар-style: 3 phases, retreats between them while things rain down
+ *   brawler — big armored melee boss (boss1 stats)
+ */
+function eraBoss(base, extra) {
+  const src = { reflect: FIGHTERS.borsch, phases: FIGHTERS.povar, brawler: FIGHTERS.boss1 }[base];
+  return { ...src, ...extra, moves: { ...src.moves, ...(extra.moves || {}) }, ai: { ...(src.ai || {}), ...(extra.ai || {}) } };
+}
+
+/** Ground slam that sends a shockwave along the lane (brawler bosses). */
+MOVES.b_quake = { ...MOVES.b_slam, projectile: SHOCKWAVE };
+
+Object.assign(FIGHTERS, {
+  pahom: eraBoss('phases', { title: 'Пахом', hint: 'Отбей банку в него ударом!', hp: 45, phases: [45, 75, 105] }),
+  papich: eraBoss('reflect', { title: 'Папич', hint: 'Отбей донат-бомбу ему в лицо!', hp: 4 }),
+  ponasenkov: eraBoss('phases', { title: 'Понасенков', hint: 'Маэстро ранит только отбитое!', hp: 50, phases: [50, 80, 110] }),
+  gigachad: eraBoss('brawler', { title: 'Гигачад', hp: 820, speedX: 3.0, armor: 60, poise: 130 }),
+  klas: eraBoss('phases', { title: '1Kla$', hint: 'Финал! Отбей снаряды в него и не стой под бас-дропом.', hp: 70, phases: [70, 110, 150] }),
+});
+
+/** A thrower's toss with another projectile picture (punch it back as usual). */
+function toss(tex, extra = {}) {
+  const base = MOVES.e_bottle;
+  return { ...base, projectile: { ...base.projectile, tex, ...extra } };
+}
+MOVES.e_ball = toss('football', { dmg: 10, speed: 8 });
+MOVES.e_money = toss('money_pack', { dmg: 12 });
+MOVES.e_coin = toss('coin', { dmg: 8, speed: 11 });
+
+/**
+ * Meme enemies: former bosses that now come in waves. Each one debuts in its
+ * own map (short meeting dialogue, maps/eras.js `debuts`) and keeps turning up
+ * in the maps after it. `title` names them on the meeting card.
+ */
+Object.assign(FIGHTERS, {
+  /** Метатель мячей: держит дистанцию и пинает мяч (отбивается), вблизи катится в ноги. */
+  ded: {
+    team: 'enemy', title: 'Дед «я футбольный мячик»', hp: 70, speedX: 2.4, speedZ: 2.2, jumpV: 0,
+    moves: { light: 'e_ball', heavy: 'e_rush' },
+    ai: { standoff: 380, aggression: 0.85, attackCd: [50, 90], retreat: [12, 26], heavyChance: 0.3 },
+  },
+  /** Бешеный бегун: налетает с рывка через всю арену и добивает с руки. */
+  glad: {
+    team: 'enemy', title: 'Глад Валакас', hp: 60, speedX: 5.8, speedZ: 3.4, jumpV: 0,
+    moves: { light: 'e_rush', heavy: 'e_jab' },
+    ai: { standoff: 300, aggression: 1, attackCd: [30, 60], retreat: [30, 50], heavyChance: 0.35 },
+  },
+  /** Тяжёлый: терпит лёгкие удары, бьёт с ноги в нокаут. */
+  mongol: {
+    team: 'enemy', title: 'Олег Монгол', hp: 160, speedX: 2.6, speedZ: 1.9, jumpV: 0, armor: 26,
+    moves: { light: 'e_jab', heavy: 'e_heavy' },
+    ai: { standoff: 200, aggression: 0.8, attackCd: [40, 80], retreat: [24, 44], heavyChance: 0.45 },
+  },
+  /** Танк: медленный, в броне, удар по земле пускает волну. */
+  ruki: {
+    team: 'enemy', title: 'Руки базуки', hp: 230, speedX: 1.9, speedZ: 1.5, jumpV: 0, armor: 45,
+    moves: { light: 'e_heavy', heavy: 'b_quake' },
+    ai: { standoff: 220, aggression: 0.6, attackCd: [70, 120], retreat: [30, 60], heavyChance: 0.3 },
+  },
+  /** Дуэлянт: держит блок спереди и контрит вертухой. Обходи или бей с ноги. */
+  vertuha: {
+    team: 'enemy', title: 'Чувак с вертухой', hp: 90, speedX: 3.6, speedZ: 2.6, jumpV: 0, guard: true,
+    moves: { light: 'e_jab', heavy: 'e_heavy' },
+    ai: { standoff: 190, aggression: 0.9, attackCd: [24, 50], retreat: [16, 34], heavyChance: 0.6 },
+  },
+  /** Ходок: идёт напролом, удары его не останавливают — но здоровья мало. */
+  reka: {
+    team: 'enemy', title: 'Идущий к реке', hp: 55, speedX: 1.7, speedZ: 1.4, jumpV: 0, armor: 999,
+    moves: { light: 'e_jab' },
+    ai: { standoff: 110, aggression: 1, attackCd: [40, 70], retreat: [0, 4] },
+  },
+  /** Прыгун: швыряет донат-пачки издалека и налетает в прыжке. */
+  zubarev: {
+    team: 'enemy', title: 'Зубарев', hp: 65, speedX: 4.0, speedZ: 3.0, jumpV: 0,
+    moves: { light: 'e_money', heavy: 'e_rush' },
+    ai: { standoff: 360, aggression: 0.95, attackCd: [40, 75], retreat: [14, 30], heavyChance: 0.35, ignoreTokens: true },
+  },
+  /** Трейдер: в костюме держит блок спереди и кидается монетами. */
+  gitelman: {
+    team: 'enemy', title: 'Гительман', hp: 80, speedX: 2.4, speedZ: 2.0, jumpV: 0, guard: true,
+    moves: { light: 'e_coin', heavy: 'e_jab' },
+    ai: { standoff: 340, aggression: 0.8, attackCd: [45, 85], retreat: [12, 28], heavyChance: 0.25 },
+  },
+});
+
+/**
+ * Give each era boss its own throws (re-skinned original throw moves) and the
+ * thing that rains down between its phases.
+ */
+for (const [id, t] of Object.entries(ERA_THROWS)) {
+  const def = FIGHTERS[id];
+  if (!def?.boss) continue;
+  const base = def.bossAI === 'borsch' ? MOVES.b_bomb : MOVES.p_pot;
+  if (t.light) {
+    MOVES[`t_${id}_l`] = { ...base, projectile: t.light };
+    def.moves = { ...def.moves, light: `t_${id}_l` };
+  }
+  if (t.heavy && def.bossAI === 'povar') {
+    MOVES[`t_${id}_h`] = { ...MOVES.p_pan, projectile: t.heavy };
+    def.moves = { ...def.moves, heavy: `t_${id}_h` };
+  }
+  if (t.rain) def.rain = t.rain;
+}
+FIGHTERS.gigachad.moves = { ...FIGHTERS.gigachad.moves, heavy: 'b_quake' };

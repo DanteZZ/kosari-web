@@ -1,11 +1,16 @@
 /**
- * Map "Опушка" — second map. Anvils and the airship from the original game
- * are active the whole way; ends with Повар (3 phases + fork rain).
+ * Map "Опушка" — second map: from the forest edge out onto the highway, ending
+ * at the roadside shawarma kiosk where Повар lives (3 phases + fork rain).
+ * Anvils and the airship from the original game are active the whole way.
  * Format: see forest.js.
  */
 export default {
   id: 'opushka',
   name: 'Опушка',
+  chapter: 'Глава 1 · 2011',
+  next: 'village',
+  /** Forest → highway → shawarma kiosk (brawl/world/ThemeWorld.js). */
+  world: [{ theme: 'forest', to: 1600 }, { theme: 'highway', to: 4250 }, { theme: 'shawarma' }],
   length: 5600,
   start: { x: 260, z: 80 },
   scaling: 0.1,
@@ -13,7 +18,7 @@ export default {
     title: 'Опушка',
     art: 'povar',
     text: [
-      'Борщ остался в лесу, а слухи пошли дальше: на опушке, мол, накрыт стол, и заведует им Повар.',
+      'Борщ остался в лесу, а слухи пошли дальше: за опушкой, у самого шоссе, стоит шаурмичная, и заведует ею Повар.',
       'Повар не любит гостей. Кастрюли у него летают по дуге, сковородки — над самой землёй, а когда дела идут плохо, он уходит, и с неба начинают падать вилки.',
       'Над опушкой то и дело проплывает дирижабль. Что он сбрасывает — лучше не проверять головой.',
     ],

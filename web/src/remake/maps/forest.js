@@ -19,6 +19,7 @@
 export default {
   id: 'forest',
   name: 'Лес',
+  chapter: 'Глава 1 · 2011',
   next: 'opushka',
   /** Loading-screen recap (narrator's voice) and tip. */
   loading: {
