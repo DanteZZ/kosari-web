@@ -40,6 +40,7 @@ export const KITS = {
       {
         fx: 1,
         items: [
+          { key: 'bus_stop', h: 200, every: [2200, 3200], y: ROAD_TOP + 30 },
           { key: 'billboard', h: 300, every: [1800, 2600], y: ROAD_TOP + 20 },
           { key: 'sign_blue', h: 210, every: [1100, 1700], y: ROAD_TOP + 32 },
           { key: 'road_sign_km', h: 80, every: [700, 1100], y: ROAD_TOP + 36 },
@@ -191,6 +192,7 @@ Object.assign(KITS, {
   gym: interior({
     sky: ['#121416', '#2a2c2e'],
     items: [it('barbell_rack', 220, [700, 1100]), it('bench_press', 130, [600, 1000]), it('dumbbell_rack', 160, [800, 1300]), it('punching_bag', 230, [900, 1400])],
+    fg: [{ key: 'plates', h: 110, every: [900, 1500], y: ROAD_BOTTOM + 130 }],
   }),
   museum: interior({
     sky: ['#24160f', '#3e281a'],
