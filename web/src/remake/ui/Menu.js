@@ -1,6 +1,6 @@
 import { el } from './dom.js';
 import { playSfx } from './audio.js';
-import { GameState, SaveLoad, volume } from '../state/GameState.js';
+import { GameState, SaveLoad, volume, chooseHero } from '../state/GameState.js';
 import { MAPS } from '../maps/index.js';
 import { HEROES, HERO_IDS } from '../game/heroes.js';
 import { STORY, HERO_GOALS, storyText } from '../story.js';
@@ -470,8 +470,7 @@ export function renderMenu(root, { go }) {
       if (!unlocked(id)) return sfx(0.5);
       play(id);
     } else if (p.id === 'hero') {
-      GameState.hero = HERO_IDS[p.sel];
-      SaveLoad.save();
+      chooseHero(HERO_IDS[p.sel]);
       if (p.mode === 'new') play(storyIds[0]);
       else if (p.mode === 'bossrush') play('bossrush_1');
       else pop();

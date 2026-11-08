@@ -9,6 +9,8 @@ export const GameState = {
   musicPlay: true,
   /** Selected hero id (game/heroes.js). */
   hero: 'pocik',
+  /** The hero the player picked in the menu (a ?hero= link only overrides `hero` for this run). */
+  savedHero: 'pocik',
   settings: {
     music: 0.7,
     sfx: 0.9,
@@ -37,7 +39,7 @@ export const SaveLoad = {
     try {
       localStorage.setItem(
         SAVE_KEY,
-        JSON.stringify({ musicPlay: GameState.musicPlay, hero: GameState.hero, settings: GameState.settings, progress: GameState.progress }),
+        JSON.stringify({ musicPlay: GameState.musicPlay, hero: GameState.savedHero, settings: GameState.settings, progress: GameState.progress }),
       );
     } catch (_) {
       /* private mode */
@@ -49,7 +51,7 @@ export const SaveLoad = {
       if (!raw) return false;
       const data = JSON.parse(raw);
       GameState.musicPlay = data.musicPlay !== false;
-      if (typeof data.hero === 'string') GameState.hero = data.hero;
+      if (typeof data.hero === 'string') GameState.hero = GameState.savedHero = data.hero;
       if (data.settings) Object.assign(GameState.settings, data.settings);
       if (data.progress) Object.assign(GameState.progress, data.progress);
       return true;
@@ -63,6 +65,12 @@ export const SaveLoad = {
     SaveLoad.save();
   },
 };
+
+/** The player picks a hero (menu): used now and remembered. */
+export function chooseHero(id) {
+  GameState.hero = GameState.savedHero = id;
+  SaveLoad.save();
+}
 
 /** Volume of a sound kind ('music' | 'sfx' | 'voice'), 0..1. */
 export function volume(kind) {
