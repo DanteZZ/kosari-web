@@ -187,7 +187,7 @@ export const MOVES = {
     startup: 20, active: 1, recovery: 22,
     dmg: 0, reach: [0, 0], depth: 0, hitstun: 0, kb: 0, hitstop: 0, lunge: 0,
     projectile: { kind: 'bottle', tex: 'bottle', speed: 9, life: 80, dmg: 9, hitstun: 18, kb: 4, reflectable: true, muzzle: { x: 30, y: 190 } },
-    aiRange: [220, 560], aiDepth: 14,
+    aiRange: [320, 680], aiDepth: 14,
     sfx: null,
   },
   e_heavy: {

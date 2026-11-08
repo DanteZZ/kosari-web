@@ -1,12 +1,12 @@
 /**
- * Shared arena geometry. Every arena is two 1920 px screens wide, so no screen
+ * Shared arena geometry. Every arena is 1.5 × 1920 px wide, so no screen
  * ever sees past its walls; arenas are separated by a gap, and the scenery
  * joins (the tall pillars between segment types) stand in the middle of a gap —
  * never inside a fight.
  *
  *   |START| arena 1 |GAP| arena 2 |GAP| arena 3 |GAP| boss / finale |
  */
-export const ARENA_W = 3840;
+export const ARENA_W = 2880;
 export const GAP = 600;
 export const START = 400;
 

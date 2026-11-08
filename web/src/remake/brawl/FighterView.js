@@ -364,7 +364,7 @@ export class FighterView {
         falling: f.state === 'jump' && (f.flip || f.vy < 0),
         aiming: !!f.weapon && (f.state === 'idle' || f.state === 'walk'),
         walkAmp: f.state === 'dash' ? 1.2 : 1,
-        walkSpeed: f.team === 'player' ? 1.2 : 0.95,
+        walkSpeed: this.cadence(f),
         dtBlend: true,
       });
     }
@@ -429,6 +429,18 @@ export class FighterView {
     this.telegraphT = ms;
     this.warn.setText(heavy ? '!!' : '!');
     this.warn.setColor(heavy ? '#ff4d3d' : '#ffdd33');
+  }
+
+  /**
+   * Leg cadence for the walk cycle from the real ground speed: one step covers
+   * about 0.9 × the hip height (the rig's leg length on screen), and the walk
+   * clip makes 4 steps a second at cadence 1 — so the feet don't slide.
+   */
+  cadence(f) {
+    const v = Math.hypot(f.x - f.px, (f.z - f.pz) * 0.7) * 60;
+    if (f.state === 'dash') return 1.4;
+    const stride = Math.max(40, this.hipsH * 0.9);
+    return Math.min(1.8, Math.max(0.45, v / (4 * stride)));
   }
 
   /** Take-off / landing squash (called from scene events). */

@@ -78,8 +78,8 @@ function borsch(world, e, players) {
 
   const pb = world.playerBounds || world.bounds;
   const side = e.x >= t.x ? 1 : -1;
-  let goalX = t.x + side * 430;
-  if (goalX > pb.xMax - 70 || goalX < pb.xMin + 70) goalX = t.x - side * 430;
+  let goalX = t.x + side * 560;
+  if (goalX > pb.xMax - 70 || goalX < pb.xMin + 70) goalX = t.x - side * 560;
   goalX = Math.min(pb.xMax - 70, Math.max(pb.xMin + 70, goalX));
   let bits = steer(e, goalX, wanderZ(world, e), 30);
 
@@ -139,7 +139,7 @@ function povar(world, e, players) {
   e.faceX = t.x;
   if (!FREE.has(e.state)) return;
 
-  const goalX = Math.min(pb.xMax - 150, Math.max(pb.xMin + 150, t.x + home * 470));
+  const goalX = Math.min(pb.xMax - 150, Math.max(pb.xMin + 150, t.x + home * 600));
   let bits = steer(e, goalX, wanderZ(world, e), 30);
   if (ai.cd == null) ai.cd = 70;
   if (--ai.cd <= 0) {
@@ -240,7 +240,7 @@ function pahom(world, e, players) {
     return;
   }
   const d = Math.abs(t.x - e.x);
-  let bits = keepAt(world, e, t, d < 160 ? 90 : 320);
+  let bits = keepAt(world, e, t, d < 160 ? 90 : 440);
   if (tickCd(ai, 'cd', ph === 1 ? 70 : 50, ph === 1 ? 110 : 80, world)) {
     if (d < 150 && Math.abs(t.z - e.z) < 30) world.bossMove(e, world.rng.chance(0.35) ? 'b_slam' : 'b_jab');
     else world.bossMove(e, FIGHTERS.pahom.moves.throw);
@@ -275,7 +275,7 @@ function papich(world, e, players) {
     ai.ph = ph;
   }
   if (!FREE.has(e.state)) return;
-  let bits = keepAt(world, e, t, 420);
+  let bits = keepAt(world, e, t, 560);
   if (tickCd(ai, 'spear', [260, 200, 150][ph - 1], [360, 280, 220][ph - 1], world)) {
     // The spear: lines up with the player first, a red line warns
     e.z = t.z;
@@ -494,7 +494,7 @@ function klas(world, e, players) {
   }
   if (!FREE.has(e.state)) return;
   const d = Math.abs(t.x - e.x);
-  let bits = keepAt(world, e, t, d < 160 ? 100 : 300);
+  let bits = keepAt(world, e, t, d < 160 ? 100 : 440);
   if (tickCd(ai, 'cd', fast ? 36 : 60, fast ? 60 : 96, world)) {
     if (d < 150 && Math.abs(t.z - e.z) < 30) world.bossMove(e, 'b_jab');
     else world.bossMove(e, FIGHTERS.klas.moves.throw);

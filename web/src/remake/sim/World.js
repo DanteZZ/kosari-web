@@ -386,7 +386,9 @@ export class World {
     }
 
     const diag = ax && az ? 0.88 : 1;
-    f.vx = ax * def.speedX * (f.speedMul || 1) * diag;
+    // Backpedalling while facing someone: 60 % speed
+    const back = ax && f.faceX != null && Math.sign(f.faceX - f.x) === -ax ? 0.6 : 1;
+    f.vx = ax * def.speedX * (f.speedMul || 1) * diag * back;
     f.vz = az * def.speedZ * diag;
     f.x += f.vx;
     f.z += f.vz;

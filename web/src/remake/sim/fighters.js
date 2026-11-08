@@ -59,7 +59,7 @@ export const FIGHTERS = {
     speedZ: 2.3,
     jumpV: 0,
     moves: { light: 'e_bottle' },
-    ai: { standoff: 420, aggression: 0.9, attackCd: [50, 90], retreat: [10, 24], ignoreTokens: true },
+    ai: { standoff: 520, aggression: 0.9, attackCd: [50, 90], retreat: [10, 24], ignoreTokens: true, keepAway: true },
   },
   /** Блокер: guards against punches from the front — kick, throw or flank him. */
   blocker: {
@@ -179,8 +179,8 @@ function toss(tex, extra = {}) {
 const wave = (extra = {}) => ({ ...SHOCKWAVE, ...extra });
 
 Object.assign(MOVES, {
-  e_ball: toss('football', { dmg: 10, speed: 8 }),
-  e_money: toss('money_pack', { dmg: 12 }),
+  e_ball: { ...toss('football', { dmg: 10, speed: 8 }), aiRange: [320, 680] },
+  e_money: { ...toss('money_pack', { dmg: 12 }), aiRange: [320, 680] },
   e_coin: toss('coin', { dmg: 8, speed: 11 }),
   /** Дед: curls into a ball and rolls through you (Sonic style). */
   e_roll: {
@@ -315,7 +315,7 @@ Object.assign(MOVES, {
     startup: 32, active: 1, recovery: 30,
     dmg: 0, reach: [0, 0], depth: 0, hitstun: 0, kb: 0, hitstop: 0, lunge: 0,
     projectile: { ...WEAPONS[4].proj, speed: 10, muzzle: { x: 90, y: 160 }, explode: { radius: 120, depth: 56, dmg: 22, launch: 8, kb: 8 } },
-    shot: 4, aiRange: [220, 600], aiDepth: 16, sfx: null, heavy: true,
+    shot: 4, aiRange: [300, 680], aiDepth: 16, sfx: null, heavy: true,
   },
   /** Монгол: sawn-off shotgun — short range, a spread of pellets. */
   e_shotgun: {
@@ -323,7 +323,7 @@ Object.assign(MOVES, {
     startup: 24, active: 1, recovery: 32,
     dmg: 0, reach: [0, 0], depth: 0, hitstun: 0, kb: 0, hitstop: 0, lunge: 0,
     projectile: { ...WEAPONS[2].proj, dmg: 7, muzzle: { x: 100, y: 150 } }, pellets: 5,
-    shot: 2, aiRange: [90, 280], aiDepth: 14, sfx: null,
+    shot: 2, aiRange: [300, 520], aiDepth: 14, sfx: null,
   },
   /** Гигачад: «десять ударов подряд» — a blur of fists, then the finisher. */
   c_barrage: {
@@ -408,7 +408,7 @@ Object.assign(FIGHTERS, {
   ded: {
     team: 'enemy', title: 'Дед «я футбольный мячик»', hp: 70, speedX: 2.4, speedZ: 2.2, jumpV: 0,
     moves: { light: 'e_ball', heavy: 'e_roll' },
-    ai: { standoff: 380, aggression: 0.85, attackCd: [50, 90], retreat: [12, 26], heavyChance: 0.65 },
+    ai: { standoff: 480, aggression: 0.85, attackCd: [50, 90], retreat: [12, 26], heavyChance: 0.5, keepAway: true, byChance: true },
   },
   /** Глад: налетает с рывка, визгом оглушает всех в линию. */
   glad: {
@@ -420,13 +420,13 @@ Object.assign(FIGHTERS, {
   mongol: {
     team: 'enemy', title: 'Олег Монгол', hp: 160, speedX: 2.6, speedZ: 1.9, jumpV: 0, armor: 26, weapon: 2,
     moves: { light: 'e_shotgun', heavy: 'e_tackle' },
-    ai: { standoff: 200, aggression: 0.8, attackCd: [40, 80], retreat: [24, 44], heavyChance: 0.45 },
+    ai: { standoff: 420, aggression: 0.8, attackCd: [40, 80], retreat: [24, 44], heavyChance: 0.45, rangeSwitch: 300 },
   },
   /** Руки базуки: танк; базука-прямой издалека и удар по земле с волной. */
   ruki: {
     team: 'enemy', title: 'Руки базуки', hp: 230, speedX: 1.9, speedZ: 1.5, jumpV: 0, armor: 45, weapon: 4,
     moves: { light: 'e_bazooka', heavy: 'e_rpg' },
-    ai: { standoff: 240, aggression: 0.6, attackCd: [70, 120], retreat: [30, 60], heavyChance: 0.4 },
+    ai: { standoff: 460, aggression: 0.6, attackCd: [70, 120], retreat: [30, 60], heavyChance: 0.4, rangeSwitch: 300 },
   },
   /** Вертуха: держит блок спереди и контрит вертухой во все стороны. */
   vertuha: {
@@ -444,7 +444,7 @@ Object.assign(FIGHTERS, {
   zubarev: {
     team: 'enemy', title: 'Зубарев', hp: 65, speedX: 4.0, speedZ: 3.0, jumpV: 0,
     moves: { light: 'e_leap', heavy: 'e_money' },
-    ai: { standoff: 360, aggression: 0.95, attackCd: [40, 75], retreat: [14, 30], heavyChance: 0.3, ignoreTokens: true },
+    ai: { standoff: 460, aggression: 0.95, attackCd: [40, 75], retreat: [14, 30], heavyChance: 0.3, ignoreTokens: true, keepAway: true },
   },
   /** Гительман: сумоист — толкает пузом через всю арену, топает с волной. */
   gitelman: {
@@ -476,3 +476,18 @@ for (const def of Object.values(FIGHTERS)) {
   def.speedZ *= k;
 }
 FIGHTERS.player.dashSpeed = 19;
+// Floor so the walk cycle looks like walking, not sliding (brawl/FighterView
+// also matches the leg cadence to the real speed)
+for (const def of Object.values(FIGHTERS)) {
+  if (def.prop || def.team === 'player') continue;
+  // (Идущий к реке's huge armor is about not flinching, not about being heavy)
+  const heavy = ((def.armor || 0) >= 26 && def.armor < 500) || def.boss;
+  const min = heavy ? 4.4 : 5.2;
+  if (def.speedX < min) {
+    def.speedZ *= min / def.speedX;
+    def.speedX = min;
+  }
+}
+// Heroes jump higher
+FIGHTERS.player.jumpV = 16.5;
+FIGHTERS.player.jumpV2 = 14.5;

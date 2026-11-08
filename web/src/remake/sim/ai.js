@@ -136,7 +136,15 @@ function think(world, e, players, engaged, sides) {
   const crossing = cur !== side && Math.abs(e.x - t.x) < 160;
   const def = FIGHTERS[e.kind];
   // Which attack this engage is going for (bosses mix in a heavy)
-  if (!ai.next) ai.next = cfg.heavyChance && rng.chance(cfg.heavyChance) ? 'heavy' : 'light';
+  if (!ai.next) {
+    const lr = !!MOVES[def.moves.light]?.projectile;
+    const hr = !!def.moves.heavy && !!MOVES[def.moves.heavy]?.projectile;
+    if (def.moves.heavy && lr !== hr && !cfg.byChance) {
+      // One ranged, one melee: shoot / throw from afar, hit up close (never shoot point-blank)
+      const far = Math.abs(e.x - t.x) > (cfg.rangeSwitch || 300);
+      ai.next = far === lr ? 'light' : 'heavy';
+    } else ai.next = cfg.heavyChance && rng.chance(cfg.heavyChance) ? 'heavy' : 'light';
+  }
   const move = MOVES[def.moves[ai.next] || def.moves.light];
   let goalX = e.x;
   let goalZ = e.z;
@@ -146,6 +154,7 @@ function think(world, e, players, engaged, sides) {
     case 'approach': {
       const rank = ai.rank || 0;
       goalX = t.x + side * (cfg.standoff + rank * 62 + ai.offX * 0.5);
+      if (cfg.keepAway && Math.abs(e.x - t.x) < cfg.standoff * 0.65) ai.next = null;
       // Alternate ranks above/below the player's depth line
       goalZ = t.z + (rank % 2 ? -1 : 1) * Math.min(60, 18 + rank * 14) + ai.offZ * 0.3;
       const near = Math.abs(e.x - goalX) < 90;
@@ -176,7 +185,13 @@ function think(world, e, players, engaged, sides) {
       break;
     }
     case 'recover':
-      // Swing finished (we're free again) → back off
+      // Swing finished (we're free again). Ranged fighters back off; melee
+      // ones usually stay in your face and only sometimes step back
+      if (!cfg.keepAway && rng.chance(0.65)) {
+        ai.mode = 'approach';
+        ai.cd = rng.int(12, 30);
+        break;
+      }
       ai.mode = 'retreat';
       ai.timer = rng.int(cfg.retreat[0], cfg.retreat[1]);
       goalX = t.x + side * (cfg.standoff + 30);
