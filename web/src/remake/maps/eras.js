@@ -142,7 +142,7 @@ export const dacha = eraMap({
 
 export const panelki = eraMap({
   id: 'panelki',
-  extra: [{ traps: [{ type: 'drop', tex: 'brick', every: [150, 260] }] }, null, { traps: [{ type: 'drop', tex: 'brick', every: [120, 220] }] }],
+  extra: [{ traps: [{ type: 'drop', tex: 'brick', every: [150, 260] }] }, { td: { prep: 720, max: 6 } }, { traps: [{ type: 'drop', tex: 'brick', every: [120, 220] }] }],
   goals: [null, { type: 'defend', hp: 280 }, null],
   name: 'Панельки',
   chapter: 'Глава 3 · Эпоха стримов',
@@ -172,6 +172,7 @@ export const panelki = eraMap({
 
 export const pcClub = eraMap({
   id: 'pc_club',
+  extra: [{ votes: { every: 840 } }, { votes: { every: 780 } }, { votes: { every: 720 } }],
   goals: [null, null, { type: 'survive', ticks: 3000 }],
   name: 'Компьютерный клуб',
   chapter: 'Глава 3 · Эпоха стримов',

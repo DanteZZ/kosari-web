@@ -23,6 +23,7 @@ import { FighterView } from './FighterView.js';
 import { CrateView } from './CrateView.js';
 import { RaceView } from './RaceView.js';
 import { PenaltyView } from './PenaltyView.js';
+import { ModesView } from './ModesView.js';
 import { FUSE_T } from '../sim/torch.js';
 import { SpriteFighterView, SPRITE_KINDS } from './SpriteFighterView.js';
 import { ROAD_Y } from './stage.js';
@@ -332,6 +333,8 @@ export class BrawlScene extends Phaser.Scene {
     this.renderProjectiles(alpha);
     if (!this.raceView) this.raceView = new RaceView(this, this.heroSpeaker().face);
     this.raceView.render(this.world, alpha);
+    if (!this.modesView) this.modesView = new ModesView(this);
+    this.modesView.render(this.world);
     if (this.world.mini || this.penaltyView) {
       if (!this.penaltyView) this.penaltyView = new PenaltyView(this);
       this.penaltyView.render(this.world, alpha);
@@ -741,6 +744,34 @@ export class BrawlScene extends Phaser.Scene {
           if (ev.banner) this.banner(ev.banner, ev.boss ? null : `Волна ${ev.n}/${ev.total}`, 1300, ev.boss);
           else this.banner(`Волна ${ev.n}/${ev.total}`, null, 900);
           this.sound.play('beep', { volume: 0.25, rate: 0.7 });
+          break;
+        // ---- Panelki traps (TD) / PC club votes
+        case 'tdStart':
+          this.banner('ГОТОВЬ ЛОВУШКИ', 'J — поставить · Q/E — грабли / петарда / клей · гопники идут к ларьку', 2600, true);
+          break;
+        case 'tdPlace':
+          this.sound.play('DE_reload', { volume: 0.4, rate: 1.2 });
+          break;
+        case 'tdNo': {
+          const p = this.player;
+          this.popText(p.x, stage.groundY(p.z) - 280, ev.why, '#ff8a7a', 20);
+          break;
+        }
+        case 'tdFight':
+          this.banner('ИДУТ!', 'Защити ларёк', 1300, true);
+          break;
+        case 'tdTrigger':
+          if (ev.kind === 'rake') {
+            this.sound.play('punch', { volume: 0.5, rate: 1.4 });
+            this.popText(ev.x, stage.groundY(ev.z) - 200, 'БДЫЩ!', '#ffd23f', 24);
+          }
+          break;
+        case 'voteStart':
+          this.sound.play('beep', { volume: 0.3, rate: 1.6 });
+          break;
+        case 'voteWin':
+          this.banner('ЧАТ РЕШИЛ', ev.title, 1600);
+          this.sound.play('cash', { volume: 0.35, rate: 1.4 });
           break;
         // ---- Village penalties
         case 'penaltyStart':

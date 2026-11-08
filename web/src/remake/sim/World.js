@@ -2,6 +2,8 @@ import { stepTraps } from './traps.js';
 import { stepRace } from './race.js';
 import { stepTorch } from './torch.js';
 import { prePenalty, stepPenalty } from './penalty.js';
+import { preTd, stepTd } from './td.js';
+import { stepVotes, voteHit } from './votes.js';
 import {
   GRAVITY,
   MAX_FALL,
@@ -183,6 +185,7 @@ export class World {
     }
     // Minigames read the controls themselves
     if (this.mini && !this.mini.done && this.mini.type === 'penalty') prePenalty(this);
+    if (this.td) preTd(this);
     if (!frozen) thinkAll(this);
     for (const f of this.fighters) this._latchInput(f, frozen);
 
@@ -216,6 +219,8 @@ export class World {
     stepRace(this);
     stepTorch(this);
     stepPenalty(this);
+    stepTd(this);
+    stepVotes(this);
 
     for (const f of this.fighters) {
       this._clamp(f);
@@ -399,8 +404,10 @@ export class World {
     const diag = ax && az ? 0.88 : 1;
     // Backpedalling while facing someone: 60 % speed
     const back = ax && f.faceX != null && Math.sign(f.faceX - f.x) === -ax ? 0.6 : 1;
-    f.vx = ax * def.speedX * (f.speedMul || 1) * diag * back;
-    f.vz = az * def.speedZ * diag;
+    // PC club votes can make the crowd sleepy or hyper
+    const es = f.team === 'enemy' ? this.enemySpeed || 1 : 1;
+    f.vx = ax * def.speedX * (f.speedMul || 1) * diag * back * es;
+    f.vz = az * def.speedZ * diag * es;
     f.x += f.vx;
     f.z += f.vz;
     this._faceFromInput(f, ax);
@@ -493,7 +500,7 @@ export class World {
 
   _gravity(f) {
     f.y += f.vy;
-    f.vy = Math.max(-MAX_FALL, f.vy - GRAVITY);
+    f.vy = Math.max(-MAX_FALL, f.vy - GRAVITY * (this.gravMul || 1));
   }
 
   _air(f, def) {
@@ -822,7 +829,8 @@ export class World {
       return;
     }
 
-    const dmg = Math.max(1, Math.round((m.dmg || 0) * (att.dmgMul || 1)));
+    const dmg = Math.max(1, Math.round((m.dmg || 0) * (att.dmgMul || 1) * (this.dmgAll || 1)));
+    if (att.team === 'player' && this.votes) voteHit(this);
     // Hits shove three times harder than the move tables say
     m = { ...m, dmg, kb: (m.kb || 0) * KB_MUL };
     tgt.hp = Math.max(0, tgt.hp - dmg);

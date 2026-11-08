@@ -2,6 +2,8 @@ import { setTraps } from './traps.js';
 import { startRace } from './race.js';
 import { startTorch } from './torch.js';
 import { startPenalty, penaltyText } from './penalty.js';
+import { startTd, tdText } from './td.js';
+import { startVotes, stopVotes } from './votes.js';
 import { FIGHTERS } from './fighters.js';
 
 /**
@@ -99,6 +101,21 @@ export class MapDirector {
       this._spawn(a, q);
     }
 
+    if (this.waitTd) {
+      if (w.td?.phase === 'fight') {
+        this.waitTd = false;
+        this._startWave(0);
+      }
+      return;
+    }
+    // Chat called more viewers in
+    if (w.swarmReq) {
+      const pool = (w.roster || []).filter((k) => !FIGHTERS[k]?.boss);
+      const kinds = pool.length ? pool : ['nikita'];
+      for (let k = 0; k < w.swarmReq; k += 1) this.queue.push({ at: this.t + 10 + k * 25, kind: kinds[k % kinds.length], from: 'both', k, elite: 1 });
+      this.queue.sort((p, q) => p.at - q.at);
+      w.swarmReq = 0;
+    }
     if (this.waitMini) {
       if (w.mini?.done) {
         w.mini = null;
@@ -228,6 +245,8 @@ export class MapDirector {
 
   /** One line for the HUD about the current goal. */
   goalText() {
+    const tdt = tdText(this.world);
+    if (tdt) return tdt;
     const mn = this.world.mini;
     if (mn && !mn.done && mn.type === 'penalty') return penaltyText(mn);
     const tc = this.world.torch;
@@ -290,6 +309,13 @@ export class MapDirector {
       return;
     }
     this._setupGoal(a, b);
+    if (a.votes) startVotes(w, a.votes);
+    if (a.td) {
+      // Panelki: set the traps first, the gopniks come after
+      startTd(w, a.td);
+      this.waitTd = true;
+      return;
+    }
     this._startWave(0);
   }
 
@@ -388,6 +414,8 @@ export class MapDirector {
     }
     this.goal = null;
     setTraps(w, null);
+    w.td = null;
+    stopVotes(w);
     this.idx += 1;
     this.wave = -1;
     this.queue = [];
