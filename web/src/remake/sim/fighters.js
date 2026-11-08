@@ -83,6 +83,42 @@ export const FIGHTERS = {
     jumpV: 0,
     moves: {},
   },
+  /** Arena goal «защити»: a kiosk the enemies go for (team player, does not move). */
+  objective: {
+    team: 'prop',
+    prop: true,
+    objective: true,
+    noGrab: true,
+    hp: 260,
+    speedX: 0,
+    speedZ: 0,
+    jumpV: 0,
+    moves: {},
+  },
+  /** Arena goal «разбей»: a camera on a tripod (no loot). */
+  target_cam: {
+    team: 'prop',
+    prop: true,
+    target: true,
+    noGrab: true,
+    hp: 40,
+    speedX: 0,
+    speedZ: 0,
+    jumpV: 0,
+    moves: {},
+  },
+  /** Arena goal «догони»: runs off with a bag of косари. */
+  thief: {
+    team: 'enemy',
+    title: 'Вор',
+    hp: 46,
+    speedX: 4.0,
+    speedZ: 3.0,
+    jumpV: 0,
+    bossAI: 'thief',
+    moves: { light: 'e_jab' },
+    ai: {},
+  },
   /** Falling anvil from the original game: crushes, punch it to send it flying. */
   anvil: {
     team: 'prop',

@@ -72,6 +72,7 @@ export class MapDirector {
       waves: a ? a.waves.length : 0,
       left: this._alive(this.arenaIds) + this.queue.length,
       boss: !!a?.boss,
+      goal: this.goalText(),
       nextTrigger: this.state === 'travel' && a ? a.trigger : null,
     };
   }
@@ -95,12 +96,116 @@ export class MapDirector {
     }
 
     const wv = a.waves[this.wave];
+    const g = this.goal;
+    if (g) this._goalStep(a, g);
+    if (this.state !== 'locked') return;
     if (this.queue.length === 0 && this._alive(this.waveIds) <= (wv.nextAt ?? 0)) {
       const nw = a.waves[this.wave + 1];
       if (nw && nw.bossHpBelow && !this._bossBelow(nw.bossHpBelow) && this._alive(this.arenaIds) > 0) return;
       if (nw) this._startWave(this.wave + 1);
-      else if (this._alive(this.arenaIds) === 0) this._clear(a);
+      else if (g && !g.done && (g.type === 'survive' || g.type === 'destroy')) {
+        // Survive / destroy: the waves keep coming until the goal is met
+        g.looped = true;
+        this._startWave(Math.max(0, a.waves.length - 2));
+      } else if (g && !g.done && g.type === 'chase') {
+        /* wait for the thief */
+      } else if (this._alive(this.arenaIds) === 0) this._clear(a);
     }
+  }
+
+  /**
+   * Arena goals (map arena `goal`): beyond «beat everyone».
+   *   survive { ticks } — hold out; the waves loop, the rest flee at the end
+   *   defend  { hp }    — a kiosk in the middle; enemies go for it
+   *   chase             — a thief runs off with косари: catch him
+   *   destroy { count } — break the cameras while the waves loop
+   */
+  _setupGoal(a, b) {
+    const w = this.world;
+    const G = a.goal;
+    this.goal = null;
+    if (!G) return;
+    const g = { ...G, done: false };
+    const mid = (b.left + b.right) / 2;
+    const p = w.players()[0];
+    const zMid = (w.bounds.zMin + w.bounds.zMax) / 2;
+    if (g.type === 'survive') g.t = g.ticks || 3600;
+    if (g.type === 'defend') {
+      const o = w.spawn('objective', Math.min(b.right - 300, (p ? p.x : mid) + 380), w.bounds.zMin + 18);
+      if (g.hp) o.hp = o.maxHp = g.hp;
+      g.obj = o.id;
+    }
+    if (g.type === 'chase') {
+      const th = w.spawn('thief', (p ? p.x : mid) + 260, zMid, { facing: 1 });
+      g.thief = th.id;
+      this.arenaIds.push(th.id);
+    }
+    if (g.type === 'destroy') {
+      const n = g.count || 4;
+      g.ids = [];
+      for (let i = 0; i < n; i += 1) {
+        const x = b.left + 260 + ((b.right - b.left - 520) * (i + 0.5)) / n;
+        const c = w.spawn('target_cam', x, i % 2 ? w.bounds.zMin + 14 : w.bounds.zMax - 30);
+        g.ids.push(c.id);
+      }
+      g.total = n;
+    }
+    this.goal = g;
+    w.events.push({ type: 'goalStart', goal: g.type, text: this.goalText() });
+  }
+
+  _goalStep(a, g) {
+    const w = this.world;
+    if (g.done) return;
+    if (g.type === 'survive') {
+      g.t -= 1;
+      if (g.t <= 0) {
+        g.done = true;
+        // Time's up: whoever is left runs away
+        for (const f of w.fighters) if (this.arenaIds.includes(f.id) && !f.dead) {
+          f.dead = true;
+          f.removed = true;
+        }
+        w.events.push({ type: 'goalDone', goal: g.type });
+        this._clear(a);
+      }
+    } else if (g.type === 'destroy') {
+      const left = g.ids.filter((id) => w.fighters.some((f) => f.id === id && !f.dead)).length;
+      g.left = left;
+      if (left === 0) {
+        g.done = true;
+        w.events.push({ type: 'goalDone', goal: g.type });
+      }
+    } else if (g.type === 'chase') {
+      const th = w.fighters.find((f) => f.id === g.thief);
+      if (!th || th.dead) {
+        g.done = true;
+        if (th && th.dead && !th.removed) {
+          w._spillKosari(th.x, th.z, 15, 60);
+          w.events.push({ type: 'thiefCaught', id: th.id, x: th.x, z: th.z });
+        }
+        w.events.push({ type: 'goalDone', goal: g.type });
+      }
+    } else if (g.type === 'defend') {
+      g.hpK = (() => {
+        const o = w.fighters.find((f) => f.id === g.obj);
+        return o ? o.hp / o.maxHp : 0;
+      })();
+    }
+  }
+
+  /** One line for the HUD about the current goal. */
+  goalText() {
+    const g = this.goal;
+    if (!g || g.done) return '';
+    if (g.type === 'survive') {
+      const s = Math.max(0, Math.ceil((g.t ?? 0) / 60));
+      return `Продержись: ${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+    }
+    if (g.type === 'defend') return `Защити ларёк: ${Math.round((g.hpK ?? 1) * 100)}%`;
+    if (g.type === 'chase') return 'Догони вора с косарями!';
+    if (g.type === 'destroy') return `Разбей камеры: ${g.total - (g.left ?? g.total)}/${g.total}`;
+    return '';
   }
 
   _bossBelow(k) {
@@ -123,6 +228,7 @@ export class MapDirector {
     }
     this.arenaIds = [];
     w.events.push({ type: 'arenaStart', index: this.idx, boss: !!a.boss, left: b.left, right: b.right });
+    this._setupGoal(a, b);
     this._startWave(0);
   }
 
@@ -140,7 +246,8 @@ export class MapDirector {
       }
     }
     this.queue.sort((p, q) => p.at - q.at);
-    this.world.events.push({ type: 'wave', n: i + 1, total: a.waves.length, banner: wv.banner || null, boss: !!a.boss });
+    // Goal arenas loop their waves quietly (no «Волна 2/3» again and again)
+    if (!this.goal?.looped) this.world.events.push({ type: 'wave', n: i + 1, total: a.waves.length, banner: wv.banner || null, boss: !!a.boss });
   }
 
   _spawn(arena, q) {
@@ -205,6 +312,15 @@ export class MapDirector {
     (a.reward || []).forEach((r, i) => {
       w.spawnPickup(r.kind, cx + 140 + i * 60, w.bounds.zMax * 0.5, r.amount);
     });
+    // The kiosk stays behind, the goal is over
+    if (this.goal?.obj) {
+      const o = w.fighters.find((f) => f.id === this.goal.obj);
+      if (o) {
+        o.dead = true;
+        o.removed = true;
+      }
+    }
+    this.goal = null;
     this.idx += 1;
     this.wave = -1;
     this.queue = [];

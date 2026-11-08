@@ -503,4 +503,43 @@ function klas(world, e, players) {
   e.cmd = bits;
 }
 
-export const BOSS_AI = { borsch, povar, pahom, papich, maestro, chad, klas };
+/**
+ * Вор: grabbed a bag of косари and runs for the arena's far edge. Catch him
+ * (knock him out) before he gets away.
+ */
+function thief(world, e, players) {
+  e.cmd = 0;
+  e.faceX = null;
+  const pb = world.playerBounds || world.bounds;
+  const t = nearest(e, players);
+  const goal = pb.xMax - 30;
+  // At the arena's edge he has to climb the fence — last chance to grab him
+  if (e.x >= goal - 20) {
+    if (!FREE.has(e.state)) return;
+    e.climbT = (e.climbT || 0) + 1;
+    e.faceX = e.x + 100;
+    if (e.climbT === 1) world.events.push({ type: 'thiefTaunt', id: e.id, x: e.x, z: e.z, climb: true });
+    if (e.climbT < 90) return;
+    e.dead = true;
+    e.removed = true;
+    for (const p of players) if (p.kind === 'player') p.money = Math.max(0, (p.money || 0) - 20);
+    world.events.push({ type: 'thiefEscaped', id: e.id });
+    return;
+  }
+  e.climbT = 0;
+  if (!FREE.has(e.state)) return;
+  // Every couple of seconds he turns round to taunt you — the chance to catch him
+  e.tauntT = (e.tauntT ?? 140) - 1;
+  if (e.tauntT < 0) {
+    if (e.tauntT === -1) world.events.push({ type: 'thiefTaunt', id: e.id, x: e.x, z: e.z });
+    e.faceX = t ? t.x : null;
+    if (e.tauntT < -36) e.tauntT = 120 + world.rng.int(0, 60);
+    return;
+  }
+  // Dodge in depth when the player is right behind him
+  let gz = wanderZ(world, e);
+  if (t && Math.abs(t.x - e.x) < 160) gz = t.z > e.z ? world.bounds.zMin + 10 : world.bounds.zMax - 10;
+  e.cmd = steer(e, goal, gz, 10);
+}
+
+export const BOSS_AI = { borsch, povar, pahom, papich, maestro, chad, klas, thief };

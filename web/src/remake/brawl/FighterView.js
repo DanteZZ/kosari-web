@@ -18,6 +18,8 @@ const SQUASH_MS = 130;
  */
 export const VARIANTS = {
   runner: { skin: 'nikita', scale: 0.9, tint: 0x86c8ff },
+  /** Arena goal «догони»: a Nikita in black with a bag of косари. */
+  thief: { skin: 'nikita', scale: 0.88, tint: 0x6a6a78 },
   thrower: { skin: 'buiniy', scale: 0.95, tint: 0xb3c79a },
   blocker: { skin: 'nikita', scale: 1.12, tint: 0x7f93b8 },
   /** Original boss 1 uses the masked-hoodie rig. */
@@ -118,6 +120,12 @@ export class FighterView {
       this.footFix = 0;
     }
 
+    if (f.kind === 'thief') {
+      const tex = scene.textures.exists('item_thief_bag') ? 'item_thief_bag' : 'item_money_pack';
+      this.bag = scene.add.image(-34, -150, tex).setOrigin(0.5, 0.5);
+      this.bag.setScale(70 / Math.max(this.bag.width, this.bag.height)).setAngle(-14);
+      this.mount.addAt(this.bag, 0);
+    }
     const gun = f.team !== 'player' ? FIGHTERS[f.kind]?.weapon : 0;
     if (gun) {
       this.puppet.attachWeapon(gun);

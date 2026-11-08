@@ -299,7 +299,7 @@ export class BrawlScene extends Phaser.Scene {
           v.reset(f);
         } else {
           v =
-            f.kind === 'crate' || f.kind === 'anvil'
+            f.kind === 'crate' || f.kind === 'anvil' || f.kind === 'objective' || f.kind === 'target_cam'
               ? new CrateView(this, f)
               : SPRITE_KINDS.has(f.kind)
                 ? new SpriteFighterView(this, f)
@@ -664,6 +664,41 @@ export class BrawlScene extends Phaser.Scene {
           if (ev.banner) this.banner(ev.banner, ev.boss ? null : `Волна ${ev.n}/${ev.total}`, 1300, ev.boss);
           else this.banner(`Волна ${ev.n}/${ev.total}`, null, 900);
           this.sound.play('beep', { volume: 0.25, rate: 0.7 });
+          break;
+        // ---- Arena goals
+        case 'goalStart': {
+          const t = {
+            survive: ['ПРОДЕРЖИСЬ!', 'Волны не кончатся, пока идёт время'],
+            defend: ['ЗАЩИТИ ЛАРЁК!', 'Сломают — потеряешь косари'],
+            chase: ['ДЕРЖИ ВОРА!', 'Он убегает с косарями'],
+            destroy: ['РАЗБЕЙ КАМЕРЫ!', 'Пока они пишут — толпа не кончится'],
+          }[ev.goal];
+          if (t) this.banner(t[0], t[1], 1900, true);
+          this.sound.play('beep', { volume: 0.3, rate: 1.2 });
+          break;
+        }
+        case 'goalDone':
+          if (ev.goal === 'survive') this.banner('ВРЕМЯ!', 'Они разбегаются', 1300);
+          if (ev.goal === 'destroy') this.banner('КАМЕРЫ РАЗБИТЫ!', 'Добей остальных', 1300);
+          break;
+        case 'objLost':
+          this.banner('ЛАРЁК РАЗГРОМИЛИ!', '−10 косарей', 1300, true);
+          this.shake(200, 6);
+          this.sound.play('punch', { volume: 0.4, rate: 0.6 });
+          break;
+        case 'targetBreak':
+          this.shake(120, 4);
+          this.sound.play('punch', { volume: 0.4, rate: 1.3 });
+          break;
+        case 'thiefTaunt':
+          this.popText(ev.x, stage.groundY(ev.z) - 230, ev.climb ? 'Перелезает через забор!' : ['Не догонишь!', 'Лови, лох!', 'Ха-ха!'][this.world.tick % 3], '#ffffff', 22);
+          break;
+        case 'thiefCaught':
+          this.banner('ПОЙМАЛ!', 'Косари твои', 1300);
+          this.sound.play('cash', { volume: 0.5 });
+          break;
+        case 'thiefEscaped':
+          this.banner('ВОР УБЕЖАЛ', '−20 косарей', 1400, true);
           break;
         case 'arenaClear':
           this.lock = null;
@@ -1574,7 +1609,8 @@ export class BrawlScene extends Phaser.Scene {
     // Map progress
     if (this.director instanceof MapDirector) {
       const s = this.director.status();
-      if (s.state === 'locked') h.status.setText(`${s.boss ? 'Босс' : `Арена ${s.arena}/${s.arenas}`} · Волна ${s.wave}/${s.waves} · Врагов: ${s.left}`);
+      if (s.state === 'locked' && s.goal) h.status.setText(`Арена ${s.arena}/${s.arenas} · ${s.goal}`);
+      else if (s.state === 'locked') h.status.setText(`${s.boss ? 'Босс' : `Арена ${s.arena}/${s.arenas}`} · Волна ${s.wave}/${s.waves} · Врагов: ${s.left}`);
       else if (s.state === 'travel') h.status.setText(`${this.map.name} · Арена ${s.arena}/${s.arenas}`);
       else h.status.setText(`${this.map.name} — пройдено`);
       const showGo = s.state === 'travel' && s.arena > 1 && this.world.enemiesAlive() === 0;

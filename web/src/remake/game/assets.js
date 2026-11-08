@@ -126,7 +126,7 @@ export const WORLD_PARTS = [
 /** assets/items/<name>.webp */
 export const ITEM_ART = [
   'football', 'jar', 'donation_bomb', 'book', 'dumbbell', 'coin', 'money_pack', 'music_note', 'brick',
-  'shawarma', 'stone', 'shockwave', 'doshik', 'energy', 'protein', 'sigma_glasses', 'spear', 'microphone',
+  'shawarma', 'stone', 'shockwave', 'doshik', 'energy', 'protein', 'sigma_glasses', 'spear', 'microphone', 'kiosk', 'camera_tripod',
 ];
 
 export function preloadGameAssets(scene) {

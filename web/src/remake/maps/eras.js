@@ -34,6 +34,21 @@ const ELITE = 2.2;
  * @param {string[]} [o.debuts]            meme enemies first met on this map
  */
 function eraMap(o) {
+  // Newcomers are met at the START of the chapter: the elite debut waves move
+  // from the finale to the front of the first arenas; the finale becomes the
+  // exam — a crowd of the same kind.
+  if (o.finale) {
+    const isDebut = (wv) => (wv.spawns || []).some((sp) => sp.elite);
+    const debutWaves = o.finale.filter(isDebut);
+    const rest = o.finale.filter((wv) => !isDebut(wv));
+    o.arenas = o.arenas.map((waves) => [...waves]);
+    debutWaves.forEach((wv, i) => o.arenas[Math.min(i, o.arenas.length - 1)].unshift(wv));
+    const kinds = debutWaves.flatMap((wv) => wv.spawns.map((sp) => sp.kind));
+    o.finale = [
+      ...rest,
+      ...kinds.map((k) => ({ banner: 'Проверка', spawns: [{ kind: k, count: 3, from: 'both', every: 45 }] })),
+    ];
+  }
   return {
     id: o.id,
     name: o.name,
@@ -53,6 +68,7 @@ function eraMap(o) {
         id: `${o.id}${i + 1}`,
         ...GEOM[i],
         reward: [{ kind: 'heal', amount: 40 + i * 20 }],
+        ...(o.goals?.[i] ? { goal: o.goals[i] } : {}),
         waves,
       })),
       o.boss
@@ -68,6 +84,7 @@ const el = (kind, count = 1, from = 'right', every = 40) => ({ kind, count, from
 
 export const village = eraMap({
   id: 'village',
+  goals: [null, null, { type: 'survive', ticks: 2700 }],
   name: 'Деревня',
   chapter: 'Глава 2 · Ранний ютуб',
   next: 'dacha',
@@ -96,6 +113,7 @@ export const village = eraMap({
 
 export const dacha = eraMap({
   id: 'dacha',
+  goals: [null, { type: 'chase' }, null],
   name: 'Дача',
   chapter: 'Глава 2 · Ранний ютуб',
   next: 'panelki',
@@ -120,6 +138,7 @@ export const dacha = eraMap({
 
 export const panelki = eraMap({
   id: 'panelki',
+  goals: [null, { type: 'defend', hp: 280 }, null],
   name: 'Панельки',
   chapter: 'Глава 3 · Эпоха стримов',
   next: 'pc_club',
@@ -148,6 +167,7 @@ export const panelki = eraMap({
 
 export const pcClub = eraMap({
   id: 'pc_club',
+  goals: [null, null, { type: 'survive', ticks: 3000 }],
   name: 'Компьютерный клуб',
   chapter: 'Глава 3 · Эпоха стримов',
   next: 'gym',
@@ -204,6 +224,7 @@ export const gym = eraMap({
 
 export const museum = eraMap({
   id: 'museum',
+  goals: [null, { type: 'chase' }, null],
   name: 'Музей',
   chapter: 'Глава 4 · Пабликовая эпоха',
   next: 'river',
@@ -228,6 +249,7 @@ export const museum = eraMap({
 
 export const river = eraMap({
   id: 'river',
+  goals: [null, { type: 'survive', ticks: 3000 }, null],
   name: 'Река',
   chapter: 'Глава 5 · Сигма-эпоха',
   next: 'sigma_gym',
@@ -283,6 +305,7 @@ export const sigmaGym = eraMap({
 
 export const streamHouse = eraMap({
   id: 'stream_house',
+  goals: [null, { type: 'destroy', count: 4 }, null],
   name: 'Стрим-хата',
   chapter: 'Глава 6 · Новая волна',
   next: 'office',
@@ -299,8 +322,8 @@ export const streamHouse = eraMap({
   },
   debuts: ['zubarev'],
   arenas: [
-    [{ spawns: [sp('reka', 3)] }, { banner: 'Донатеры!', spawns: [sp('ruki', 1), sp('reka', 2)] }],
-    [{ banner: 'Зубарев', spawns: [el('zubarev')] }, { spawns: [sp('zubarev', 2, 'both', 40), sp('reka', 2)] }],
+    [{ banner: 'Зубарев', spawns: [el('zubarev')] }, { spawns: [sp('reka', 3)] }, { banner: 'Донатеры!', spawns: [sp('ruki', 1), sp('reka', 2)] }],
+    [{ spawns: [sp('zubarev', 2, 'both', 40), sp('reka', 2)] }],
     [{ spawns: [sp('ruki', 1), sp('zubarev', 1)] }, { banner: 'Чат в атаке', spawns: [sp('reka', 4, 'drop', 18), sp('zubarev', 1)] }],
   ],
   boss: [
@@ -311,6 +334,7 @@ export const streamHouse = eraMap({
 
 export const office = eraMap({
   id: 'office',
+  goals: [null, { type: 'defend', hp: 320 }, null],
   name: 'Бизнес-центр',
   chapter: 'Глава 6 · Новая волна',
   next: 'concert',

@@ -19,9 +19,11 @@ const DOWNED = new Set(['airhit', 'down', 'getup']);
  */
 export function thinkAll(world) {
   const players = world.players();
-  const engaged = new Map(players.map((p) => [p.id, 0]));
+  // Arena goal «защити»: the kiosk is a target too
+  const targets = players.concat(world.fighters.filter((f) => !f.dead && FIGHTERS[f.kind].objective));
+  const engaged = new Map(targets.map((p) => [p.id, 0]));
   /** Per target: how many enemies hold the left (-1) / right (+1) side. */
-  const sides = new Map(players.map((p) => [p.id, { '-1': 0, '1': 0 }]));
+  const sides = new Map(targets.map((p) => [p.id, { '-1': 0, '1': 0 }]));
 
   for (const e of world.fighters) {
     if (!e.ai || e.dead || FIGHTERS[e.kind].bossAI) continue;
@@ -36,7 +38,7 @@ export function thinkAll(world) {
   const queues = new Map();
   for (const e of world.fighters) {
     if (!e.ai || e.dead || !e.ai.side || e.ai.mode === 'engage') continue;
-    const t = players.find((p) => p.id === e.ai.target);
+    const t = targets.find((p) => p.id === e.ai.target);
     if (!t) continue;
     const key = `${t.id}:${e.ai.side}`;
     if (!queues.has(key)) queues.set(key, []);
@@ -60,7 +62,7 @@ export function thinkAll(world) {
     }
     const boss = FIGHTERS[e.kind].bossAI;
     if (boss) BOSS_AI[boss](world, e, players);
-    else think(world, e, players, engaged, sides);
+    else think(world, e, targets, engaged, sides);
   }
 }
 
@@ -219,6 +221,10 @@ function think(world, e, players, engaged, sides) {
     goalZ = t.z + around * 80;
     if (Math.abs(e.z - t.z) < 50) goalX = e.x;
   }
+  // Never stand outside the locked arena (throwers backing off used to end up
+  // past the wall, out of the player's reach)
+  const pb = world.playerBounds;
+  if (pb) goalX = Math.max(pb.xMin + 60, Math.min(pb.xMax - 60, goalX));
   const dx = goalX - e.x;
   const dz = goalZ - e.z;
   let bits = press;

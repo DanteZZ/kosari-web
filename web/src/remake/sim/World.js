@@ -1728,6 +1728,33 @@ export class World {
   }
 
   _hitProp(c, m, dir, att, src) {
+    const pdef = FIGHTERS[c.kind];
+    if (pdef.objective) {
+      // Only enemies (and hazards) wreck the kiosk
+      if (att && att.team === 'player') return;
+      c.hp = Math.max(0, c.hp - (m.dmg || 0));
+      c.animSeq += 1;
+      this.events.push({ type: 'objHit', id: c.id, hp: c.hp, maxHp: c.maxHp });
+      if (c.hp <= 0) {
+        // Broken: costs косари, then it is patched up at half strength
+        c.hp = Math.round(c.maxHp * 0.5);
+        for (const p of this.players()) if (p.kind === 'player') p.money = Math.max(0, (p.money || 0) - 10);
+        this.events.push({ type: 'objLost', id: c.id, x: c.x, z: c.z });
+      }
+      return;
+    }
+    if (pdef.target) {
+      if (c.y > 40) return;
+      c.hp = Math.max(0, c.hp - (m.dmg || 0));
+      c.animSeq += 1;
+      this.events.push({ type: 'hit', target: c.id, targetTeam: 'prop', x: c.x, z: c.z, y: 0, dir, dmg: 0, heavy: false, reaction: 'prop' });
+      if (c.hp <= 0) {
+        c.dead = true;
+        c.removeT = 2;
+        this.events.push({ type: 'targetBreak', id: c.id, x: c.x, z: c.z });
+      }
+      return;
+    }
     if (FIGHTERS[c.kind].anvil) {
       c.dead = true;
       c.removeT = 1;

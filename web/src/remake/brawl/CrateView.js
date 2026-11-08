@@ -53,7 +53,21 @@ export class CrateView {
     this.shake = 0;
     this.shadow = scene.add.ellipse(0, 0, 90, 22, 0x000000, 0.35).setDepth(99);
     const anvil = f.kind === 'anvil' && scene.textures.exists('nakovalna_0');
-    this.img = scene.add.image(0, 0, anvil ? 'nakovalna_0' : crateTexture(scene)).setOrigin(0.5, 1);
+    // Arena-goal props: the kiosk to defend and the cameras to break
+    const goalTex = { objective: ['item_kiosk', 250, 150], target_cam: ['item_camera_tripod', 190, 70] }[f.kind];
+    this.img = scene.add
+      .image(0, 0, goalTex && scene.textures.exists(goalTex[0]) ? goalTex[0] : anvil ? 'nakovalna_0' : crateTexture(scene))
+      .setOrigin(0.5, 1);
+    if (goalTex) {
+      this.img.setScale(goalTex[1] / this.img.height);
+      this.shadow.setSize(goalTex[2], 24);
+    }
+    if (f.kind === 'objective') {
+      // Health bar over the kiosk
+      this.barBack = scene.add.rectangle(0, 0, 150, 12, 0x000000, 0.7).setOrigin(0.5, 0.5);
+      this.barFill = scene.add.rectangle(0, 0, 146, 8, 0x5ad35a).setOrigin(0, 0.5);
+      this.mark = scene.add.text(0, 0, 'ЗАЩИТИ', { fontFamily: 'Arial Black, Arial', fontSize: '18px', color: '#ffe36b', stroke: '#000', strokeThickness: 4 }).setOrigin(0.5, 1);
+    }
     if (anvil) {
       this.img.setScale(1.15);
       this.shadow.setFillStyle(0x550000, 0.4);
@@ -87,11 +101,23 @@ export class CrateView {
     this.shadow.setPosition(x, gy).setScale(1 - k * 0.6).setAlpha(0.35 + (1 - k) * 0.15);
     this.img.setPosition(Math.round(x + ox), Math.round(gy - y)).setDepth(stage.depth(z));
     const dmg = 1 - f.hp / f.maxHp;
+    if (this.barBack) {
+      const top = Math.round(gy - this.img.displayHeight - 18);
+      const d = stage.depth(z) + 1;
+      this.barBack.setPosition(x, top).setDepth(d);
+      this.barFill.setPosition(x - 73, top).setDepth(d).setSize(146 * (1 - dmg), 8);
+      this.barFill.setFillStyle(dmg > 0.6 ? 0xe04a3a : dmg > 0.3 ? 0xe0b43a : 0x5ad35a);
+      this.mark.setPosition(x, top - 8).setDepth(d).setAlpha(0.7 + Math.sin(Date.now() / 200) * 0.3);
+      if (!this.img.isTinted || this.shake <= 60) { const g = Math.round(255 - dmg * 90); this.img.setTint((255 << 16) | (g << 8) | g); }
+    }
     this.img.setAngle(f.y > 0 ? Math.sin(y * 0.02) * 6 : dmg * 4 * Math.sign(ox || 1));
   }
 
   destroy() {
     this.shadow.destroy();
     this.img.destroy();
+    this.barBack?.destroy();
+    this.barFill?.destroy();
+    this.mark?.destroy();
   }
 }
