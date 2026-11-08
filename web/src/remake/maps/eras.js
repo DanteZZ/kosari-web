@@ -75,6 +75,7 @@ function eraMap(o) {
     anvils: o.anvils ?? false,
     airships: o.airships ?? false,
     kosariRain: o.kosariRain,
+    style: !!o.style,
     debuts: o.debuts || [],
     arenas: [
       ...o.arenas.map((waves, i) => ({
@@ -87,7 +88,7 @@ function eraMap(o) {
         waves,
       })),
       o.boss
-        ? { id: 'boss', boss: true, ...bossGeom, waves: o.boss }
+        ? { id: 'boss', boss: true, ...bossGeom, ...(o.finaleMini ? { mini: o.finaleMini } : {}), waves: o.boss }
         : { id: 'finale', ...bossGeom, reward: [{ kind: 'heal', amount: 100 }], ...(o.finaleMini ? { mini: o.finaleMini } : {}), waves: o.finale },
     ],
   };
@@ -301,6 +302,7 @@ export const river = eraMap({
 
 export const sigmaGym = eraMap({
   id: 'sigma_gym',
+  finaleMini: { type: 'pose', rounds: 3 },
   name: 'Зал сигм',
   chapter: 'Глава 5 · Сигма-эпоха',
   next: 'stream_house',
@@ -328,6 +330,7 @@ export const sigmaGym = eraMap({
 
 export const streamHouse = eraMap({
   id: 'stream_house',
+  style: true,
   goals: [null, { type: 'destroy', count: 4 }, null],
   name: 'Стрим-хата',
   chapter: 'Глава 6 · Новая волна',
@@ -357,7 +360,7 @@ export const streamHouse = eraMap({
 
 export const office = eraMap({
   id: 'office',
-  goals: [null, { type: 'defend', hp: 320 }, null],
+  extra: [null, { elevator: { w: 1040 } }, { mini: { type: 'trading', ticks: 1500 } }],
   name: 'Бизнес-центр',
   chapter: 'Глава 6 · Новая волна',
   next: 'concert',

@@ -4,6 +4,7 @@ import { startTorch } from './torch.js';
 import { MINIS } from './minis.js';
 import { startTd, tdText } from './td.js';
 import { startVotes, stopVotes } from './votes.js';
+import { startStyle } from './style.js';
 import { FIGHTERS } from './fighters.js';
 
 /**
@@ -35,6 +36,8 @@ export class MapDirector {
     for (const a of map.arenas) {
       for (const wv of a.waves) for (const sp of wv.spawns || []) if (!FIGHTERS[sp.kind]?.boss) kinds.add(sp.kind);
     }
+    // Stream house: you are live the whole map
+    if (map.style) startStyle(world);
     world.roster = kinds.size ? [...kinds] : ['nikita', 'buiniy'];
     /** The locked area actually used (an arena widened to the screen). */
     this.box = null;
@@ -348,6 +351,17 @@ export class MapDirector {
       for (const p of w.players()) p.x = Math.min(r.x + r.w - 100, Math.max(r.x + 100, p.x));
       w.events.push({ type: 'raftStart', x: r.x, w: r.w });
     }
+    if (a.elevator) {
+      // Office: the fight is in a lift — a narrow box, a new crowd on every floor
+      const mid = (b.left + b.right) / 2;
+      const half = a.elevator.w ? a.elevator.w / 2 : 520;
+      this.box = { left: mid - half, right: mid + half };
+      w.playerBounds = { xMin: mid - half, xMax: mid + half };
+      w.raftBox = { ...w.playerBounds };
+      w.elevator = { left: mid - half, right: mid + half, floor: 0, floors: a.waves.length };
+      for (const p of w.players()) p.x = Math.min(mid + half - 100, Math.max(mid - half + 100, p.x));
+      w.events.push({ type: 'elevatorStart', left: mid - half, right: mid + half });
+    }
     if (a.dark) {
       // Basement in the dark: fuses first, then the waves
       startTorch(w, b, a.dark);
@@ -386,7 +400,11 @@ export class MapDirector {
     }
     this.queue.sort((p, q) => p.at - q.at);
     // Goal arenas loop their waves quietly (no «Волна 2/3» again and again)
-    if (!this.goal?.looped) this.world.events.push({ type: 'wave', n: i + 1, total: a.waves.length, banner: wv.banner || null, boss: !!a.boss });
+    const lift = this.world.elevator;
+    if (lift) {
+      lift.floor = i + 1;
+      this.world.events.push({ type: 'elevatorFloor', floor: lift.floor * 4 + 3, n: i + 1, total: a.waves.length });
+    } else if (!this.goal?.looped) this.world.events.push({ type: 'wave', n: i + 1, total: a.waves.length, banner: wv.banner || null, boss: !!a.boss });
   }
 
   _spawn(arena, q) {
@@ -467,6 +485,10 @@ export class MapDirector {
     this.goal = null;
     setTraps(w, null);
     w.td = null;
+    if (w.elevator) {
+      w.elevator = null;
+      w.raftBox = null;
+    }
     stopVotes(w);
     this.idx += 1;
     this.wave = -1;

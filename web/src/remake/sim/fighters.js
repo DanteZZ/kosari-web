@@ -119,6 +119,18 @@ export const FIGHTERS = {
     moves: { light: 'e_jab' },
     ai: {},
   },
+  /** Sigma gym: Гигачад in the pose-off (sim/pose.js). */
+  poser: {
+    team: 'prop',
+    prop: true,
+    keeper: true,
+    noGrab: true,
+    hp: 9999,
+    speedX: 0,
+    speedZ: 0,
+    jumpV: 0,
+    moves: {},
+  },
   /** Gym: Руки базуки on the next bench (sim/bench.js). */
   rival: {
     team: 'prop',

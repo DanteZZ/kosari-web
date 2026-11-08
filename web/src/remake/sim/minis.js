@@ -1,6 +1,8 @@
 import { startPenalty, prePenalty, stepPenalty, penaltyText } from './penalty.js';
 import { startBench, preBench, stepBench, benchText } from './bench.js';
 import { startStealth, stepStealth, stealthText } from './stealth.js';
+import { startPose, prePose, stepPose, poseText } from './pose.js';
+import { startTrading, preTrading, stepTrading, tradingText } from './trading.js';
 
 /**
  * Arena minigames (map arena `mini: { type, ... }`), run before the arena's
@@ -16,4 +18,6 @@ export const MINIS = {
   penalty: { start: startPenalty, pre: prePenalty, step: stepPenalty, text: penaltyText },
   bench: { start: startBench, pre: preBench, step: stepBench, text: benchText },
   stealth: { start: startStealth, step: stepStealth, text: stealthText },
+  pose: { start: startPose, pre: prePose, step: stepPose, text: poseText },
+  trading: { start: startTrading, pre: preTrading, step: stepTrading, text: tradingText },
 };

@@ -811,6 +811,59 @@ export class BrawlScene extends Phaser.Scene {
         case 'raftEnd':
           this.banner('БЕРЕГ!', 'Приплыли', 1400);
           break;
+        // ---- Sigma pose-off / stream style / office lift + trading
+        case 'poseStart':
+          this.banner('БИТВА ПОЗ', 'Гигачад показывает — повтори WASD', 2200, true);
+          break;
+        case 'posePose': {
+          const f = this.world.fighters.find((x) => x.id === ev.id);
+          const ARR = { W: '↑', A: '←', S: '↓', D: '→' };
+          if (f) this.popText(f.x, stage.groundY(f.z) - 340, ARR[ev.key], ev.who === 'chad' ? '#ffffff' : ev.ok ? '#7dff7a' : '#ff5a4a', 46);
+          if (ev.who === 'chad') {
+            this.cameras.main.flash(90, 255, 255, 255, false);
+            this.sound.play('beep', { volume: 0.25, rate: 1 + ev.i * 0.1 });
+          } else this.sound.play(ev.ok ? 'punch' : 'no_bulet', { volume: 0.3, rate: 1.3 });
+          break;
+        }
+        case 'poseYourTurn':
+          this.popText(this.player.x, stage.groundY(this.player.z) - 380, 'Твой ход!', '#ffd23f', 30);
+          break;
+        case 'poseResult':
+          this.banner(ev.ok ? 'АУРА!' : 'НЕ ТА ПОЗА', `Ты ${ev.score.you} : ${ev.score.chad} Гигачад`, 1000, !ev.ok);
+          break;
+        case 'poseEnd':
+          this.banner(ev.win ? 'ТЫ СИГМА' : 'ГИГАЧАД СИЛЬНЕЕ', ev.win ? 'Он выходит на бой потрёпанным' : 'Он только разогрелся', 2000, !ev.win);
+          break;
+        case 'styleRank':
+          if (ev.up && 'BASSS'.includes(ev.rank) && this.time.now - (this.lastRankT || 0) > 2500) {
+            this.lastRankT = this.time.now;
+            this.popText(this.player.x, stage.groundY(this.player.z) - 380, `СТИЛЬ ${ev.rank}!`, '#ff3b6b', 34);
+          }
+          break;
+        case 'donate':
+          this.popText(ev.x, stage.groundY(ev.z) - 420, `Донат +${ev.amount} К`, '#ffd23f', 24);
+          this.sound.play('cash', { volume: 0.25, rate: 1.5 });
+          break;
+        case 'elevatorStart':
+          this.banner('ЛИФТ', 'Двери закрываются… на каждом этаже — новые гости', 2000, true);
+          break;
+        case 'elevatorFloor':
+          this.banner(`ЭТАЖ ${ev.floor}`, 'Дзынь!', 1000);
+          this.sound.play('beep', { volume: 0.35, rate: 1.8 });
+          break;
+        case 'tradeStart':
+          this.banner('ИНВЕСТИЦИИ', 'Гительман предлагает войти в рынок · J — купить, K — продать', 2400, true);
+          break;
+        case 'tradeBuy':
+        case 'tradeSell':
+          this.sound.play('cash', { volume: 0.35, rate: ev.type === 'tradeBuy' ? 0.8 : 1.3 });
+          break;
+        case 'tradeCrash':
+          this.banner('ОБВАЛ!', 'Рынок летит вниз', 1100, true);
+          break;
+        case 'tradeEnd':
+          this.banner(ev.profit >= 0 ? 'В ПЛЮСЕ' : 'ЛИКВИДАЦИЯ', `${ev.profit >= 0 ? '+' : ''}${ev.profit} косарей`, 2000, ev.profit < 0);
+          break;
         // ---- Village penalties
         case 'penaltyStart':
           this.banner('ПЕНАЛЬТИ!', `Дед вызывает: по ${ev.rounds} удара · победишь — косари`, 2400, true);

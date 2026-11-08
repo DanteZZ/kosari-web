@@ -23,6 +23,7 @@ export const VARIANTS = {
   /** Museum guards; Руки базуки on the bench next to you. */
   guard: { skin: 'buiniy', scale: 1.02, tint: 0x5a6a90 },
   rival: { skin: 'ruki', scale: 1, tint: null },
+  poser: { skin: 'gigachad', scale: 1.08, tint: null },
   /** Village penalties: Дед. */
   keeper: { skin: 'ded', scale: 0.98, tint: null },
   /** Dacha basement: Пахом's shadow. */

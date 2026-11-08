@@ -4,6 +4,7 @@ import { stepTorch } from './torch.js';
 import { MINIS } from './minis.js';
 import { preTd, stepTd } from './td.js';
 import { stepVotes, voteHit } from './votes.js';
+import { styleHit, stepStyle } from './style.js';
 import {
   GRAVITY,
   MAX_FALL,
@@ -221,6 +222,7 @@ export class World {
     if (this.mini && !this.mini.done) MINIS[this.mini.type].step(this);
     stepTd(this);
     stepVotes(this);
+    stepStyle(this);
 
     for (const f of this.fighters) {
       this._clamp(f);
@@ -831,6 +833,7 @@ export class World {
 
     const dmg = Math.max(1, Math.round((m.dmg || 0) * (att.dmgMul || 1) * (this.dmgAll || 1)));
     if (att.team === 'player' && this.votes) voteHit(this);
+    if (this.style) styleHit(this, att, tgt, att.move, tgt.hp - dmg <= 0);
     // Hits shove three times harder than the move tables say
     m = { ...m, dmg, kb: (m.kb || 0) * KB_MUL };
     tgt.hp = Math.max(0, tgt.hp - dmg);

@@ -164,8 +164,140 @@ export class MinisView {
     }
   }
 
+  // ---------------------------------------------------------------- HUD helpers
+  _hud(key, make) {
+    if (!this[key]) {
+      this[key] = make();
+      const tag = (o) => {
+        this.scene.tagUi(o);
+        if (o.list) for (const c of o.list) tag(c);
+      };
+      tag(this[key]);
+    }
+    return this[key];
+  }
+
+  _drop(key) {
+    if (!this[key]) return;
+    this[key].destroy();
+    this[key] = null;
+  }
+
+  // ---------------------------------------------------------------- pose-off
+  _pose(m) {
+    const s = this.scene;
+    const P = this._hud('poseHud', () => {
+      const c = s.add.container(VIEW_W / 2, VIEW_H - 190).setDepth(9000);
+      c.g = s.add.graphics();
+      c.add(c.g);
+      c.cells = [];
+      for (let i = 0; i < 7; i += 1) {
+        const t = s.add.text(0, 0, '', { fontFamily: 'Arial Black, Arial', fontSize: '34px', color: '#ffffff' }).setOrigin(0.5);
+        c.cells.push(t);
+        c.add(t);
+      }
+      return c;
+    });
+    const ARR = { W: '↑', A: '←', S: '↓', D: '→' };
+    const K = ['W', 'A', 'S', 'D'];
+    const n = m.seq.length;
+    P.g.clear().fillStyle(0x000000, 0.6).fillRoundedRect(-n * 40 - 20, -40, n * 80 + 40, 80, 14);
+    P.cells.forEach((c, i) => {
+      if (i >= n) return c.setVisible(false);
+      c.setVisible(true).setPosition(-((n - 1) * 80) / 2 + i * 80, 0);
+      let txt = '?';
+      let col = '#888888';
+      if (m.phase === 'show') {
+        if (i <= m.shown) {
+          txt = ARR[K[m.seq[i]]];
+          col = i === m.shown ? '#ffd23f' : '#ffffff';
+        }
+      } else {
+        txt = i < m.input ? ARR[K[m.seq[i]]] : '•';
+        col = i < m.input ? '#7dff7a' : '#ffffff';
+      }
+      c.setText(txt).setColor(col);
+    });
+  }
+
+  // ---------------------------------------------------------------- trading
+  _trade(m) {
+    const s = this.scene;
+    const T = this._hud('tradeHud', () => {
+      const c = s.add.container(VIEW_W / 2 - 330, 150).setDepth(9000);
+      c.g = s.add.graphics();
+      c.label = s.add.text(16, 10, '', { fontFamily: 'Arial Black, Arial', fontSize: '20px', color: '#ffffff' });
+      c.add([c.g, c.label]);
+      return c;
+    });
+    const W = 660;
+    const H = 260;
+    const g = T.g.clear();
+    g.fillStyle(0x07130c, 0.88).fillRoundedRect(0, 0, W, H, 12).lineStyle(2, 0x2fd06a, 0.8).strokeRoundedRect(0, 0, W, H, 12);
+    const h = m.hist;
+    const lo = Math.min(...h) * 0.95;
+    const hi = Math.max(...h) * 1.05;
+    const X = (i) => 20 + ((W - 40) * i) / 119;
+    const Y = (v) => H - 20 - ((H - 70) * (v - lo)) / (hi - lo || 1);
+    for (let i = 1; i < h.length; i += 1) {
+      g.lineStyle(4, h[i] >= h[i - 1] ? 0x2fd06a : 0xe0463a, 1).lineBetween(X(i - 1), Y(h[i - 1]), X(i), Y(h[i]));
+    }
+    if (m.held) g.lineStyle(2, 0xffd23f, 0.8).lineBetween(20, Y(m.buyAt ?? h[h.length - 1]), W - 20, Y(m.buyAt ?? h[h.length - 1]));
+    T.label.setText(`$ГИТЛ ${m.price.toFixed(1)} · ${m.held ? 'В ПОЗИЦИИ' : 'кэш'} · J купить · K продать`);
+  }
+
+  // ---------------------------------------------------------------- stream style
+  _style(st) {
+    const s = this.scene;
+    const S = this._hud('styleHud', () => {
+      const c = s.add.container(VIEW_W - 350, 190).setDepth(9000);
+      c.g = s.add.graphics();
+      c.rank = s.add.text(290, 14, 'D', { fontFamily: 'Arial Black, Arial', fontSize: '48px', color: '#ffffff', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5, 0);
+      c.view = s.add.text(14, 10, '', { fontFamily: 'Arial Black, Arial', fontSize: '18px', color: '#ff5a6a' });
+      c.add([c.g, c.view, c.rank]);
+      return c;
+    });
+    const COL = { D: '#9a9a9a', C: '#7dc8ff', B: '#7dff7a', A: '#ffd23f', S: '#ff8a2a', SSS: '#ff3b6b' };
+    S.g.clear().fillStyle(0x12060a, 0.82).fillRoundedRect(0, 0, 340, 84, 12).lineStyle(2, 0xff3b6b, 0.9).strokeRoundedRect(0, 0, 340, 84, 12);
+    S.g.fillStyle(0x331018, 1).fillRect(14, 48, 236, 16).fillStyle(Number.parseInt(COL[st.rank].slice(1), 16), 1).fillRect(14, 48, 236 * (st.meter / 100), 16);
+    S.view.setText(`● LIVE  ${Math.round(st.viewers).toLocaleString('ru-RU')} зрителей`);
+    S.rank.setText(st.rank).setColor(COL[st.rank]);
+  }
+
+  // ---------------------------------------------------------------- elevator
+  _lift(world, lift) {
+    const s = this.scene;
+    const b = world.bounds;
+    if (!this.liftGfx) this.liftGfx = s.add.graphics();
+    const g = this.liftGfx.clear();
+    const top = stage.groundY(b.zMin) - 420;
+    const bot = stage.groundY(b.zMax) + 40;
+    g.setDepth(stage.depth(b.zMax) + 6);
+    // Steel walls just outside the box, a frame up top
+    for (const x of [lift.left - 60, lift.right]) {
+      g.fillStyle(0x6d747c, 1).fillRect(x, top, 60, bot - top);
+      g.fillStyle(0x8c949c, 1).fillRect(x + 8, top, 6, bot - top);
+    }
+    g.fillStyle(0x3a3f45, 1).fillRect(lift.left - 60, top - 40, lift.right - lift.left + 120, 40);
+    if (!this.liftLabel) {
+      this.liftLabel = s.add.text(0, 0, '', { fontFamily: 'Arial Black, Arial', fontSize: '26px', color: '#ff5a3a', backgroundColor: '#111', padding: { x: 10, y: 4 } }).setOrigin(0.5, 1);
+    }
+    this.liftLabel.setText(`ЭТАЖ ${lift.floor * 4 + 3}`).setPosition((lift.left + lift.right) / 2, top - 44).setDepth(stage.depth(b.zMax) + 7);
+  }
+
   render(world) {
     const m = world.mini;
+    if (m && m.type === 'pose' && !m.done) this._pose(m);
+    else this._drop('poseHud');
+    if (m && m.type === 'trading' && !m.done) this._trade(m);
+    else this._drop('tradeHud');
+    if (world.style) this._style(world.style);
+    else this._drop('styleHud');
+    if (world.elevator) this._lift(world, world.elevator);
+    else if (this.liftGfx) {
+      this._drop('liftGfx');
+      this._drop('liftLabel');
+    }
     if (m && m.type === 'bench' && !m.done) this._bench(world, m);
     else if (this.track) {
       for (const o of this.track.notes.values()) o.destroy();
