@@ -5,6 +5,11 @@
  *
  * world: background segments along the road (brawl/world/ThemeWorld.js). Joins sit
  *        in the gaps between arenas (1600 / 2930 / 4250), never inside a locked fight.
+ * Enemy roster: a sliding window of the three newest enemy types — every
+ * debut pushes the oldest one out (Никита → Буйный → Дед → Монгол → Глад →
+ * Вертуха / Руки → Идущий к реке → Зубарев → Гительман). Runner / blocker are
+ * Nikita reskins and thrower a Buiniy one: they leave together with them.
+ *
  * One boss per chapter (the second map). The first map of a chapter ends in
  * a «finale» arena instead: the debut of a new meme enemy (elite, with a short
  * meeting dialogue — `debuts`); after that he turns up in regular waves.
@@ -77,9 +82,9 @@ export const village = eraMap({
   },
   debuts: ['ded'],
   arenas: [
-    [{ spawns: [sp('nikita', 3, 'right', 40)] }, { spawns: [sp('nikita', 4, 'both', 28)] }],
-    [{ nextAt: 1, spawns: [sp('nikita', 3), sp('runner', 2, 'left', 50)] }, { banner: 'Болельщики!', spawns: [sp('runner', 4, 'both', 26)] }],
-    [{ spawns: [sp('thrower', 2, 'right', 60), sp('nikita', 3)] }, { banner: 'С поля!', spawns: [sp('buiniy', 2), sp('nikita', 3, 'drop', 30)] }],
+    [{ spawns: [sp('nikita', 3, 'right', 40)] }, { spawns: [sp('nikita', 3, 'both', 28), sp('runner', 1)] }],
+    [{ nextAt: 1, spawns: [sp('nikita', 2), sp('thrower', 2, 'left', 50)] }, { banner: 'Болельщики!', spawns: [sp('runner', 3, 'both', 26), sp('buiniy', 1)] }],
+    [{ spawns: [sp('buiniy', 2), sp('nikita', 2)] }, { banner: 'С поля!', spawns: [sp('blocker', 2), sp('nikita', 3, 'drop', 30)] }],
   ],
   finale: [
     { banner: 'Дед «я футбольный мячик»', spawns: [el('ded')] },
@@ -104,9 +109,9 @@ export const dacha = eraMap({
     tip: 'Пахом уходит в тень между фазами — в это время с потолка сыплется всякое. Держись в движении.',
   },
   arenas: [
-    [{ spawns: [sp('nikita', 4, 'both', 30)] }, { banner: 'Дачники!', spawns: [sp('thrower', 2, 'left', 50), sp('nikita', 2)] }],
+    [{ spawns: [sp('nikita', 4, 'both', 30)] }, { banner: 'Дачники!', spawns: [sp('thrower', 2, 'left', 50), sp('buiniy', 1)] }],
     [{ nextAt: 1, spawns: [sp('ded', 1, 'right'), sp('nikita', 3)] }, { spawns: [sp('buiniy', 2), sp('runner', 2, 'right', 40)] }],
-    [{ spawns: [sp('ded', 2, 'both', 50), sp('thrower', 1)] }, { banner: 'В подвал', spawns: [sp('nikita', 5, 'drop', 20), sp('blocker', 1, 'left')] }],
+    [{ spawns: [sp('ded', 2, 'both', 50), sp('blocker', 1)] }, { banner: 'В подвал', spawns: [sp('nikita', 4, 'drop', 20), sp('buiniy', 1, 'left')] }],
   ],
   boss: [{ banner: 'Пахом', spawns: [sp('pahom', 1, 'right')] }],
 });
@@ -129,13 +134,13 @@ export const panelki = eraMap({
   },
   debuts: ['mongol'],
   arenas: [
-    [{ spawns: [sp('nikita', 4, 'both', 26)] }, { banner: 'Гопота!', spawns: [sp('runner', 3), sp('buiniy', 1, 'right')] }],
-    [{ spawns: [sp('ded', 2, 'right', 50), sp('nikita', 3)] }, { spawns: [sp('blocker', 2), sp('runner', 2)] }],
-    [{ nextAt: 1, spawns: [sp('blocker', 2), sp('thrower', 2, 'right', 50)] }, { banner: 'За гаражами', spawns: [sp('buiniy', 2), sp('ded', 1), sp('runner', 2)] }],
+    [{ spawns: [sp('buiniy', 2), sp('thrower', 1)] }, { banner: 'Гопота!', spawns: [sp('buiniy', 2, 'both', 40), sp('ded', 1)] }],
+    [{ spawns: [sp('ded', 2, 'right', 50), sp('buiniy', 2)] }, { spawns: [sp('buiniy', 3, 'both', 40)] }],
+    [{ nextAt: 1, spawns: [sp('buiniy', 2), sp('ded', 1)] }, { banner: 'За гаражами', spawns: [sp('buiniy', 2), sp('ded', 2)] }],
   ],
   finale: [
     { banner: 'Олег Монгол', spawns: [el('mongol')] },
-    { banner: 'Дворовые', spawns: [sp('mongol', 1, 'left'), sp('nikita', 4, 'both', 30)] },
+    { banner: 'Дворовые', spawns: [sp('mongol', 1, 'left'), sp('buiniy', 2, 'both', 40)] },
   ],
 });
 
@@ -157,9 +162,9 @@ export const pcClub = eraMap({
   },
   debuts: ['glad'],
   arenas: [
-    [{ spawns: [sp('nikita', 4)] }, { banner: 'Школьники!', spawns: [sp('runner', 4, 'both', 24)] }],
-    [{ nextAt: 1, spawns: [sp('mongol', 1, 'right'), sp('thrower', 2)] }, { spawns: [sp('blocker', 2), sp('ded', 2)] }],
-    [{ spawns: [sp('buiniy', 2), sp('runner', 2)] }, { banner: 'Чат в атаке', spawns: [sp('nikita', 6, 'drop', 18)] }],
+    [{ spawns: [sp('ded', 2), sp('mongol', 1)] }, { banner: 'Школьники!', spawns: [sp('ded', 3, 'both', 40)] }],
+    [{ nextAt: 1, spawns: [sp('mongol', 1, 'right'), sp('ded', 2)] }, { spawns: [sp('ded', 2), sp('mongol', 1, 'left')] }],
+    [{ spawns: [sp('mongol', 2, 'both', 60), sp('ded', 1)] }, { banner: 'Чат в атаке', spawns: [sp('ded', 3, 'drop', 24), sp('mongol', 1)] }],
   ],
   finale: [
     { banner: 'Глад Валакас', spawns: [el('glad')] },
@@ -185,13 +190,13 @@ export const gym = eraMap({
   },
   debuts: ['vertuha', 'ruki'],
   arenas: [
-    [{ spawns: [sp('nikita', 3), sp('glad', 1)] }, { banner: 'Чувак с вертухой', spawns: [el('vertuha')] }],
-    [{ nextAt: 1, spawns: [sp('blocker', 3, 'both', 40)] }, { banner: 'Качки!', spawns: [sp('buiniy', 2, 'both', 50), sp('mongol', 1)] }],
-    [{ spawns: [sp('vertuha', 1), sp('thrower', 2)] }, { spawns: [sp('buiniy', 2), sp('glad', 2)] }],
+    [{ spawns: [sp('glad', 2, 'both', 50)] }, { banner: 'Чувак с вертухой', spawns: [el('vertuha')] }],
+    [{ nextAt: 1, spawns: [sp('glad', 3, 'both', 40)] }, { banner: 'Качки!', spawns: [sp('vertuha', 1), sp('glad', 2)] }],
+    [{ spawns: [sp('vertuha', 2, 'both', 50)] }, { spawns: [sp('glad', 3), sp('vertuha', 1, 'left')] }],
   ],
   finale: [
     { banner: 'Руки базуки', spawns: [el('ruki')] },
-    { banner: 'Вся качалка', spawns: [sp('vertuha', 1, 'left'), sp('buiniy', 2)] },
+    { banner: 'Вся качалка', spawns: [sp('vertuha', 1, 'left'), sp('glad', 2)] },
   ],
 });
 
@@ -212,9 +217,9 @@ export const museum = eraMap({
     tip: 'Маэстро ранит только то, что ты отбил ему обратно. Между фазами он уходит — уворачивайся от падающего.',
   },
   arenas: [
-    [{ spawns: [sp('blocker', 2), sp('nikita', 2)] }, { spawns: [sp('vertuha', 2, 'both', 40)] }],
-    [{ nextAt: 1, spawns: [sp('ded', 2), sp('thrower', 1)] }, { banner: 'Смотрители!', spawns: [sp('blocker', 3, 'both', 40), sp('mongol', 1)] }],
-    [{ spawns: [sp('ruki', 1, 'right'), sp('glad', 2)] }, { spawns: [sp('vertuha', 1), sp('blocker', 2)] }],
+    [{ spawns: [sp('glad', 3, 'both', 40)] }, { spawns: [sp('vertuha', 2, 'both', 40)] }],
+    [{ nextAt: 1, spawns: [sp('ruki', 1, 'right'), sp('glad', 2)] }, { banner: 'Смотрители!', spawns: [sp('vertuha', 2), sp('glad', 1)] }],
+    [{ spawns: [sp('ruki', 1, 'right'), sp('vertuha', 1, 'left')] }, { spawns: [sp('glad', 3), sp('ruki', 1)] }],
   ],
   boss: [{ banner: 'Понасенков', spawns: [sp('ponasenkov', 1, 'right')] }],
 });
@@ -237,9 +242,9 @@ export const river = eraMap({
   },
   debuts: ['reka'],
   arenas: [
-    [{ spawns: [sp('nikita', 4)] }, { banner: 'Рыбаки!', spawns: [sp('ded', 2, 'both', 40), sp('thrower', 1)] }],
-    [{ nextAt: 1, spawns: [sp('glad', 2, 'both', 40)] }, { spawns: [sp('ruki', 1), sp('blocker', 2)] }],
-    [{ spawns: [sp('vertuha', 1), sp('runner', 3)] }, { banner: 'Туман', spawns: [sp('nikita', 4, 'drop', 18), sp('mongol', 1)] }],
+    [{ spawns: [sp('vertuha', 2)] }, { banner: 'Рыбаки!', spawns: [sp('ruki', 1), sp('vertuha', 1)] }],
+    [{ nextAt: 1, spawns: [sp('ruki', 1), sp('vertuha', 2, 'both', 40)] }, { spawns: [sp('vertuha', 2), sp('ruki', 1, 'left')] }],
+    [{ spawns: [sp('ruki', 2, 'both', 60)] }, { banner: 'Туман', spawns: [sp('vertuha', 2, 'drop', 30), sp('ruki', 1)] }],
   ],
   finale: [
     { banner: 'Идущий к реке', spawns: [el('reka')] },
@@ -264,9 +269,9 @@ export const sigmaGym = eraMap({
     tip: 'Гигачад — самый бронированный из всех. Ищи окно после его удара и не жалей ярость.',
   },
   arenas: [
-    [{ spawns: [sp('blocker', 2), sp('reka', 2)] }, { banner: 'Сигмы!', spawns: [sp('runner', 2), sp('vertuha', 2)] }],
-    [{ nextAt: 1, spawns: [sp('ruki', 1), sp('reka', 2)] }, { spawns: [sp('mongol', 2), sp('ded', 1)] }],
-    [{ spawns: [sp('glad', 2), sp('blocker', 2)] }, { spawns: [sp('ruki', 1, 'left'), sp('reka', 3, 'both', 30)] }],
+    [{ spawns: [sp('reka', 3, 'both', 30)] }, { banner: 'Сигмы!', spawns: [sp('vertuha', 2)] }],
+    [{ nextAt: 1, spawns: [sp('ruki', 1), sp('reka', 2)] }, { spawns: [sp('reka', 4, 'both', 30), sp('vertuha', 1)] }],
+    [{ spawns: [sp('vertuha', 2), sp('reka', 2)] }, { spawns: [sp('ruki', 2, 'both', 60)] }],
   ],
   boss: [
     { banner: 'Гигачад', nextAt: 1, spawns: [sp('gigachad', 1, 'right')] },
@@ -292,9 +297,9 @@ export const streamHouse = eraMap({
   },
   debuts: ['zubarev'],
   arenas: [
-    [{ spawns: [sp('runner', 3), sp('glad', 1)] }, { banner: 'Донатеры!', spawns: [sp('ded', 2), sp('thrower', 1)] }],
-    [{ banner: 'Зубарев', spawns: [el('zubarev')] }, { spawns: [sp('zubarev', 2, 'both', 40), sp('blocker', 2)] }],
-    [{ spawns: [sp('reka', 3), sp('vertuha', 1)] }, { banner: 'Чат в атаке', spawns: [sp('zubarev', 1), sp('nikita', 4, 'drop', 18)] }],
+    [{ spawns: [sp('reka', 3)] }, { banner: 'Донатеры!', spawns: [sp('ruki', 1), sp('reka', 2)] }],
+    [{ banner: 'Зубарев', spawns: [el('zubarev')] }, { spawns: [sp('zubarev', 2, 'both', 40), sp('reka', 2)] }],
+    [{ spawns: [sp('ruki', 1), sp('zubarev', 1)] }, { banner: 'Чат в атаке', spawns: [sp('reka', 4, 'drop', 18), sp('zubarev', 1)] }],
   ],
   boss: [
     { banner: 'Папич', nextAt: 1, spawns: [sp('papich', 1, 'right')] },
@@ -320,9 +325,9 @@ export const office = eraMap({
   },
   debuts: ['gitelman'],
   arenas: [
-    [{ spawns: [sp('blocker', 2), sp('zubarev', 2)] }, { banner: 'Охрана!', spawns: [sp('mongol', 1), sp('blocker', 2)] }],
-    [{ nextAt: 1, spawns: [sp('ded', 2), sp('glad', 2)] }, { spawns: [sp('ruki', 1), sp('vertuha', 1)] }],
-    [{ spawns: [sp('zubarev', 2), sp('reka', 3)] }, { banner: 'Торговый зал', spawns: [sp('nikita', 4, 'drop', 18), sp('mongol', 1)] }],
+    [{ spawns: [sp('reka', 3), sp('zubarev', 1)] }, { banner: 'Охрана!', spawns: [sp('zubarev', 2, 'both', 40)] }],
+    [{ nextAt: 1, spawns: [sp('reka', 3, 'both', 30)] }, { spawns: [sp('zubarev', 2), sp('reka', 2)] }],
+    [{ spawns: [sp('zubarev', 2)] }, { banner: 'Торговый зал', spawns: [sp('reka', 4, 'drop', 18), sp('zubarev', 1)] }],
   ],
   finale: [
     { banner: 'Гительман', spawns: [el('gitelman')] },
@@ -349,9 +354,9 @@ export const concert = eraMap({
     tip: 'Финальный босс: три фазы, между ними с неба летит всё подряд. Отбивай его снаряды и береги ярость на конец.',
   },
   arenas: [
-    [{ spawns: [sp('mongol', 1), sp('runner', 2), sp('ded', 1)] }, { banner: 'Охрана!', spawns: [sp('blocker', 2), sp('ruki', 1)] }],
-    [{ nextAt: 1, spawns: [sp('glad', 3, 'both', 30)] }, { banner: 'Фанаты!', spawns: [sp('zubarev', 2), sp('reka', 3, 'both', 30)] }],
-    [{ spawns: [sp('vertuha', 2), sp('gitelman', 1)] }, { banner: 'К сцене', spawns: [sp('mongol', 1), sp('glad', 2), sp('zubarev', 1)] }],
+    [{ spawns: [sp('zubarev', 2), sp('reka', 2)] }, { banner: 'Охрана!', spawns: [sp('gitelman', 2, 'both', 50)] }],
+    [{ nextAt: 1, spawns: [sp('reka', 4, 'both', 24)] }, { banner: 'Фанаты!', spawns: [sp('zubarev', 3, 'both', 30)] }],
+    [{ spawns: [sp('gitelman', 2), sp('reka', 2)] }, { banner: 'К сцене', spawns: [sp('zubarev', 2), sp('gitelman', 1)] }],
   ],
   boss: [{ banner: '1Kla$', spawns: [sp('klas', 1, 'right')] }],
 });

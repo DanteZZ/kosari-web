@@ -1,0 +1,136 @@
+{
+ "pocik": {
+  "spawn": 1,
+  "attack": 3,
+  "hurt": 1,
+  "down": 1,
+  "death": 1,
+  "pickup": 1,
+  "special": 1,
+  "blip": 3
+ },
+ "kama": {
+  "spawn": 4,
+  "attack": 5,
+  "hurt": 2,
+  "down": 1,
+  "death": 1,
+  "pickup": 1,
+  "special": 1,
+  "blip": 3
+ },
+ "pistoletov": {
+  "spawn": 1,
+  "attack": 3,
+  "hurt": 1,
+  "down": 1,
+  "death": 1,
+  "pickup": 1,
+  "special": 1,
+  "blip": 3
+ },
+ "nikita": {
+  "spawn": 1,
+  "attack": 2,
+  "hurt": 1,
+  "death": 1,
+  "blip": 3
+ },
+ "buiniy": {
+  "spawn": 1,
+  "attack": 3,
+  "hurt": 1,
+  "down": 1,
+  "death": 1,
+  "blip": 3
+ },
+ "borsch": {
+  "intro": 1,
+  "attack": 3,
+  "hurt": 1,
+  "death": 2,
+  "blip": 3
+ },
+ "povar": {
+  "intro": 1,
+  "attack": 3,
+  "hurt": 1,
+  "death": 1,
+  "blip": 3
+ },
+ "ded": {
+  "spawn": 2,
+  "attack": 6,
+  "hurt": 3,
+  "down": 2,
+  "death": 2,
+  "blip": 3
+ },
+ "mongol": {
+  "spawn": 1,
+  "attack": 1,
+  "death": 1,
+  "blip": 3
+ },
+ "ruki": {
+  "spawn": 1,
+  "attack": 2,
+  "hurt": 1,
+  "death": 1,
+  "blip": 3
+ },
+ "reka": {
+  "spawn": 2,
+  "attack": 3,
+  "hurt": 1,
+  "down": 1,
+  "death": 1,
+  "blip": 3
+ },
+ "zubarev": {
+  "spawn": 2,
+  "attack": 4,
+  "hurt": 3,
+  "down": 1,
+  "death": 1,
+  "blip": 3
+ },
+ "gitelman": {
+  "spawn": 2,
+  "attack": 3,
+  "hurt": 2,
+  "down": 2,
+  "death": 1,
+  "blip": 3
+ },
+ "pahom": {
+  "intro": 1,
+  "attack": 3,
+  "hurt": 1,
+  "down": 1,
+  "death": 1,
+  "blip": 3
+ },
+ "papich": {
+  "intro": 2,
+  "attack": 3,
+  "hurt": 2,
+  "down": 1,
+  "death": 1,
+  "blip": 3
+ },
+ "ponasenkov": {
+  "intro": 1,
+  "attack": 1,
+  "death": 1,
+  "blip": 3
+ },
+ "klas": {
+  "intro": 1,
+  "attack": 4,
+  "hurt": 1,
+  "down": 1,
+  "death": 1,
+  "blip": 3
+ }
+}

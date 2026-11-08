@@ -1,11 +1,14 @@
 import Phaser from 'phaser';
-import { GameState } from '../state/GameState.js';
+import { GameState, SaveLoad, volume, markStarted, markDone, isTouchDevice } from '../state/GameState.js';
+import { readPad, pressKey } from './gamepad.js';
+import { TouchControls } from '../ui/TouchControls.js';
 import { VIEW_W, VIEW_H } from '../game/constants.js';
 import { WORLD_GEOM } from './world/ForestWorld.js';
 import { ThemeWorld } from './world/ThemeWorld.js';
 import { getHero } from '../game/heroes.js';
 import { Cinema } from './Cinema.js';
 import { INTRO, BOSSES, HERO_VOICE } from './dialogue.js';
+import { Voices, voiceOf, hasBlips } from './Voices.js';
 import { VARIANTS } from './FighterView.js';
 import { enemyPartTextureKey } from '../game/enemies/parts.js';
 import { FIGHTERS } from '../sim/fighters.js';
@@ -28,8 +31,8 @@ import { stage, LANE_DEPTH } from './stage.js';
 /** Original-game throwables: sprite key, animation, on-screen size, spin per frame. */
 const ORIG_PROJ = {
   bomb: { key: 'boss_throw_0', anim: 'bomb_fuse', size: 48, spin: 4 },
-  pot: { key: 'kastrule_0', anim: 'kastrule_spin', size: 56 },
-  pan: { key: 'povar_skorovodka_0', anim: 'skovorodka_spin', size: 62 },
+  pot: { key: 'kastrule_0', anim: 'kastrule_spin', size: 92 },
+  pan: { key: 'povar_skorovodka_0', anim: 'skovorodka_spin', size: 78, spin: 16 },
   fork: { key: 'povar_vilka_0', size: 130, angle: 180 },
   dirigbomb: { key: 'dirig_bomb_0', anim: 'dirig_bomb_fall', size: 64 },
   anvil: { key: 'nakovalna_0', size: 90, spin: 9 },
@@ -44,6 +47,8 @@ const ORIG_PROJ = {
   coin: { key: 'item_coin', size: 44, spin: 10 },
   music_note: { key: 'item_music_note', size: 52 },
   shockwave: { key: 'item_shockwave', size: 190 },
+  spear: { key: 'item_spear', size: 230 },
+  microphone: { key: 'item_microphone', size: 74, spin: 9 },
 };
 
 /** Pickup art by kind (food heals pick big or small by amount). */
@@ -51,6 +56,8 @@ const BUFF_ART = { speed: 'item_energy', power: 'item_protein', shield: 'item_si
 
 /** Slight over-zoom so camera roll never shows the edges. */
 const BASE_ZOOM = 1.015;
+/** World px that must fit the screen height (fighters + road): short screens zoom out. */
+const MIN_VIEW_H = 640;
 
 const SANDBOX_LEN = 7200;
 /** Never run more than this many sim ticks per frame (avoid spiral of death after a stall). */
@@ -116,16 +123,33 @@ export class BrawlScene extends Phaser.Scene {
     this.kick = 0;
     this.kickV = 0;
     this.roll = 0;
+    this.baseZoom = BASE_ZOOM;
     this.zoom = BASE_ZOOM;
     this.layoutCameras();
     this.camY = this.baseY;
+
+    // Mix: music keys follow the music volume, everything else the sfx volume
+    const MUSIC = new Set(['game', 'boss', 'credits']);
+    const rawPlay = this.sound.play.bind(this.sound);
+    this.sound.play = (key, cfg = {}) => rawPlay(key, { ...cfg, volume: (cfg.volume ?? 1) * volume(MUSIC.has(key) ? 'music' : 'sfx') });
+    // Story progress: this map is where «Продолжить» goes now
+    if (this.map && !this.map.hidden && this.map.id !== 'sandbox') markStarted(this.map.id);
 
     this.fx = this.add.group();
     this.buildHud();
     this.cine = new Cinema(this);
     this.introduced = new Set();
+    this.voices = new Voices(this);
+    this.voices.volume = 0.95 * volume('voice');
+    // Phones / tablets: on-screen joystick; a tap on the open screen = Enter
+    this.touch = isTouchDevice() ? new TouchControls(document.getElementById('game-shell') || document.body) : null;
+    if (this.touch) {
+      this.input.on('pointerdown', () => {
+        if (this.cine?.active || this.finished || this.paused) pressKey('Enter', 13);
+      });
+    }
 
-    if (GameState.musicPlay) {
+    if (volume('music') > 0) {
       this.sound.stopAll();
       this.sound.play('game', { loop: true, volume: 0.4 });
     }
@@ -164,6 +188,8 @@ export class BrawlScene extends Phaser.Scene {
       this.sound.stopByKey('game');
       this.sound.stopByKey('boss');
       this.sound.stopByKey('dirigabb_sound');
+      this.touch?.destroy();
+      this.touch = null;
     });
     if (this.map) this.playIntro();
     else this.banner('Песочница', 'Иди вперёд →', 1800);
@@ -215,13 +241,16 @@ export class BrawlScene extends Phaser.Scene {
     this.bgCam?.setSize(VIEW_W, VIEW_H);
     this.uiCam?.setSize(VIEW_W, VIEW_H);
     // Road bottom near the bottom of the screen; tall screens get more sky
-    this.baseY = Math.max(-260, WORLD_GEOM.ROAD_BOTTOM + 70 - VIEW_H);
+    // Phones in landscape are short: zoom out so the fighters fit (zoom is around the screen centre)
+    this.baseZoom = Math.min(BASE_ZOOM, VIEW_H / MIN_VIEW_H);
+    const z = this.baseZoom;
+    this.baseY = Math.max(-260, WORLD_GEOM.ROAD_BOTTOM + 70 - VIEW_H / 2 - VIEW_H / (2 * z));
     this.forest?.setBaseY(this.baseY, VIEW_W, VIEW_H);
   }
 
   /** Short zoom-in punch on big impacts. */
   punch(amount) {
-    this.zoom = Math.max(this.zoom, BASE_ZOOM + amount);
+    this.zoom = Math.max(this.zoom, this.baseZoom + amount);
   }
 
   togglePause() {
@@ -241,14 +270,18 @@ export class BrawlScene extends Phaser.Scene {
     else this.acc += frameMs / 1000;
     let steps = 0;
     while (this.acc >= DT && steps < MAX_STEPS) {
-      this.world.setInput(0, this.cine?.active ? 0 : this.keys.read());
+      this.world.setInput(0, this.cine?.active ? 0 : this.keys.read() | readPad() | (this.touch?.read() || 0));
+      this.world.viewW = VIEW_W / this.baseZoom;
       this.world.step();
       this.director.step();
       this.acc -= DT;
       steps += 1;
     }
     if (steps >= MAX_STEPS) this.acc = 0;
-    if (steps > 0) this.keys.consumed();
+    if (steps > 0) {
+      this.keys.consumed();
+      this.touch?.consumed();
+    }
     const alpha = this.acc / DT;
     const frozen = this.world.hitstop > 0;
 
@@ -296,6 +329,16 @@ export class BrawlScene extends Phaser.Scene {
 
     this.updateCamera(frameMs / 1000, alpha);
     this.updateHud();
+    this.updateDark();
+    if (this.verseEnd) {
+      if (!this.verseText) {
+        this.verseText = this.tagUi(this.add.text(VIEW_W / 2, 92, '', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '26px', color: '#ffd23f', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5, 0).setDepth(2000));
+      }
+      const boss = this.world.fighters.find((f) => f.kind === 'klas' && !f.dead);
+      const left = Math.max(0, Math.ceil((this.verseEnd - this.time.now) / 1000));
+      this.verseText.setVisible(!!boss && !boss.dead).setPosition(VIEW_W / 2, 92).setText(`Трек кончится через ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`);
+      if (!boss || boss.dead) this.verseEnd = 0;
+    }
     // Perfect-dodge slow motion tint
     const slowA = this.world.slowmo > 0 ? Math.min(0.16, this.world.slowmo / 60) : 0;
     this.slowOverlay.setAlpha(this.slowOverlay.alpha + (slowA - this.slowOverlay.alpha) * 0.2);
@@ -352,7 +395,7 @@ export class BrawlScene extends Phaser.Scene {
     const vx = (p.x - p.px) * 60;
     const lean = Phaser.Math.Clamp(-vx * 0.000035, -0.01, 0.01) + Math.sin(this.swayT * 0.5) * 0.0015;
     this.roll += (lean - this.roll) * (1 - Math.exp(-dt * 3));
-    this.zoom += ((cc ? cc.zoom : BASE_ZOOM) - this.zoom) * (1 - Math.exp(-dt * (cc ? cc.speed : 7)));
+    this.zoom += ((cc ? cc.zoom * (this.baseZoom / BASE_ZOOM) : this.baseZoom) - this.zoom) * (1 - Math.exp(-dt * (cc ? cc.speed : 7)));
 
     for (const cam of [this.cameras.main, this.bgCam]) {
       cam.setScroll(Math.round(this.camX + sx), Math.round(this.camY + bob + this.kick + sy));
@@ -371,6 +414,7 @@ export class BrawlScene extends Phaser.Scene {
       face: h.skin ? enemyPartTextureKey(h.skin, 'head') : 'player_head',
       color: '#8fe3ff',
       ...(HERO_VOICE[h.id] || HERO_VOICE.pocik),
+      voice: hasBlips(h.id) ? h.id : null,
     };
   }
 
@@ -382,6 +426,7 @@ export class BrawlScene extends Phaser.Scene {
       flip: true,
       color: '#ffd23f',
       ...(BOSSES[kind]?.voice || {}),
+      voice: hasBlips(kind) ? kind : hasBlips(skin) ? skin : null,
     };
   }
 
@@ -413,20 +458,27 @@ export class BrawlScene extends Phaser.Scene {
       async (c) => {
         const boss = () => this.world.fighters.find((x) => x.id === id) || null;
         const lockR = this.lock?.right ?? this.player.x + 600;
+        const lockL = this.lock?.left ?? this.player.x - 600;
+        const mid = (lockL + lockR) / 2;
         const fp = this.focusOf(this.player);
-        await c.camTo(lockR - 260, fp.y, 1.15, 1300);
+        // The sim already stood him in the middle of the arena, waiting
+        await c.camTo(mid, fp.y, 1.15, 1100);
         c.setFreeze(true);
         const b = boss();
-        if (b) await c.camTo(Math.min(b.x, lockR - 120), this.focusOf(b).y, 1.35, 450);
+        if (b) await c.camTo(b.x, this.focusOf(b).y, 1.35, 450);
+        const vb = b && voiceOf(b);
+        if (vb && !this.voices.say(vb, 'intro', { force: true })) this.voices.say(vb, 'spawn', { force: true });
         await c.title(FIGHTERS[kind]?.title || '', this.map?.chapter || '', 1300);
         for (const [who, text] of data?.arrive || []) {
           const f = who === 'boss' ? boss() : this.player;
-          if (f) await c.camTo(who === 'boss' ? Math.min(f.x, lockR - 120) : f.x, this.focusOf(f).y, 1.4, 260);
+          if (f) await c.camTo(f.x, this.focusOf(f).y, 1.4, 260);
           await c.say(who === 'boss' ? this.bossSpeaker(kind) : this.heroSpeaker(), text);
         }
         c.hideBox();
         c.flash(0xffffff, 300, 0.5);
         this.sound.play('superudar', { volume: 0.4 });
+        const bb = boss();
+        if (bb) bb.waiting = false;
       },
       { freeze: false },
     );
@@ -460,7 +512,111 @@ export class BrawlScene extends Phaser.Scene {
     );
   }
 
+  /** Гигачад poses: a sunburst of rays behind him for a moment. */
+  poseRays(id) {
+    const f = this.world.fighters.find((x) => x.id === id);
+    const v = f && this.views.get(id);
+    if (!v) return;
+    if (!this.textures.exists('fx_rays')) {
+      const t = this.textures.createCanvas('fx_rays', 512, 512);
+      const c = t.getContext();
+      const g = c.createRadialGradient(256, 256, 10, 256, 256, 256);
+      g.addColorStop(0, 'rgba(255,248,210,0.95)');
+      g.addColorStop(1, 'rgba(255,248,210,0)');
+      c.fillStyle = g;
+      for (let i = 0; i < 16; i += 1) {
+        const a0 = (i / 16) * Math.PI * 2;
+        c.beginPath();
+        c.moveTo(256, 256);
+        c.arc(256, 256, 256, a0, a0 + 0.12);
+        c.closePath();
+        c.fill();
+      }
+      c.beginPath();
+      c.arc(256, 256, 70, 0, Math.PI * 2);
+      c.fill();
+      t.refresh();
+    }
+    const r = this.add.image(f.x, stage.groundY(f.z) - (v.bodyH || 300) * 0.55, 'fx_rays').setDepth(v.visual.depth - 0.5).setBlendMode(Phaser.BlendModes.ADD).setScale(0.2).setAlpha(0);
+    this.tweens.add({ targets: r, scale: 1.6, alpha: 1, duration: 500, ease: 'Back.Out' });
+    this.tweens.add({ targets: r, angle: 40, duration: 1600 });
+    this.tweens.add({ targets: r, alpha: 0, delay: 1100, duration: 500, onComplete: () => r.destroy() });
+  }
+
+  /** Smoke puff (Пахом vanishing / appearing). */
+  puff(x, z) {
+    const y = stage.groundY(z) - 120;
+    for (let i = 0; i < 6; i += 1) {
+      const c = this.add.circle(x + (Math.random() - 0.5) * 70, y + (Math.random() - 0.5) * 120, 26, 0x6b8f5a, 0.55).setDepth(1150);
+      this.tweens.add({ targets: c, scale: 2.2, alpha: 0, y: c.y - 40, duration: 520, onComplete: () => c.destroy() });
+    }
+  }
+
+  /** Lights off: darkness with a soft round hole around the player (vignette); Пахом's eyes glow. */
+  setDark(on) {
+    if (!this.darkLayer) {
+      if (!this.textures.exists('fx_dark')) {
+        const t = this.textures.createCanvas('fx_dark', 1024, 1024);
+        const c = t.getContext();
+        const g = c.createRadialGradient(512, 512, 120, 512, 512, 470);
+        g.addColorStop(0, 'rgba(0,0,0,0)');
+        g.addColorStop(0.55, 'rgba(0,0,0,0.55)');
+        g.addColorStop(1, 'rgba(0,0,0,0.96)');
+        c.fillStyle = g;
+        c.fillRect(0, 0, 1024, 1024);
+        t.refresh();
+      }
+      this.darkLayer = this.add.container(0, 0).setDepth(1400).setAlpha(0);
+      this.darkLayer.add(this.add.image(0, 0, 'fx_dark').setScale(1));
+      // Solid black around the gradient so the whole screen is covered
+      for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
+        this.darkLayer.add(this.add.rectangle(dx * 5512, dy * 5512, 10000, 10000, 0x000000, 0.96));
+      }
+      this.darkEyes = this.add.container(0, 0).setDepth(1401).setVisible(false);
+      for (const dx of [-10, 10]) this.darkEyes.add(this.add.ellipse(dx, 0, 11, 6, 0xc6ff6a, 1));
+    }
+    this.tweens.killTweensOf(this.darkLayer);
+    this.tweens.add({ targets: this.darkLayer, alpha: on ? 1 : 0, duration: on ? 500 : 320 });
+    this.darkOn = on;
+  }
+
+  updateDark() {
+    if (!this.darkLayer || (!this.darkOn && this.darkLayer.alpha <= 0.01)) {
+      this.darkEyes?.setVisible(false);
+      return;
+    }
+    const pv = this.views.get(this.player.id);
+    this.darkLayer.setPosition(pv ? pv.visual.x : this.player.x, (pv ? pv.visual.y : stage.groundY(this.player.z)) - 120);
+    const boss = this.world.fighters.find((f) => f.kind === 'pahom' && !f.dead);
+    const v = boss && this.views.get(boss.id);
+    const head = v?.puppet?.nodes?.head?.sprite;
+    this.darkEyes.setVisible(!!head && this.darkOn);
+    if (head) {
+      const b = head.getBounds();
+      // Eyes sit a little above the middle of the head, towards the face
+      this.darkEyes.setPosition(b.centerX + boss.facing * b.width * 0.12, b.y + b.height * 0.42);
+    }
+  }
+
+  /** Fire mark on the floor: grows red, then bursts (1Kla$ pyro). */
+  zoneMark(x, z, r, t) {
+    const y = stage.groundY(z);
+    const m = this.add.ellipse(x, y, r * 2, r * 0.7, 0xff3a1a, 0.18).setDepth(stage.depth(0) - 2);
+    m.setStrokeStyle(3, 0xff8a2a, 0.9);
+    this.tweens.add({ targets: m, fillAlpha: 0.55, duration: (t / 60) * 1000, onComplete: () => m.destroy() });
+    this.tweens.add({ targets: m, scaleX: 1.08, scaleY: 1.08, yoyo: true, repeat: -1, duration: 160 });
+  }
+
+  zoneBurst(x, z, r) {
+    const y = stage.groundY(z) - 30;
+    const c = this.add.circle(x, y, r * 0.6, 0xffb02a, 0.9).setDepth(1200);
+    this.tweens.add({ targets: c, scale: 2.4, alpha: 0, duration: 380, onComplete: () => c.destroy() });
+    this.shake(180, 8);
+    this.sound.play('explosion', { volume: 0.35 });
+  }
+
   shake(ms, amp) {
+    if (!GameState.settings.shake) return;
     if (this.shakeT > 0 && this.shakeAmp > amp) return;
     this.shakeT = ms;
     this.shakeDur = ms;
@@ -475,6 +631,7 @@ export class BrawlScene extends Phaser.Scene {
         case 'swing': {
           if (ev.sfx) this.sound.play(ev.sfx, { volume: 0.32 });
           const f = this.world.fighters.find((x) => x.id === ev.id);
+          if (f) this.voices.say(voiceOf(f), 'attack', { hero: f.team === 'player' });
           if (f && f.team !== 'player') {
             const m = MOVES[ev.move];
             this.views.get(ev.id)?.telegraph((m.startup / 60) * 1000, !!m.knockdown);
@@ -492,6 +649,7 @@ export class BrawlScene extends Phaser.Scene {
           this.onPerfect(ev);
           break;
         case 'rage':
+          this.voices.say(voiceOf(this.world.fighters.find((x) => x.id === ev.id)), 'special', { force: true });
           this.onRage(ev);
           break;
         case 'arenaStart':
@@ -515,18 +673,30 @@ export class BrawlScene extends Phaser.Scene {
         case 'go':
           this.goT = 0;
           break;
-        case 'bossDown':
+        case 'bossDown': {
           this.shake(500, 14);
-          this.sound.play('explosion', { volume: 0.5 });
+          // The explosion is Влад Борщ's own death; the others fall with a heavy blow
+          const dk = this.world.fighters.find((x) => x.id === ev.id)?.kind;
+          if (dk === 'borsch') this.sound.play('explosion', { volume: 0.5 });
+          else {
+            this.sound.play('superudar', { volume: 0.7, rate: 0.55 });
+            this.sound.play('hit', { volume: 0.6, rate: 0.7 });
+          }
           this.sound.stopByKey('boss');
+          this.voices.say(voiceOf(this.world.fighters.find((x) => x.id === ev.id)), 'death', { force: true });
           this.playFinisher(ev);
           break;
+        }
         case 'mapComplete':
           this.time.delayedCall(1400, () => this.cine.after(() => this.showResults()));
           break;
         case 'pickup':
           if (ev.kind === 'kosar') {
             this.sound.play('cash', { volume: 0.22, rate: 1 + Math.random() * 0.2 });
+            {
+              const p = this.world.fighters.find((x) => x.id === ev.id);
+              if (p?.team === 'player') this.voices.say(voiceOf(p), 'pickup', { hero: true });
+            }
             this.popText(ev.x, stage.groundY(ev.z) - 120, `+${ev.amount} К`, '#ffd23f', 22);
           } else if (ev.kind === 'gun') {
             this.sound.play('shotgun_reload', { volume: 0.45 });
@@ -541,12 +711,22 @@ export class BrawlScene extends Phaser.Scene {
           break;
         case 'spawn':
           if (ev.from === 'drop') this.sound.play('beep', { volume: 0.1, rate: 0.5 });
-          if (ev.kind === 'borsch') this.sound.play('eto_vlad_borsh', { volume: 0.6 });
-          if (ev.kind === 'povar') this.sound.play('professiya_', { volume: 0.6 });
+          {
+            const f = this.world.fighters.find((x) => x.id === ev.id);
+            const v = voiceOf(f);
+            if (!v && ev.kind === 'borsch') this.sound.play('eto_vlad_borsh', { volume: 0.6 });
+            if (!v && ev.kind === 'povar') this.sound.play('professiya_', { volume: 0.6 });
+            // Bosses speak on their arrival card; debuting enemies on the meeting scene
+            if (v && !FIGHTERS[ev.kind]?.boss && !this.map?.debuts?.includes(ev.kind)) this.voices.say(v, 'spawn', { chance: ev.elite ? 1 : null });
+          }
           // Bosses, and meme enemies on the map where they debut, get a meeting scene
           if ((FIGHTERS[ev.kind]?.boss || this.map?.debuts?.includes(ev.kind)) && !this.introduced.has(ev.kind)) {
             this.introduced.add(ev.kind);
             this.playBossArrival(ev.id, ev.kind);
+          } else {
+            // No scene for him: don't keep him standing
+            const wf = this.world.fighters.find((x) => x.id === ev.id);
+            if (wf?.waiting) wf.waiting = false;
           }
           break;
         case 'shot':
@@ -574,7 +754,8 @@ export class BrawlScene extends Phaser.Scene {
           this.popText(this.player.x, stage.groundY(this.player.z) - 240, 'Не хватает косарей', '#ff9a8a', 18);
           break;
         case 'crateIncoming':
-          this.sound.play('dirigabb_poyav', { volume: 0.25 });
+          // (was the airship's sound — crates fall on every map)
+          this.sound.play('warning', { volume: 0.15, rate: 1.3 });
           break;
         case 'crateLand':
           this.shake(140, 5);
@@ -586,7 +767,60 @@ export class BrawlScene extends Phaser.Scene {
           break;
         case 'toss':
           if (ev.kind === 'bottle' || ev.kind === 'pot' || ev.kind === 'pan' || ev.kind === 'bomb') this.sound.play('udar', { volume: 0.2, rate: 1.3 });
-          if ((ev.kind === 'pot' || ev.kind === 'pan') && Math.random() < 0.3) this.sound.play('mmm', { volume: 0.4 });
+          // «Ммм» is Повар's own: only for his real pots and pans (not books / jars / notes)
+          if ((ev.tex === 'pot' || ev.tex === 'pan') && Math.random() < 0.3) this.sound.play('mmm', { volume: 0.4 });
+          break;
+        case 'aimWarn': {
+          // Spear: a red line along the lane it is about to fly down
+          const y = stage.groundY(ev.z) - 170;
+          const len = 2400;
+          const ln = this.add.rectangle(ev.x + ev.dir * len / 2, y, len, 6, 0xff2a2a, 0.75).setDepth(1300);
+          this.tweens.add({ targets: ln, alpha: 0.2, yoyo: true, repeat: Math.max(1, Math.round(ev.ms / 120)), duration: 60, onComplete: () => ln.destroy() });
+          break;
+        }
+        case 'touchdown':
+          this.shake(200, 9);
+          this.puff(ev.x, ev.z);
+          break;
+        case 'bossCue':
+          this.banner(ev.text, ev.sub || null, 1500, true);
+          this.shake(220, 6);
+          this.sound.play('warning', { volume: 0.3 });
+          break;
+        case 'blink':
+          this.puff(ev.x0, ev.z);
+          this.puff(ev.x, ev.z);
+          this.sound.play('beep', { volume: 0.2, rate: 0.5 });
+          break;
+        case 'dark':
+          this.setDark(ev.on);
+          break;
+        case 'zoneWarn':
+          this.zoneMark(ev.x, ev.z, ev.r, ev.t);
+          break;
+        case 'zoneFire':
+          this.zoneBurst(ev.x, ev.z, ev.r);
+          break;
+        case 'beat':
+          this.punch(ev.drop ? 0.04 : 0.015);
+          if (ev.drop) this.shake(160, 7);
+          this.sound.play('beep', { volume: ev.drop ? 0.3 : 0.12, rate: ev.drop ? 0.35 : 0.5 });
+          break;
+        case 'verse':
+          this.verseEnd = this.time.now + (ev.ticks / 60) * 1000;
+          break;
+        case 'pose':
+          this.cameras.main.flash(180, 255, 255, 255, false);
+          this.poseRays(ev.id);
+          this.punch(0.06);
+          this.popText(ev.x, stage.groundY(ev.z) - 320, '*позирует*', '#ffffff', 26);
+          break;
+        case 'parry':
+          this.sound.play('no_bulet', { volume: 0.4, rate: 1.4 });
+          this.popText(ev.x, stage.groundY(ev.z) - 260, 'Парирует!', '#ffd23f', 22);
+          break;
+        case 'quake':
+          this.shake(200, 8);
           break;
         case 'immune':
           this.sound.play('no_bulet', { volume: 0.35, rate: 0.7 });
@@ -595,20 +829,23 @@ export class BrawlScene extends Phaser.Scene {
             this.popText(ev.x, stage.groundY(ev.z) - 300, ev.hint, '#ffe27a', 22);
           }
           break;
-        case 'bossHit':
+        case 'bossHit': {
           this.shake(260, 10);
           this.punch(0.05);
-          this.sound.play(Math.random() < 0.5 ? 'BLYA!!!' : 'blya', { volume: 0.5 });
+          const v = voiceOf(this.world.fighters.find((x) => x.id === ev.id));
+          if (!(v && this.voices.say(v, 'hurt', { chance: 0.7 }))) this.sound.play(Math.random() < 0.5 ? 'BLYA!!!' : 'blya', { volume: 0.5 });
           break;
+        }
         case 'bossPhase':
-          this.banner('Сбежал!', 'Берегись вилок', 1400, true);
+          this.voices.say(voiceOf(this.world.fighters.find((x) => x.id === ev.id)), 'down', { force: true });
+          this.banner('Сбежал!', this.world.fighters.find((x) => x.id === ev.id)?.kind === 'povar' ? 'Берегись вилок' : 'Берегись — сверху летит!', 1400, true);
           this.sound.play('haha2', { volume: 0.5 });
           break;
         case 'forkRain':
           this.sound.play('warning', { volume: 0.3 });
           break;
         case 'bossReturn':
-          this.banner('Повар вернулся!', `Фаза ${ev.phase}/3`, 1300, true);
+          this.banner(`${FIGHTERS[this.world.fighters.find((x) => x.id === ev.id)?.kind]?.title || 'Босс'} вернулся!`, `Фаза ${ev.phase}/3`, 1300, true);
           this.sound.play('poovar', { volume: 0.5 });
           break;
         case 'forkStick':
@@ -699,7 +936,19 @@ export class BrawlScene extends Phaser.Scene {
     evs.length = 0;
   }
 
+  /** Voice of the one who got hit. */
+  voiceHit(ev) {
+    const f = this.world.fighters.find((x) => x.id === ev.target);
+    const v = voiceOf(f);
+    if (!v || ev.reaction === 'boss') return;
+    const hero = f.team === 'player';
+    if (ev.reaction === 'kill') this.voices.say(v, 'death', { hero, force: hero || FIGHTERS[f.kind]?.boss });
+    else if (ev.reaction === 'knockdown' || ev.reaction === 'launch') this.voices.say(v, 'down', { hero });
+    else if (ev.reaction !== 'held') this.voices.say(v, 'hurt', { hero });
+  }
+
   onHit(ev) {
+    this.voiceHit(ev);
     if (ev.reaction === 'prop') {
       this.sound.play('punch', { volume: 0.3, rate: 0.6 + Math.random() * 0.2 });
       this.splinters(ev.x, ev.z, 4);
@@ -811,6 +1060,17 @@ export class BrawlScene extends Phaser.Scene {
         const puff = this.add.circle(x - Math.sign(pr.vx) * 26, stage.groundY(z) - pr.y + img.offY, 6, 0xdddddd, 0.6).setDepth(stage.depth(z) + 1);
         this.tweens.add({ targets: puff, scale: 3, alpha: 0, duration: 420, onComplete: () => puff.destroy() });
       }
+    }
+    // 1Kla$'s microphone hangs on a cord from his hand
+    if (!this.cordGfx) this.cordGfx = this.add.graphics().setDepth(1100);
+    this.cordGfx.clear();
+    for (const pr of this.world.projectiles) {
+      if (!pr.spec.orbit) continue;
+      const o = this.world.fighters.find((f) => f.id === pr.owner);
+      const v = o && this.views.get(o.id);
+      if (!v) continue;
+      const img = this.projViews.get(pr.id);
+      this.cordGfx.lineStyle(3, 0x111111, 0.9).lineBetween(v.visual.x, v.visual.y - (v.bodyH || 260) * 0.55, img?.x ?? pr.x, img?.y ?? stage.groundY(pr.z) - pr.y);
     }
     for (const [id, img] of this.projViews) {
       if (!seen.has(id)) {
@@ -1096,6 +1356,14 @@ export class BrawlScene extends Phaser.Scene {
     const score = (secs < 150 ? 2 : secs < 220 ? 1 : 0) + (hpK > 0.6 ? 2 : hpK > 0.3 ? 1 : 0) + (st.maxCombo >= 25 ? 2 : st.maxCombo >= 12 ? 1 : 0);
     const grade = score >= 6 ? 'S' : score >= 4 ? 'A' : score >= 2 ? 'B' : 'C';
     if (this.map) saveBest(this.map.id, grade, secs);
+    if (this.map && this.map.id !== 'sandbox') {
+      const bossKinds = [...new Set(this.world.fighters.filter((f) => FIGHTERS[f.kind]?.boss && f.dead).map((f) => f.kind))];
+      // Boss rush only counts the bosses (the gallery), not story progress
+      if (this.map.hidden) {
+        for (const k of bossKinds) if (!GameState.progress.bosses.includes(k)) GameState.progress.bosses.push(k);
+        SaveLoad.save();
+      } else markDone(this.map.id, this.map.next, bossKinds);
+    }
     const mm = Math.floor(secs / 60);
     const ss = String(secs % 60).padStart(2, '0');
     this.hud.results
@@ -1203,7 +1471,7 @@ export class BrawlScene extends Phaser.Scene {
       shopHint: this.add.text(0, 0, 'B — закупка', { fontFamily: 'sans-serif', fontSize: '12px', color: '#ffffffbb' }).setOrigin(0, 0.5),
       combo: this.add.text(0, 0, '', { ...font, fontSize: '42px', color: '#ffd23f', stroke: '#000000', strokeThickness: 6 }).setOrigin(1, 0),
       fps: this.add.text(0, 0, '', { fontFamily: 'monospace', fontSize: '11px', color: '#ffffffaa' }).setOrigin(1, 0),
-      help: this.add.text(0, 0, 'WASD ходить · Space×2 сальто · J удар/выстрел · K нога · L рывок · J+K ярость · в упор — захват · Q/E оружие · B закупка · P пауза · Esc меню', {
+      help: this.add.text(0, 0, isTouchDevice() ? '' : 'WASD ходить · Space×2 сальто · J удар/выстрел · K нога · L рывок · J+K ярость · в упор — захват · Q/E оружие · B закупка · P пауза · Esc меню', {
         fontFamily: 'monospace',
         fontSize: '12px',
         color: '#ffffff',
@@ -1343,6 +1611,7 @@ function applyHero(p, heroId) {
   p.hp = p.maxHp = Math.round(p.maxHp * h.hp);
   p.speedMul = h.speed;
   p.dmgMul = h.dmg;
+  if (h.moves) p.moves = { ...FIGHTERS.player.moves, ...h.moves };
   if (h.startWeapon) {
     p.weapons[h.startWeapon] = (p.weapons[h.startWeapon] || 0) + (h.startAmmo || 12);
     p.weapon = h.startWeapon;

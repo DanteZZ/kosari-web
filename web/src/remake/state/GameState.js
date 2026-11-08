@@ -1,11 +1,33 @@
 /**
- * Player settings kept between sessions (the fight itself lives in sim/World).
- * Only the music toggle for now.
+ * Player profile kept between sessions (the fight itself lives in sim/World):
+ * settings, the chosen hero and story progress. Saved to localStorage on every
+ * change (autosave): finishing a map unlocks the next one and remembers where
+ * to continue.
  */
 export const GameState = {
+  /** Music on/off (old toggle; volumes below are the real mix). */
   musicPlay: true,
   /** Selected hero id (game/heroes.js). */
   hero: 'pocik',
+  settings: {
+    music: 0.7,
+    sfx: 0.9,
+    voice: 1,
+    /** Screen shake on hits. */
+    shake: true,
+    /** On-screen joystick: 'auto' (phones / tablets), 'on', 'off'. */
+    touch: 'auto',
+  },
+  progress: {
+    /** Story maps finished, by id. */
+    done: [],
+    /** Story maps the player may start (the first one always). */
+    unlocked: ['forest'],
+    /** Where «Продолжить» goes. */
+    last: null,
+    /** Bosses beaten (gallery portraits). */
+    bosses: [],
+  },
 };
 
 const SAVE_KEY = 'kosari_remake_settings_v1';
@@ -13,7 +35,10 @@ const SAVE_KEY = 'kosari_remake_settings_v1';
 export const SaveLoad = {
   save() {
     try {
-      localStorage.setItem(SAVE_KEY, JSON.stringify({ musicPlay: GameState.musicPlay, hero: GameState.hero }));
+      localStorage.setItem(
+        SAVE_KEY,
+        JSON.stringify({ musicPlay: GameState.musicPlay, hero: GameState.hero, settings: GameState.settings, progress: GameState.progress }),
+      );
     } catch (_) {
       /* private mode */
     }
@@ -25,9 +50,48 @@ export const SaveLoad = {
       const data = JSON.parse(raw);
       GameState.musicPlay = data.musicPlay !== false;
       if (typeof data.hero === 'string') GameState.hero = data.hero;
+      if (data.settings) Object.assign(GameState.settings, data.settings);
+      if (data.progress) Object.assign(GameState.progress, data.progress);
       return true;
     } catch (_) {
       return false;
     }
   },
+  /** Start the story over (settings and hero stay). */
+  reset() {
+    GameState.progress = { done: [], unlocked: ['forest'], last: null, bosses: [] };
+    SaveLoad.save();
+  },
 };
+
+/** Volume of a sound kind ('music' | 'sfx' | 'voice'), 0..1. */
+export function volume(kind) {
+  if (kind === 'music' && !GameState.musicPlay) return 0;
+  return GameState.settings[kind] ?? 1;
+}
+
+/** Story progress: a map was started (Продолжить goes back to it). */
+export function markStarted(mapId) {
+  const p = GameState.progress;
+  if (!p.unlocked.includes(mapId)) p.unlocked.push(mapId);
+  p.last = mapId;
+  SaveLoad.save();
+}
+
+/** Story progress: a map was finished — the next one opens. */
+export function markDone(mapId, nextId, bossKinds = []) {
+  const p = GameState.progress;
+  if (!p.done.includes(mapId)) p.done.push(mapId);
+  if (nextId && !p.unlocked.includes(nextId)) p.unlocked.push(nextId);
+  for (const b of bossKinds) if (!p.bosses.includes(b)) p.bosses.push(b);
+  p.last = nextId || mapId;
+  SaveLoad.save();
+}
+
+/** Phones and tablets get the on-screen joystick (unless the settings say otherwise). */
+export function isTouchDevice() {
+  const s = GameState.settings.touch;
+  if (s === 'on') return true;
+  if (s === 'off') return false;
+  return /Android|iPhone|iPad|iPod|Mobile|Silk|Kindle|BlackBerry|Opera Mini|IEMobile/i.test(navigator.userAgent || '');
+}

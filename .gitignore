@@ -19,3 +19,12 @@ Thumbs.db
 *.log
 .vscode/
 .idea/
+
+# Temporary / local-only material (not part of the game)
+.claude/
+web/web.zip
+# Downloaded originals and the cut phrase library (scripts/download_sources.py, phrase_library.py)
+web/sources/
+web/phrases/
+# Voice samples and test narrations
+voice_test/

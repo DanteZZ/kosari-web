@@ -1,0 +1,38 @@
+# What to download for the phrase library (scripts/download_sources.py).
+# One line per source:   <char id>  |  <YouTube URL or search query>  [|  how many search results]
+# A search query takes the top N videos (default 3); swap it for exact URLs once
+# you have found the right originals. Lines starting with # are skipped.
+
+# ---- Heroes
+pocik       | Поцык косари                                   | 3
+svidetel    | свидетель из Фрязино свадьба                   | 3
+pistoletov  | Александр Пистолетов Пират                      | 2
+pistoletov  | Александр Пистолетов интервью                   | 2
+kama        | Кама Пуля интервью                              | 3
+kama        | Кама Пуля лучшие моменты                        | 2
+
+# ---- Original Kosari cast
+borsch      | Влад Борщ                                      | 3
+povar       | повар профессия у меня такая мем               | 2
+nikita      | Никита косари мем                              | 2
+buiniy      | Буйный косари мем                              | 2
+
+# ---- Meme-era bosses
+pahom       | Пахом братишка я тебе покушать принёс           | 2
+pahom       | Зелёный слоник Пахом лучшие фразы               | 2
+papich      | Папич гений лучшие моменты                      | 3
+papich      | Папич лучшие фразы                              | 2
+ponasenkov  | Понасенков маэстро лучшие фразы                 | 3
+gigachad    | Gigachad theme Can You Feel My Heart            | 1
+klas        | 1Kla$ клип                                      | 3
+klas        | 1Kla$ интервью                                  | 2
+
+# ---- Meme enemies
+ded         | дед я футбольный мячик                          | 3
+mongol      | Олег Монгол                                     | 3
+glad        | Глад Валакас лучшие моменты                     | 3
+ruki        | Руки базуки Кирилл Терешин интервью             | 3
+vertuha     | хочешь с вертухи мем                            | 3
+reka        | идущий к реке я в своем познании настолько преисполнился | 2
+zubarev     | Зубарев лучшие моменты стрим                    | 3
+gitelman    | Павел Гительман интервью                        | 3

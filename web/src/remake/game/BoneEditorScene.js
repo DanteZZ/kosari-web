@@ -4,7 +4,7 @@ import { getLayout, resetLayout, applyDefaultLayout } from './player/layoutState
 import { PART_LAYOUT as PLAYER_LAYOUT } from './player/parts.js';
 import { getEnemySkin, enemyPartTextureKey, ENEMY_SKINS } from './enemies/parts.js';
 import { HEROES } from './heroes.js';
-import { VARIANTS } from '../brawl/FighterView.js';
+import { VARIANTS, HOVER_POSE } from '../brawl/FighterView.js';
 import { VIEW_W, VIEW_H } from './constants.js';
 
 const EDITABLE = ['hips', 'torso', 'head', 'arm_l_u', 'arm_l_l', 'arm_r_u', 'arm_r_l', 'leg_l_u', 'leg_l_l', 'leg_r_u', 'leg_r_l'];
@@ -368,6 +368,7 @@ export class BoneEditorScene extends Phaser.Scene {
         return this._undo();
       }
       if (e.code === 'KeyP') return this._toggleWalk();
+      if (e.code === 'KeyH') return this._hoverPose();
       if (e.code === 'KeyF') return this._centerOnFigure();
       if (e.code === 'Equal' || e.code === 'NumpadAdd') return this._zoomAt(1.15);
       if (e.code === 'Minus' || e.code === 'NumpadSubtract') return this._zoomAt(1 / 1.15);
@@ -409,6 +410,33 @@ export class BoneEditorScene extends Phaser.Scene {
       }
       return null;
     });
+  }
+
+  /**
+   * H: put the rig into the flying pose (rest angles + HOVER_POSE) to tweak it.
+   * The pose offsets (angle − rest angle) are shown in the JSON box and kept in
+   * window.__flyPose — don't press «Сохранить в проект» while posing.
+   */
+  _hoverPose() {
+    this._snapshot();
+    const rest = this.skinId === 'player' ? PLAYER_LAYOUT : this.enemySkin.defaultLayout || {};
+    for (const [bone, off] of Object.entries(HOVER_POSE)) {
+      const n = this.puppet.nodes[bone];
+      if (n && bone !== 'hipsY') n.angle = (rest[bone]?.angle || 0) + off;
+    }
+    this.posing = true;
+    this._commit();
+  }
+
+  /** Flying-pose offsets from the current node angles. */
+  _poseOffsets() {
+    const rest = this.skinId === 'player' ? PLAYER_LAYOUT : this.enemySkin.defaultLayout || {};
+    const out = {};
+    for (const bone of ['torso', 'head', 'arm_r_u', 'arm_r_l', 'arm_l_u', 'arm_l_l', 'leg_r_u', 'leg_r_l', 'leg_l_u', 'leg_l_l']) {
+      const n = this.puppet.nodes[bone];
+      if (n) out[bone] = Math.round((n.angle - (rest[bone]?.angle || 0)) * 10) / 10;
+    }
+    return out;
   }
 
   /** P: play the walk / idle cycle on the current rig to see the joints bend. */
@@ -468,6 +496,7 @@ export class BoneEditorScene extends Phaser.Scene {
       <div class="be-actions">
         <button type="button" id="be-save">Сохранить в проект</button>
         <button type="button" id="be-walk">Ходьба (P)</button>
+        <button type="button" id="be-fly">Поза полёта (H)</button>
         <button type="button" id="be-undo">Отмена</button>
         <button type="button" id="be-reset">Сброс</button>
         <button type="button" id="be-copy">Копировать JSON</button>
@@ -525,6 +554,10 @@ export class BoneEditorScene extends Phaser.Scene {
     };
     panel.querySelector('#be-copy').onclick = () => this._copyJson();
     panel.querySelector('#be-save').onclick = () => this._saveToProject();
+    panel.querySelector('#be-fly').onclick = (e) => {
+      e.target.blur();
+      this._hoverPose();
+    };
     panel.querySelector('#be-walk').onclick = (e) => {
       e.target.blur();
       this._toggleWalk();
@@ -555,7 +588,11 @@ export class BoneEditorScene extends Phaser.Scene {
       : '';
     for (const b of this.ui.parts.children) b.classList.toggle('on', b.dataset.part === this.selected);
     this.ui.walk.classList.toggle('on', this.walking);
-    if (!dragging && document.activeElement !== this.ui.json) {
+    if (this.posing) {
+      window.__flyPose = { skin: this.skinId, pose: this._poseOffsets() };
+      if (!dragging && document.activeElement !== this.ui.json) this.ui.json.value = `Поза полёта (смещения от стойки):
+${JSON.stringify(window.__flyPose.pose, null, 1)}`;
+    } else if (!dragging && document.activeElement !== this.ui.json) {
       this.ui.json.value = JSON.stringify(this._layout(), null, 2);
     }
   }

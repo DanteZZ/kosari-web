@@ -1,3 +1,5 @@
+import { FIGHTERS } from './fighters.js';
+
 /**
  * Runs a data-driven map (see maps/forest.js) on top of the World:
  *   travel → (player passes arena.trigger) → locked: waves 1..N → clear → GO → travel → … → boss → done.
@@ -22,6 +24,38 @@ export class MapDirector {
     world.anvilEvery = map.anvils || null;
     world.airshipEvery = map.airships || null;
     world.playerBounds = { xMin: 0, xMax: map.arenas[0]?.right ?? map.length };
+    // Enemy kinds of this map: bosses call their backup from these
+    const kinds = new Set();
+    for (const a of map.arenas) {
+      for (const wv of a.waves) for (const sp of wv.spawns || []) if (!FIGHTERS[sp.kind]?.boss) kinds.add(sp.kind);
+    }
+    world.roster = kinds.size ? [...kinds] : ['nikita', 'buiniy'];
+    /** The locked area actually used (an arena widened to the screen). */
+    this.box = null;
+    /** Kinds that already had their meeting scene on this map. */
+    this.met = new Set();
+  }
+
+  /**
+   * Arena walls never stand inside the screen: an arena narrower than the
+   * visible width is widened around its centre (up to the map's ends), so the
+   * walls sit at the screen edges and enemies come in from off-screen.
+   */
+  _box(a) {
+    const vw = this.world.viewW || 0;
+    const half = Math.max((a.right - a.left) / 2, vw / 2 - 20);
+    const c = (a.left + a.right) / 2;
+    let left = c - half;
+    let right = c + half;
+    if (left < 0) {
+      right -= left;
+      left = 0;
+    }
+    if (right > this.map.length) {
+      left = Math.max(0, left - (right - this.map.length));
+      right = this.map.length;
+    }
+    return { left, right };
   }
 
   get arena() {
@@ -82,12 +116,13 @@ export class MapDirector {
   _lock(a) {
     const w = this.world;
     this.state = 'locked';
-    w.playerBounds = { xMin: a.left, xMax: a.right };
+    const b = (this.box = this._box(a));
+    w.playerBounds = { xMin: b.left, xMax: b.right };
     for (const p of w.players()) {
-      p.x = Math.min(a.right - 40, Math.max(a.left + 40, p.x));
+      p.x = Math.min(b.right - 40, Math.max(b.left + 40, p.x));
     }
     this.arenaIds = [];
-    w.events.push({ type: 'arenaStart', index: this.idx, boss: !!a.boss, left: a.left, right: a.right });
+    w.events.push({ type: 'arenaStart', index: this.idx, boss: !!a.boss, left: b.left, right: b.right });
     this._startWave(0);
   }
 
@@ -108,8 +143,9 @@ export class MapDirector {
     this.world.events.push({ type: 'wave', n: i + 1, total: a.waves.length, banner: wv.banner || null, boss: !!a.boss });
   }
 
-  _spawn(a, q) {
+  _spawn(arena, q) {
     const w = this.world;
+    const a = this.box || arena;
     const rng = w.rng;
     const zMin = w.bounds.zMin + 8;
     const zMax = w.bounds.zMax - 8;
@@ -118,7 +154,17 @@ export class MapDirector {
     const k = this.idx * (this.map.scaling ?? 0.12);
     // Elite (a meme enemy's debut): tougher and hits a bit harder
     const scale = { hpMul: (1 + k) * q.elite, dmgMul: (1 + k * 0.5) * (q.elite > 1 ? 1.2 : 1) };
-    if (q.from === 'drop') {
+    const def = FIGHTERS[q.kind];
+    const meets = (def?.boss || q.elite > 1) && !this.met.has(q.kind);
+    if (meets) {
+      // Boss / newcomer: already standing in the arena, waits for his scene
+      this.met.add(q.kind);
+      const p = w.players()[0];
+      const mid = (a.left + a.right) / 2;
+      const side = p && p.x > mid ? -1 : 1;
+      f = w.spawn(q.kind, mid + side * 220, (zMin + zMax) / 2, { facing: -side, ...scale });
+      f.waiting = true;
+    } else if (q.from === 'drop') {
       // Drops out of the trees onto the road
       const x = rng.range(a.left + 140, a.right - 140);
       f = w.spawn(q.kind, x, rng.range(zMin, zMax), scale);
@@ -128,7 +174,8 @@ export class MapDirector {
       f.facing = rng.chance(0.5) ? 1 : -1;
     } else {
       const side = q.from === 'both' ? (q.k % 2 ? -1 : 1) : q.from === 'left' ? -1 : 1;
-      const x = side < 0 ? a.left - 90 - rng.range(0, 160) : a.right + 90 + rng.range(0, 160);
+      // Just past the screen edge (the box edge is the screen edge)
+      const x = side < 0 ? a.left - 70 - rng.range(0, 120) : a.right + 70 + rng.range(0, 120);
       f = w.spawn(q.kind, x, rng.range(zMin, zMax), { facing: -side, ...scale });
     }
     this.waveIds.push(f.id);
@@ -139,6 +186,8 @@ export class MapDirector {
   _clear(a) {
     const w = this.world;
     w.events.push({ type: 'arenaClear', index: this.idx, boss: !!a.boss });
+    const box = this.box || a;
+    this.box = null;
     const p = w.players()[0];
     const cx = p ? p.x : (a.left + a.right) / 2;
     (a.reward || []).forEach((r, i) => {
@@ -149,12 +198,12 @@ export class MapDirector {
     this.queue = [];
     if (this.idx >= this.map.arenas.length) {
       this.state = 'done';
-      w.playerBounds = { xMin: a.left, xMax: this.map.length };
+      w.playerBounds = { xMin: box.left, xMax: this.map.length };
       w.events.push({ type: 'mapComplete' });
       return;
     }
     this.state = 'travel';
-    w.playerBounds = { xMin: a.left, xMax: this.arena.right };
+    w.playerBounds = { xMin: box.left, xMax: Math.max(this.arena.right, this._box(this.arena).right) };
     w.events.push({ type: 'go' });
   }
 }

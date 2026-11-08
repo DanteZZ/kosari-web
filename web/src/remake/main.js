@@ -1,7 +1,10 @@
 import { createApp } from './app.js';
 import { SaveLoad, GameState } from './state/GameState.js';
+import { startPadNav } from './brawl/gamepad.js';
 
 SaveLoad.load();
+// Gamepad drives menus, dialogues and pause too (as key presses)
+startPadNav();
 
 const app = createApp();
 

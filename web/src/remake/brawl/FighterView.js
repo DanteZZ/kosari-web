@@ -1,3 +1,4 @@
+import Phaser from 'phaser';
 import { BonePuppet } from '../game/player/BonePuppet.js';
 import { getEnemySkin, enemyPartTextureKey } from '../game/enemies/parts.js';
 import { getClip, getFlipClip } from '../game/player/animState.js';
@@ -7,6 +8,7 @@ import { FLIP_TICKS } from '../sim/constants.js';
 import { stage } from './stage.js';
 import { CLIP_IMPACT } from './clips.js';
 import { getHero } from '../game/heroes.js';
+import { FIGHTERS } from '../sim/fighters.js';
 
 const SQUASH_MS = 130;
 
@@ -37,6 +39,18 @@ export const VARIANTS = {
 };
 
 const PLAYER_SCALE = 1 / 1.5;
+
+/**
+ * Levitating (1Kla$, the enlightened Маэстро): a flying pose posed by hand
+ * in the bone editor («Поза полёта (H)»), body leaning into the flight.
+ * Offsets from the rig's rest angles (degrees).
+ */
+export const HOVER_POSE = {
+  torso: 12.8, head: 12,
+  arm_r_u: 40, arm_r_l: 30, arm_l_u: -19.1, arm_l_l: 47,
+  leg_r_u: 10.9, leg_r_l: -5.5, leg_l_u: -19.7, leg_l_l: 69.7,
+  hipsY: 0,
+};
 
 /**
  * Renders one sim fighter with the existing bone puppet.
@@ -78,17 +92,39 @@ export class FighterView {
       this.puppet.root.setScale(sc);
       this.variant = variant || null;
     }
-    // Thin dark outline so fighters read against the busy forest
+    // Thin dark outline so fighters read against the busy forest; a second,
+    // coloured glow is the boss aura (1Kla$, the enlightened Маэстро, Гигачад's pose)
     try {
       this.visual.postFX.addGlow(f.team === 'player' ? 0x101820 : 0x1a0f0f, 2.2, 0, false, 0.1, 5);
+      this.aura = true;
     } catch (_) {
       /* Canvas renderer: no FX */
     }
+    this.auraT = 0;
     const s = Math.abs(this.puppet.baseScale || PLAYER_SCALE);
     this.hipsH = Math.abs(this.puppet.hipsRestY ?? 222) * s;
     // Feet → top of head on screen (hips sit at ~65% of the height for these rigs)
     this.bodyH = this.hipsH * 1.52;
+    // Feet on the ground: rigs cut from different pictures end a little above
+    // or below their origin — measure the lowest part at rest and shift
+    this.footFix = 0;
+    try {
+      let bottom = -Infinity;
+      for (const n of Object.values(this.puppet.nodes)) {
+        if (n.sprite) bottom = Math.max(bottom, n.sprite.getBounds().bottom);
+      }
+      if (Number.isFinite(bottom)) this.footFix = Math.max(-12, Math.min(60, this.visual.y - bottom));
+    } catch (_) {
+      this.footFix = 0;
+    }
 
+    const gun = f.team !== 'player' ? FIGHTERS[f.kind]?.weapon : 0;
+    if (gun) {
+      this.puppet.attachWeapon(gun);
+      const wi = this.puppet.weaponImage;
+      // Gun art is sized for the player rig: bring it to this rig's scale
+      if (wi) wi.setScale(wi.scaleX * (PLAYER_SCALE / Math.abs(this.puppet.baseScale || PLAYER_SCALE)));
+    }
     this.sprites = Object.values(this.puppet.nodes)
       .map((n) => n.sprite)
       .filter(Boolean);
@@ -167,6 +203,7 @@ export class FighterView {
    * @param {number} frameMs real frame time (for flash timers)
    */
   render(f, alpha, dt, frameMs) {
+    const scene = this.scene;
     const x = f.px + (f.x - f.px) * alpha;
     const z = f.pz + (f.z - f.pz) * alpha;
     const y = f.py + (f.y - f.py) * alpha;
@@ -177,7 +214,50 @@ export class FighterView {
     this.shadow.setScale(1 - lift * 0.45, 1 - lift * 0.45);
     this.shadow.setAlpha(0.3 * (1 - lift * 0.5));
 
-    this.visual.setPosition(Math.round(x), Math.round(gy - y));
+    this.visual.setPosition(Math.round(x), Math.round(gy - y + this.footFix));
+    if (this.aura) {
+      if (!this.halo) {
+        if (!scene.textures.exists('fx_halo')) {
+          const t = scene.textures.createCanvas('fx_halo', 256, 256);
+          // v2: denser core
+          const c = t.getContext();
+          const g = c.createRadialGradient(128, 128, 0, 128, 128, 128);
+          g.addColorStop(0, 'rgba(255,255,255,1)');
+          g.addColorStop(0.4, 'rgba(255,255,255,0.8)');
+          g.addColorStop(0.75, 'rgba(255,255,255,0.28)');
+          g.addColorStop(1, 'rgba(255,255,255,0)');
+          c.fillStyle = g;
+          c.fillRect(0, 0, 256, 256);
+          t.refresh();
+        }
+        this.halo = scene.add.image(0, 0, 'fx_halo').setVisible(false);
+      }
+      this.auraT += frameMs;
+      let col = 0;
+      let str = 0;
+      const posing = f.state === 'attack' && f.move === 'c_pose';
+      if (f.kind === 'klas' && !f.dead) {
+        col = 0xffd23f;
+        str = 3 + Math.sin(this.auraT / 180) * 1.5;
+      } else if (f.kind === 'ponasenkov' && f.y > 20 && !f.dead) {
+        col = 0x7fc4ff;
+        str = 4 + Math.sin(this.auraT / 120) * 1.5;
+      } else if (f.kind === 'gigachad' && posing) {
+        col = 0xffffff;
+        str = 8;
+      }
+      // A soft see-through glow behind him, breathing
+      this.halo.setVisible(str > 0);
+      if (str > 0) {
+        const size = (this.bodyH || 300) * (1.35 + str * 0.05);
+        this.halo
+          .setTint(col)
+          .setAlpha(Math.min(0.9, 0.55 + str * 0.05))
+          .setScale(size / 256)
+          .setPosition(this.visual.x, this.visual.y - (this.bodyH || 300) * 0.5)
+          .setDepth(this.visual.depth - 0.5);
+      }
+    }
     this.visual.setDepth(stage.depth(z));
 
     // New one-shot (attack / hurt) started in the sim
@@ -205,7 +285,10 @@ export class FighterView {
 
     const flipU = f.state === 'jump' && f.flip ? Math.min(1, Math.max(0, (f.flipT - 1 + alpha) / FLIP_TICKS)) : 1;
 
-    if (f.state === 'attack' && f.move) {
+    if (f.state === 'attack' && f.move && MOVES[f.move].roll && f.mt > MOVES[f.move].startup) {
+      // Дед rolls as a ball: tucked pose spinning around the belly
+      this._roll(f, dt);
+    } else if (f.state === 'attack' && f.move) {
       this._resetSpin();
       this.puppet.setFacing(f.facing > 0 ? 1 : 0);
       this._driveMove(f, alpha, dt);
@@ -251,7 +334,31 @@ export class FighterView {
       this.spin.setAngle(this.rot);
 
       this.puppet.setFacing(f.facing > 0 ? 1 : 0);
-      this.puppet.tick(dt, {
+      if (f.y > 25 && (f.state === 'idle' || f.state === 'walk') && f.hoverY != null) {
+        // Floating: lean towards where he looks, arms and legs sway, body bobs
+        this.hoverT = (this.hoverT || 0) + dt;
+        const w = Math.sin(this.hoverT * 2.2);
+        const w2 = Math.sin(this.hoverT * 1.6 + 1);
+        const pose = { ...HOVER_POSE };
+        pose.arm_r_u += w * 7;
+        pose.arm_l_u -= w * 7;
+        pose.arm_r_l += w2 * 6;
+        pose.arm_l_l -= w2 * 6;
+        pose.leg_r_u += w2 * 4;
+        pose.leg_l_u -= w2 * 4;
+        pose.leg_r_l += w * 3;
+        pose.leg_l_l -= w * 3;
+        pose.head += w2 * 2;
+        this.puppet.drive(dt, pose, { snap: 0.25 });
+        // The pose itself leans the torso; the whole body only tips a little
+        const lean = f.facing * 3;
+        this.leanRot = (this.leanRot || 0) + (lean - (this.leanRot || 0)) * (1 - Math.exp(-dt * 5));
+        this.rot = 0;
+        this.spin.setPosition(0, -this.hipsH);
+        this.mount.setPosition(0, this.hipsH);
+        this.spin.setAngle(this.leanRot);
+        this.visual.y += Math.sin(this.hoverT * 1.8) * 7;
+      } else this.puppet.tick(dt, {
         moving: f.state === 'walk' || f.state === 'dash',
         airborne: f.y > 2 && f.state !== 'airhit',
         falling: f.state === 'jump' && (f.flip || f.vy < 0),
@@ -344,6 +451,15 @@ export class FighterView {
    */
   _driveMove(f, alpha, dt) {
     const m = MOVES[f.move];
+    if (m.barrage && f.mt > m.startup && f.mt <= m.startup + m.active) {
+      // «Десять ударов»: left-right-left jabs at full speed
+      const sub = f.mt - m.startup + alpha;
+      const c = getClip(Math.floor(sub / 3) % 2 ? 'punch_l' : 'punch_r');
+      const imp = CLIP_IMPACT[c?.id] ?? 0.4;
+      const pose = sampleKeyframes(c?.frames || [], imp * (0.55 + ((sub % 3) / 3) * 0.45), { ease: false });
+      this.puppet.drive(dt, pose, { snap: 1 });
+      return;
+    }
     const clip = getClip(m.clip);
     const total = moveTotal(m);
     const impact = CLIP_IMPACT[m.clip] ?? 0.4;
@@ -366,6 +482,20 @@ export class FighterView {
       const sx = Math.sign(c || 1) * Math.max(0.08, Math.abs(c));
       this.mount.setScale(sc * f.facing * sx, sc);
     }
+  }
+
+  /** Curled up into a ball and rolling (Дед's e_roll). */
+  _roll(f, dt) {
+    const clip = getFlipClip();
+    const pose = sampleKeyframes(clip.frames || [], 0.5, { ease: false });
+    this.puppet.setFacing(f.facing > 0 ? 1 : 0);
+    this.puppet.drive(dt, pose, { snap: 0.9 });
+    const c = this.hipsH * 0.75;
+    this.rot = (this.rot + dt * 1100 * f.facing) % 360;
+    this.spin.setPosition(0, -c);
+    this.mount.setPosition(0, c);
+    this.spin.setAngle(this.rot);
+    this.visual.setScale(0.82, 0.82);
   }
 
   /**
@@ -415,6 +545,7 @@ export class FighterView {
   }
 
   destroy() {
+    this.halo?.destroy();
     this.shadow.destroy();
     this.visual.destroy(true);
     this.hpBar?.destroy();

@@ -68,6 +68,14 @@ export class World {
     this.forkRainT = 0;
     this.kosariRain = null;
     this.kosariT = 0;
+    /** Fire zones (1Kla$ pyro): { x, z, r, t } — erupt when t hits 0. */
+    this.zones = [];
+    /** Lights off (Пахом): the view darkens the screen. */
+    this.dark = false;
+    /** Enemy kinds of the current map (bosses call backup from it). */
+    this.roster = ['nikita', 'buiniy'];
+    /** Visible width in world px (from the view): arenas are at least this wide. */
+    this.viewW = 1280;
   }
 
   spawn(kind, x, z, opts = {}) {
@@ -265,6 +273,21 @@ export class World {
     if (f.stagger > 0) f.stagger = Math.max(0, f.stagger - 0.3);
     f.st += 1;
 
+    if (f.hoverY != null && (f.state === 'idle' || f.state === 'walk' || f.state === 'attack' || f.state === 'hitstun')) {
+      const k = f.hoverY > f.y ? 0.06 : 0.12;
+      f.y += (f.hoverY - f.y) * k;
+      if (f.hoverY === 0 && f.y < 2) {
+        f.y = 0;
+        f.hoverY = null;
+        this.events.push({ type: 'touchdown', id: f.id, x: f.x, z: f.z });
+        // Маэстро comes down with a wave both ways
+        const lw = FIGHTERS[f.kind].landWave;
+        if (lw) {
+          this._spawnProj(f, lw);
+          this._spawnProj({ ...f, facing: -f.facing }, lw);
+        }
+      }
+    }
     switch (f.state) {
       case 'idle':
       case 'walk':
@@ -388,9 +411,13 @@ export class World {
     if (b === BTN.LIGHT || b === BTN.HEAVY) {
       const key = b === BTN.LIGHT ? 'light' : 'heavy';
       let id = f.chain ? MOVES[f.chain.from]?.next?.[key] : null;
-      if (!id) id = def.moves?.[key];
+      // Heroes carry their own move set (game/heroes.js)
+      if (!id) id = (f.moves || def.moves)?.[key];
       if (!id) return false;
-      if (ax) f.facing = ax;
+      if (f.faceX != null) {
+        const d = Math.sign(f.faceX - f.x);
+        if (d) f.facing = d;
+      } else if (ax) f.facing = ax;
       this._consume(f);
       this._startMove(f, id);
       return true;
@@ -545,11 +572,22 @@ export class World {
       this.events.push({ type: 'rage', id: f.id, x: f.x, z: f.z });
     }
 
-    if (m.air) {
+    if (m.air && m.leap && f.mt < m.startup) {
+      // Crouch before the leap
+    } else if (m.air) {
+      if (m.leap && f.mt === m.startup) {
+        f.vy = m.leap.vy;
+        f.vx = f.facing * m.leap.vx;
+      }
       f.x += f.vx;
       f.z += f.vz;
       this._gravity(f);
       if (f.y <= 0 && f.vy < 0) {
+        if (m.landWave) {
+          this._spawnProj(f, m.landWave, { y: 10 });
+          this._spawnProj({ ...f, facing: -f.facing }, m.landWave, { y: 10 });
+          this.events.push({ type: 'quake', id: f.id, x: f.x, z: f.z });
+        }
         this._land(f);
         return;
       }
@@ -557,11 +595,27 @@ export class World {
       // Charge only while the hitbox is live (tackles)
       if (f.mt > m.startup && f.mt <= swing) f.x += f.facing * m.lunge;
     } else if (f.mt <= swing) {
-      // Lunge forward through the swing, easing out
+      // Lunge forward through the swing, easing out. A player's swing that
+      // hasn't connected yet steps three times further (reaches the enemy)
       const k = 1 - (f.mt - 1) / swing;
-      f.x += f.facing * m.lunge * (0.4 + 0.6 * k);
+      const reach = f.team === 'player' && !f.connected ? PLAYER_LUNGE_MUL : 1;
+      f.x += f.facing * m.lunge * (0.4 + 0.6 * k) * reach;
     }
-    if (m.projectile && f.mt === m.startup) this._spawnProj(f, m.projectile);
+    if (m.multiHit && f.mt > m.startup && (f.mt - m.startup) % m.multiHit === 0) f.hitIds = [];
+    if (m.aimWarn && f.mt === 1) this.events.push({ type: 'aimWarn', id: f.id, x: f.x, z: f.z, dir: f.facing, ms: (m.startup / 60) * 1000 });
+    if (m.projectile && f.mt === m.startup && m.pellets) {
+      for (let i = 0; i < m.pellets; i += 1) {
+        const dz = ((i / (m.pellets - 1)) - 0.5) * 34;
+        this._spawnProj(f, m.projectile, { dz, speedK: this.rng.range(0.92, 1.05) });
+      }
+      if (m.shot) this.events.push({ type: 'shot', id: f.id, weapon: m.shot, x: f.x, z: f.z });
+    } else if (m.projectile && f.mt === m.startup) {
+      this._spawnProj(f, m.projectile);
+      if (m.shot) this.events.push({ type: 'shot', id: f.id, weapon: m.shot, x: f.x, z: f.z });
+      // Ground waves, bass drops: both ways at once
+      if (m.waveBoth) this._spawnProj({ ...f, facing: -f.facing }, m.projectile);
+    }
+    if (m.pose && f.mt === m.startup) this.events.push({ type: 'pose', id: f.id, x: f.x, z: f.z });
 
     // Cancel recovery into the next combo step — on hit only
     if (f.mt > swing && f.connected && m.next) {
@@ -706,6 +760,42 @@ export class World {
       return;
     }
 
+    // Meme-era boss rules (sim/fighters.js): who can be hit how
+    if (def.boss && !def.onlyReflected) {
+      const fromFront = tgt.facing === -dir;
+      if (def.frontOnly && !fromFront && !(src && src.reflected)) {
+        this.hitstop = Math.max(this.hitstop, 2);
+        this.events.push({ type: 'immune', id: tgt.id, x: tgt.x, z: tgt.z, hint: 'Сзади не пробить — только в лицо!' });
+        return;
+      }
+      if (def.parry && fromFront && !src && FREE.has(tgt.state) && !tgt.lecture) {
+        // Маэстро парирует: отбрасывает и бьёт в ответ
+        this.hitstop = Math.max(this.hitstop, 5);
+        att.vx = -att.facing * 9;
+        att.x -= att.facing * 18;
+        tgt.animSeq += 1;
+        tgt.anim = { type: 'block' };
+        tgt.counter = 1;
+        this.events.push({ type: 'parry', id: tgt.id, x: tgt.x, z: tgt.z });
+        this.events.push({ type: 'immune', id: tgt.id, x: tgt.x, z: tgt.z, hint: def.hint });
+        return;
+      }
+      if (def.shield) {
+        if (src && src.reflected) {
+          // Папич «лагает»: his own donation bomb opens him up
+          tgt.vuln = 300;
+          m = { ...m, dmg: 30, knockdown: true };
+          this.events.push({ type: 'bossCue', id: tgt.id, text: 'ЛАГИ!', sub: 'Бей, пока завис' });
+        } else if (!(tgt.vuln > 0)) {
+          if (!src) {
+            this.hitstop = Math.max(this.hitstop, 2);
+            this.events.push({ type: 'immune', id: tgt.id, x: tgt.x, z: tgt.z, hint: def.hint });
+          }
+          return;
+        }
+      }
+    }
+
     // Блокер: punches from the front bounce off his guard
     const guarding = def.guard && (FREE.has(tgt.state) || tgt.state === 'block') && tgt.facing === -dir;
     if (guarding && !src && m.clip && m.clip.startsWith('punch') && !m.heavy) {
@@ -720,7 +810,8 @@ export class World {
     }
 
     const dmg = Math.max(1, Math.round((m.dmg || 0) * (att.dmgMul || 1)));
-    m = { ...m, dmg };
+    // Hits shove three times harder than the move tables say
+    m = { ...m, dmg, kb: (m.kb || 0) * KB_MUL };
     tgt.hp = Math.max(0, tgt.hp - dmg);
     this.hitstop = Math.max(this.hitstop, m.hitstop);
 
@@ -802,8 +893,16 @@ export class World {
       this.stats.maxCombo = Math.max(this.stats.maxCombo, att.combo);
     }
     if (tgt.dead && def.boss) {
-      // Boss down: dramatic slow motion
+      // Boss down: dramatic slow motion, the arena calms down
       this.slowmo = Math.max(this.slowmo, 90);
+      this.anvilEvery = null;
+      this.airshipEvery = null;
+      this.forkRainT = 0;
+      this.zones = [];
+      if (this.dark) {
+        this.dark = false;
+        this.events.push({ type: 'dark', on: false });
+      }
       this.events.push({ type: 'bossDown', id: tgt.id, x: tgt.x, z: tgt.z });
     }
     if (tgt.team === 'player') {
@@ -1056,6 +1155,13 @@ export class World {
 
   _clamp(f) {
     const b = this.bounds;
+    if (f.team === 'player') {
+      for (const w of this.fighters) {
+        if (!w.waiting || w.dead) continue;
+        const d = f.x - w.x;
+        if (Math.abs(d) < 320) f.x = w.x + (Math.sign(d) || -1) * 320;
+      }
+    }
     const pb = f.team === 'player' && this.playerBounds ? this.playerBounds : b;
     if (f.x < pb.xMin + 30) f.x = pb.xMin + 30;
     if (f.x > pb.xMax - 30) f.x = pb.xMax - 30;
@@ -1223,6 +1329,7 @@ export class World {
    * @param {{ muzzle?, dz?, speedK?, x?, y?, z?, vy?, target? }} [o]
    */
   _spawnProj(f, spec, o = {}) {
+    if (spec.kind === 'wave' && o.y == null) o = { ...o, y: 10 };
     const mz = o.muzzle || spec.muzzle || { x: 40, y: 150 };
     const dz = o.dz || 0;
     const x = o.x ?? f.x + f.facing * mz.x;
@@ -1251,6 +1358,8 @@ export class World {
       dmgMul: f.dmgMul || 1,
       reflected: false,
       hitsAll: !!spec.hitsAll,
+      /** Orbiting projectiles (1Kla$'s microphone on its cord). */
+      ang: spec.orbit ? (f.facing > 0 ? 0 : Math.PI) : 0,
     };
     if (spec.arc) {
       const t = o.target || this._nearestPlayer(x, z, 1e9);
@@ -1258,7 +1367,7 @@ export class World {
     }
     this.projectiles.push(pr);
     if (spec.kind !== 'bullet' && spec.kind !== 'pellet' && spec.kind !== 'rocket') {
-      this.events.push({ type: 'toss', id: f.id, kind: spec.kind, x, z });
+      this.events.push({ type: 'toss', id: f.id, kind: spec.kind, tex: spec.tex, x, z });
     }
     return pr;
   }
@@ -1325,9 +1434,22 @@ export class World {
       pr.pz = pr.z;
       pr.py = pr.y;
       const sp = pr.spec;
-      pr.x += pr.vx;
-      pr.z += pr.vz || 0;
-      pr.y += pr.vy || 0;
+      if (sp.orbit) {
+        const o = this._byId(pr.owner);
+        if (!o || o.dead) {
+          pr.dead = true;
+          continue;
+        }
+        pr.ang += sp.orbit.w;
+        pr.x = o.x + Math.cos(pr.ang) * sp.orbit.r;
+        pr.z = Math.min(this.bounds.zMax, Math.max(this.bounds.zMin, o.z + Math.sin(pr.ang) * sp.orbit.r * 0.35));
+        pr.y = sp.orbit.y ?? 14;
+        pr.vx = -Math.sin(pr.ang) * sp.orbit.r * sp.orbit.w;
+      } else {
+        pr.x += pr.vx;
+        pr.z += pr.vz || 0;
+        pr.y += pr.vy || 0;
+      }
       if (sp.gravity) pr.vy -= sp.gravity;
       pr.life -= 1;
       if (sp.reflectable && !pr.reflected && pr.team !== 'player') this._tryReflect(pr);
@@ -1492,6 +1614,20 @@ export class World {
         const z = this.rng.range(this.bounds.zMin + 8, this.bounds.zMax - 8);
         this._spawnProj({ id: -1, team: 'hazard', x, z, y: 0, facing: 1, dmgMul: 1 }, this.rainSpec || FORK, { x, y: 640, z });
       }
+    }
+
+    // Fire zones: a mark on the floor, then it erupts in both directions
+    if (this.zones.length) {
+      for (const zn of this.zones) {
+        if (--zn.t > 0) continue;
+        zn.done = true;
+        const src = { id: -1, team: 'hazard', x: zn.x, z: zn.z, y: 0, facing: 1, dmgMul: 1 };
+        const spec = { kind: 'wave', tex: 'shockwave', speed: 7, gravity: 0, life: 18, dmg: 13, hitstun: 0, kb: 8, knockdown: true, pierce: true, muzzle: { x: 0, y: 10 } };
+        this._spawnProj(src, spec, { x: zn.x, z: zn.z, y: 10 });
+        this._spawnProj({ ...src, facing: -1 }, spec, { x: zn.x, z: zn.z, y: 10 });
+        this.events.push({ type: 'zoneFire', x: zn.x, z: zn.z, r: zn.r });
+      }
+      this.zones = this.zones.filter((zn) => !zn.done);
     }
 
     // Косари falling from the sky (like the original's kosarepad)
@@ -1659,6 +1795,39 @@ export class World {
     this.events.push({ type: 'bossDown', id: tgt.id, x: tgt.x, z: tgt.z });
   }
 
+  /** Boss brains: start a move if the fighter is free. */
+  bossMove(f, id) {
+    if (!FREE.has(f.state) || !MOVES[id]) return false;
+    this._startMove(f, id);
+    return true;
+  }
+
+  /** Freeze a player in place (Гигачад's pose, Глад's scream). */
+  stun(p, ticks) {
+    if (p.dead || p.iframes > 0 || !FREE.has(p.state)) return false;
+    this._setState(p, 'hitstun', ticks);
+    p.vx = 0;
+    p.animSeq += 1;
+    p.anim = { type: 'hurt', reaction: 'flinch', dir: p.facing };
+    return true;
+  }
+
+  /** Mark a fire zone that erupts after `t` ticks. */
+  addZone(x, z, t = 60, r = 70) {
+    const pb = this.playerBounds || this.bounds;
+    x = Math.min(pb.xMax - 40, Math.max(pb.xMin + 40, x));
+    z = Math.min(this.bounds.zMax - 8, Math.max(this.bounds.zMin + 8, z));
+    this.zones.push({ x, z, t, r });
+    this.events.push({ type: 'zoneWarn', x, z, r, t });
+  }
+
+  /** Lights on / off (Пахом). */
+  setDark(on) {
+    if (this.dark === on) return;
+    this.dark = on;
+    this.events.push({ type: 'dark', on });
+  }
+
   _rollOffsets(f) {
     f.ai.offX = this.rng.range(-40, 40);
     f.ai.offZ = this.rng.range(-70, 70);
@@ -1666,3 +1835,8 @@ export class World {
 }
 
 export { FREE };
+
+/** Knockback multiplier on every hit (bodies fly further). */
+export const KB_MUL = 3;
+/** Player's forward step on a swing that hasn't hit anything yet. */
+export const PLAYER_LUNGE_MUL = 3;

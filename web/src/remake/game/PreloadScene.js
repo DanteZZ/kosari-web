@@ -3,14 +3,22 @@ import { preloadGameAssets, createGameAnimations } from './assets.js';
 import { showLoading } from '../ui/LoadingScreen.js';
 import { MAPS, DEFAULT_MAP } from '../maps/index.js';
 import { preloadThemes } from '../brawl/world/ThemeWorld.js';
-import { storyText, HERO_GOALS } from '../story.js';
+import { storyText, storyVoice, HERO_GOALS } from '../story.js';
 import { GameState } from '../state/GameState.js';
 import { getHero } from './heroes.js';
+import { preloadVoices } from '../brawl/Voices.js';
 
 /**
  * Loads every asset behind the Witcher-style loading screen (DOM overlay),
  * then waits for a key before the fight; editors start straight away.
  */
+/** Whose face turns on the medallion (the boss / newcomer of the map). */
+const FACE = {
+  forest: 'boss1', opushka: 'povar', village: 'ded', dacha: 'pahom', panelki: 'mongol', pc_club: 'glad',
+  gym: 'ruki', museum: 'ponasenkov', river: 'reka', sigma_gym: 'gigachad', stream_house: 'papich',
+  office: 'gitelman', concert: 'klas',
+};
+
 export class PreloadScene extends Phaser.Scene {
   constructor() {
     super('Preload');
@@ -28,6 +36,10 @@ export class PreloadScene extends Phaser.Scene {
       story: map?.loading && {
         ...map.loading,
         text: storyText(map.id, getHero(GameState.hero).id) || map.loading.text,
+        voice: storyVoice(map.id, getHero(GameState.hero).id),
+        bg: `assets/loading/scenes/${map.baseId || map.id}.jpg`,
+        chapter: map.chapter || '',
+        face: `assets/enemies/${FACE[map.baseId || map.id] || 'nikita'}/parts/head.png`,
         goal: `${getHero(GameState.hero).label} · цель: ${HERO_GOALS[getHero(GameState.hero).id] || HERO_GOALS.pocik}`,
       },
       interactive: next === 'Brawl',
@@ -37,6 +49,7 @@ export class PreloadScene extends Phaser.Scene {
       console.warn('Missing asset', file?.key, file?.url);
     });
     preloadGameAssets(this);
+    if (map) preloadVoices(this);
     if (map) preloadThemes(this, map);
   }
 

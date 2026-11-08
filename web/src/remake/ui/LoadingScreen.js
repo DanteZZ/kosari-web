@@ -1,4 +1,5 @@
 import { el } from './dom.js';
+import { volume } from '../state/GameState.js';
 
 /**
  * Loading screen — an homage to The Witcher 3's: an ink-and-wash illustration
@@ -18,6 +19,35 @@ const DEFAULT_STORY = {
 };
 
 let node = null;
+/** Narrator voice-over playing on the current loading screen. */
+let voice = null;
+
+/** Play the narration clips one after another (missing files are skipped). */
+function playVoice(urls, onClip = null) {
+  stopVoice();
+  const list = [...(urls || [])];
+  const state = { audio: null, stopped: false, i: -1 };
+  const next = () => {
+    if (state.stopped || !list.length) return;
+    state.i += 1;
+    onClip?.(state.i);
+    const a = new Audio(list.shift());
+    a.volume = 0.95 * volume('voice');
+    a.onended = next;
+    a.onerror = next;
+    state.audio = a;
+    a.play().catch(() => {});
+  };
+  next();
+  voice = state;
+}
+
+function stopVoice() {
+  if (!voice) return;
+  voice.stopped = true;
+  voice.audio?.pause();
+  voice = null;
+}
 
 /**
  * @param {HTMLElement} parent
@@ -31,6 +61,52 @@ export function showLoading(parent, { story, interactive = true } = {}) {
   const prompt = el('div', { className: 'wl-prompt', text: 'Нажмите любую клавишу, чтобы продолжить' });
   const text = el('div', { className: 'wl-text' }, s.text.map((p) => el('p', { text: p })));
 
+  if (s.bg) {
+    // Cinematic: the painting fills the screen, the narrator's words run as subtitles
+    const sub = el('div', { className: 'wl-sub' });
+    const showSub = (i) => {
+      const t = s.text[Math.min(i, s.text.length - 1)];
+      if (!t) return;
+      sub.classList.remove('on');
+      setTimeout(() => {
+        sub.textContent = t;
+        sub.classList.add('on');
+      }, 180);
+    };
+    node = el('div', { className: 'wl cine' }, [
+      el('div', { className: 'wl-bg', style: `background-image:url(${s.bg})` }),
+      el('div', { className: 'wl-vignette' }),
+      el('div', { className: 'wl-letter top' }),
+      el('div', { className: 'wl-letter bottom' }),
+      el('div', { className: 'wl-loc' }, [
+        el('div', { className: 'wl-loc-chapter', text: s.chapter || '' }),
+        el('h1', { className: 'wl-title', text: s.title }),
+        s.goal ? el('div', { className: 'wl-goal', text: s.goal }) : null,
+      ]),
+      s.tip ? el('div', { className: 'wl-tip', html: `<b>Совет.</b> ${s.tip}` }) : null,
+      sub,
+      el('div', { className: 'wl-medallion' }, [
+        el('div', { className: 'wl-coin' }, [el('img', { src: s.face || 'assets/enemies/nikita/parts/head.png', alt: '' })]),
+      ]),
+      el('div', { className: 'wl-bar' }, [bar]),
+      prompt,
+    ]);
+    parent.append(node);
+    if (s.voice?.length) {
+      setTimeout(() => node && playVoice(s.voice, showSub), 600);
+    } else {
+      // No voice: paragraphs change by reading time
+      let i = 0;
+      const step = () => {
+        if (!node || !sub.isConnected) return;
+        showSub(i);
+        const t = s.text[i] || '';
+        i = (i + 1) % s.text.length;
+        setTimeout(step, 2500 + t.length * 45);
+      };
+      setTimeout(step, 500);
+    }
+  } else {
   node = el('div', { className: 'wl' }, [
     el('div', { className: 'wl-paper' }),
     el('div', { className: 'wl-wash', style: `background-image:url(assets/world/layers/mid.png)` }),
@@ -50,10 +126,13 @@ export function showLoading(parent, { story, interactive = true } = {}) {
     prompt,
   ]);
   parent.append(node);
+  // Narrator reads the chapter opening (small delay: the screen fades in first)
+  if (s.voice?.length) setTimeout(() => node && playVoice(s.voice), 600);
   // Narration fades in paragraph by paragraph
   [...text.children].forEach((p, i) => {
     p.style.animationDelay = `${0.4 + i * 1.1}s`;
   });
+  }
 
   let ready = false;
   let onDone = null;
@@ -88,6 +167,7 @@ export function showLoading(parent, { story, interactive = true } = {}) {
 }
 
 export function hideLoading() {
+  stopVoice();
   node?.remove();
   node = null;
 }

@@ -51,6 +51,13 @@ export function thinkAll(world) {
 
   for (const e of world.fighters) {
     if (!e.ai || e.dead) continue;
+    // Waiting for his meeting scene: stands still, looks at the player
+    if (e.waiting) {
+      e.cmd = 0;
+      const t = players[0];
+      e.faceX = t ? t.x : null;
+      continue;
+    }
     const boss = FIGHTERS[e.kind].bossAI;
     if (boss) BOSS_AI[boss](world, e, players);
     else think(world, e, players, engaged, sides);

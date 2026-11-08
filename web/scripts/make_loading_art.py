@@ -22,6 +22,8 @@ NAMES = {
     "ded": "ded", "pahom": "pahom", "mongol": "mongol", "glad": "glad", "ruki": "ruki",
     "vertuha": "vertuha", "ponasenkov": "ponasenkov", "reka": "reka", "gigachad": "gigachad",
     "zubarev": "zubarev", "papich": "papich", "gitelman": "gitelman", "1klas": "klas",
+    # heroes (menu hero select)
+    "svidetel": "hero_svidetel", "pistoletov": "hero_pistoletov", "kama": "hero_kama",
 }
 
 

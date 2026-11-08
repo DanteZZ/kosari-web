@@ -2,7 +2,8 @@
  * Playable heroes. Поцык uses the player rig; the others wear their own cut
  * rigs (enemies/parts.js skins of the same id).
  *
- * Stats are multipliers on the base `player` fighter (sim/fighters.js).
+ * Stats are multipliers on the base `player` fighter (sim/fighters.js);
+ * `moves` swaps the light / heavy openers (sim/fighters.js hero moves).
  */
 export const HEROES = {
   pocik: {
@@ -22,8 +23,9 @@ export const HEROES = {
     tint: null,
     scale: 0.94,
     hp: 0.85,
-    speed: 1.18,
+    speed: 1.25,
     dmg: 0.95,
+    moves: { light: 's_jab1', heavy: 'spin' },
   },
   pistoletov: {
     id: 'pistoletov',
@@ -33,11 +35,12 @@ export const HEROES = {
     tint: null,
     scale: 1,
     hp: 1,
-    speed: 0.95,
+    speed: 1.05,
     dmg: 1.15,
     /** Starts with the pistol (weapon slot 1) and this much ammo. */
     startWeapon: 1,
     startAmmo: 24,
+    moves: { heavy: 'p_board' },
   },
   kama: {
     id: 'kama',
@@ -47,8 +50,9 @@ export const HEROES = {
     tint: null,
     scale: 1.08,
     hp: 1.3,
-    speed: 0.88,
+    speed: 0.85,
     dmg: 1.2,
+    moves: { light: 'k_jab1', heavy: 'k_low' },
   },
 };
 

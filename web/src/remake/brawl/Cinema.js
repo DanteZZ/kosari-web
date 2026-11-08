@@ -238,7 +238,7 @@ export class Cinema {
         else shown += 1;
         this.boxText.setText(text.slice(0, shown));
         const ch = text[shown - 1];
-        if (!skip && ch && /[\p{L}\p{N}]/u.test(ch)) this.blip(who);
+        if (!skip && ch && /[\p{L}\p{N}]/u.test(ch)) this.blip(who, shown);
         if (shown >= text.length) return resolve();
         const pause = /[.,!?…—]/.test(ch) ? TYPE_MS * 5 : TYPE_MS;
         s.time.delayedCall(pause, tick);
@@ -265,8 +265,15 @@ export class Cinema {
     this.box.setVisible(false);
   }
 
-  /** Short synthesized "voice" blip for one letter. */
-  blip(who) {
+  /**
+   * One letter's voice: a syllable cut from the character's own voice (every
+   * third letter, so they do not pile up), or a synthesized blip.
+   */
+  blip(who, n = 0) {
+    if (who.voice && this.scene.voices) {
+      if (n % 3 === 1) this.scene.voices.blip(who.voice);
+      return;
+    }
     const ctx = this.scene.sound.context;
     if (!ctx || this.scene.sound.mute) return;
     const t = ctx.currentTime;
