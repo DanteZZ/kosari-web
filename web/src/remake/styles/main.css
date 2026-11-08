@@ -1564,3 +1564,7 @@ body {
 /* Upgrades page / challenge stars */
 .cx-bank { margin: 0 0 14px; color: #ffd23f; font-weight: 700; letter-spacing: .04em; }
 .cx-chstars { margin-left: auto; color: #ffd23f; font-size: .85em; letter-spacing: .1em; opacity: .9; }
+
+/* Test ground list */
+.cx-poly { max-height: min(62vh, 640px); overflow-y: auto; padding-right: 6px; }
+.cx-poly .cx-rv { font-size: .78em; opacity: .75; text-align: right; max-width: 55%; }

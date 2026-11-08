@@ -82,6 +82,8 @@ export class BrawlScene extends Phaser.Scene {
 
   init(data) {
     this.onExit = data?.onExit;
+    // Test ground: start at a given arena; nothing is saved
+    this.testArena = Number.isInteger(data?.arena) ? data.arena : null;
     const params = new URLSearchParams(window.location.search);
     const wanted = data?.map || params.get('map') || (params.get('brawl') === 'sandbox' ? 'sandbox' : DEFAULT_MAP);
     this.map = MAPS[wanted] || null;
@@ -116,6 +118,17 @@ export class BrawlScene extends Phaser.Scene {
     // Memes beaten in earlier chapters can be called in from the shop
     this.world.helpers = helpersFor(GameState.progress.done || []);
     this.director = this.map ? new MapDirector(this.world, this.map) : new SandboxDirector(this.world);
+    if (this.testArena != null && this.map?.arenas[this.testArena]) {
+      // Polygon: straight to the arena, pockets full, every helper on call
+      const a = this.map.arenas[this.testArena];
+      this.director.idx = this.testArena;
+      this.director.state = 'travel';
+      this.director.box = null;
+      this.world.playerBounds = null;
+      this.player.x = this.player.px = a.left + 140;
+      this.player.money = 200;
+      this.world.helpers = helpersFor(['office', 'stream_house', 'village', 'panelki', 'pc_club', 'gym', 'museum', 'river']);
+    }
     this.lock = null;
     this.finished = false;
     this.forest = new ThemeWorld(this, {
@@ -151,7 +164,7 @@ export class BrawlScene extends Phaser.Scene {
     const rawPlay = this.sound.play.bind(this.sound);
     this.sound.play = (key, cfg = {}) => rawPlay(key, { ...cfg, volume: (cfg.volume ?? 1) * volume(MUSIC.has(key) ? 'music' : 'sfx') });
     // Story progress: this map is where «Продолжить» goes now
-    if (this.map && !this.map.hidden && this.map.id !== 'sandbox') markStarted(this.map.id);
+    if (this.map && !this.map.hidden && this.map.id !== 'sandbox' && this.testArena == null) markStarted(this.map.id);
 
     this.fx = this.add.group();
     this.buildHud();
@@ -1702,8 +1715,10 @@ export class BrawlScene extends Phaser.Scene {
     const r = this.map?.route;
     if (r && pick != null) {
       const opt = r.choose[pick];
-      chooseRoute(opt.id, r.then, r.choose[1 - pick]?.id);
-      markDone(this.map.id, opt.id);
+      if (this.testArena == null) {
+        chooseRoute(opt.id, r.then, r.choose[1 - pick]?.id);
+        markDone(this.map.id, opt.id);
+      }
       id = opt.id;
     }
     // Next map goes through the loading screen: its kit pieces must be loaded first
@@ -1720,8 +1735,9 @@ export class BrawlScene extends Phaser.Scene {
     // Grade: fast + healthy + big combos
     const score = (secs < 150 ? 2 : secs < 220 ? 1 : 0) + (hpK > 0.6 ? 2 : hpK > 0.3 ? 1 : 0) + (st.maxCombo >= 25 ? 2 : st.maxCombo >= 12 ? 1 : 0);
     const grade = score >= 6 ? 'S' : score >= 4 ? 'A' : score >= 2 ? 'B' : 'C';
-    if (this.map) saveBest(this.map.id, grade, secs);
-    if (this.map && this.map.id !== 'sandbox') {
+    const test = this.testArena != null;
+    if (this.map && !test) saveBest(this.map.id, grade, secs);
+    if (this.map && this.map.id !== 'sandbox' && !test) {
       const bossKinds = [...new Set(this.world.fighters.filter((f) => FIGHTERS[f.kind]?.boss && f.dead).map((f) => f.kind))];
       // Boss rush only counts the bosses (the gallery), not story progress
       if (this.map.hidden) {
@@ -1735,7 +1751,7 @@ export class BrawlScene extends Phaser.Scene {
       const run = { secs, damageTaken: st.damageTaken, shots: st.shots || 0 };
       const chs = challengesFor(this.map);
       const met = chs.filter((c) => c.ok(run)).map((c) => c.id);
-      bankRun(this.map.id, this.player.money, met);
+      if (!test) bankRun(this.map.id, this.player.money, met);
       chLines = `\n${chs.map((c) => `${met.includes(c.id) ? '★' : '☆'} ${c.text}`).join('\n')}\nВ копилку: +${this.player.money} К (всего ${GameState.progress.bank})\n`;
     }
     const route = this.map?.route;

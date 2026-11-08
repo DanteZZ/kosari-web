@@ -10,6 +10,29 @@ let menuMusic = null;
 const BEST_KEY = 'kosari.remake.best';
 
 /** Best result per map, written by the brawl results screen. */
+/** Test ground: every new chapter mechanic, straight to its arena (nothing is saved). */
+const POLYGON = [
+  { map: 'opushka', arena: 1, title: 'Гонка по трассе', sub: 'Опушка · W/S полоса, D газ, A тормоз, J — мопедщику' },
+  { map: 'opushka', arena: 2, title: 'Машины на обочине', sub: 'Опушка · кидай толпу под колёса, прыгай через них' },
+  { map: 'village', arena: 2, title: 'Продержись', sub: 'Деревня · волны идут, пока не выйдет время' },
+  { map: 'village', arena: 3, title: 'Пенальти с Дедом', sub: 'Деревня · W/S + J по шкале · потом лови его удары' },
+  { map: 'dacha', arena: 1, title: 'Догони вора', sub: 'Дача · убегает с косарями, у забора замешкается' },
+  { map: 'dacha', arena: 2, title: 'Подвал с фонариком', sub: 'Дача · выкрути 3 пробки, свети на тень Пахома' },
+  { map: 'panelki', arena: 0, title: 'Кирпичи с балконов', sub: 'Панельки · красные метки на асфальте' },
+  { map: 'panelki', arena: 1, title: 'Ловушки и ларёк', sub: 'Панельки · J ставит, Q/E меняет · защити ларёк' },
+  { map: 'pc_club', arena: 0, title: 'Чат решает', sub: 'Компьютерный клуб · голосования за модификаторы' },
+  { map: 'gym', arena: 1, title: 'Гантели сверху', sub: 'Качалка · падающий инвентарь' },
+  { map: 'gym', arena: 2, title: 'Жим на спор', sub: 'Качалка · J/K в такт против Рук базуки' },
+  { map: 'museum', arena: 1, title: 'Вор в музее', sub: 'Музей · ещё одна погоня' },
+  { map: 'museum', arena: 2, title: 'Стелс за ящиками', sub: 'Музей · не попадайся в красные конусы' },
+  { map: 'river', arena: 1, title: 'Сплав на плоту', sub: 'Река · брёвна, рыбаки с берега' },
+  { map: 'sigma_gym', arena: 3, title: 'Битва поз', sub: 'Зал сигм · повтори позы Гигачада на WASD' },
+  { map: 'stream_house', arena: 1, title: 'Стрим: стиль и камеры', sub: 'Стрим-хата · разбей камеры, качай ранг стиля' },
+  { map: 'office', arena: 1, title: 'Драка в лифте', sub: 'Офис · новый этаж — новые гости' },
+  { map: 'office', arena: 2, title: 'Инвестиции Гительмана', sub: 'Офис · J купить, K продать' },
+  { map: 'concert', arena: 3, title: 'Рэп-баттл с 1Kla$', sub: 'Концерт · WASD в бит, потом босс' },
+];
+
 export function readBest() {
   try {
     return JSON.parse(localStorage.getItem(BEST_KEY) || '{}');
@@ -121,7 +144,7 @@ export function renderMenu(root, { go }) {
 
   // ---------------------------------------------------------------- pages
   const TITLES = {
-    main: 'ГЛАВНОЕ', chapters: 'ГЛАВЫ', hero: 'ГЕРОЙ', gallery: 'ГАЛЕРЕЯ', upgrades: 'ПРОКАЧКА',
+    main: 'ГЛАВНОЕ', chapters: 'ГЛАВЫ', hero: 'ГЕРОЙ', gallery: 'ГАЛЕРЕЯ', upgrades: 'ПРОКАЧКА', polygon: 'ПОЛИГОН',
     settings: 'НАСТРОЙКИ', controls: 'УПРАВЛЕНИЕ', credits: 'СОЗДАТЕЛИ',
   };
 
@@ -135,6 +158,7 @@ export function renderMenu(root, { go }) {
       { id: 'chapters', label: 'ГЛАВЫ', hint: 'Любая открытая глава' },
       { id: 'bossrush', label: 'БОССЫ', hint: 'Все семь боссов подряд' },
       { id: 'upgrades', label: 'ПРОКАЧКА', hint: `Копилка: ${P().bank || 0} К` },
+      { id: 'polygon', label: 'ПОЛИГОН', hint: 'Тест новых механик' },
       { id: 'gallery', label: 'ГАЛЕРЕЯ', hint: 'Арты глав и портреты боссов' },
       { id: 'settings', label: 'НАСТРОЙКИ', hint: 'Звук, тряска, управление' },
       { id: 'controls', label: 'УПРАВЛЕНИЕ', hint: 'Клавиатура · геймпад · сенсор' },
@@ -167,6 +191,7 @@ export function renderMenu(root, { go }) {
     hero: HERO_IDS.length,
     settings: settingsRows().length,
     upgrades: Object.keys(UPGRADES).length,
+    polygon: POLYGON.length,
     gallery: galleryItems().length,
   }[p.id] || 0);
 
@@ -198,7 +223,7 @@ export function renderMenu(root, { go }) {
     });
     page.innerHTML = '';
     page.className = `cx-page p-${p.id}${anim ? ' enter' : ''}`;
-    ({ main: renderMain, chapters: renderChapters, hero: renderHero, gallery: renderGallery, settings: renderSettings, upgrades: renderUpgrades, controls: renderControls, credits: renderCredits })[p.id]();
+    ({ main: renderMain, chapters: renderChapters, hero: renderHero, gallery: renderGallery, settings: renderSettings, upgrades: renderUpgrades, polygon: renderPolygon, controls: renderControls, credits: renderCredits })[p.id]();
   };
 
   const hover = (node, i) => {
@@ -373,6 +398,22 @@ export function renderMenu(root, { go }) {
     page.append(box, foot('↑↓ — что качать · Enter — купить уровень'));
   }
 
+  function renderPolygon() {
+    const p = cur();
+    const box = el('div', { className: 'cx-rows cx-poly' });
+    box.append(el('div', { className: 'cx-bank', text: 'Тест: 200 косарей и все помощники (магазин B, клавиши 6/7). Прогресс не сохраняется.' }));
+    POLYGON.forEach((t, i) => {
+      const row = el('div', { className: `cx-row${i === p.sel ? ' on' : ''}` }, [
+        el('span', { className: 'cx-rl', text: `${String(i + 1).padStart(2, '0')}  ${t.title}` }),
+        el('span', { className: 'cx-rv', text: t.sub }),
+      ]);
+      hover(row, i);
+      box.append(row);
+    });
+    page.append(box, foot('↑↓ — механика · Enter — в бой'));
+    box.querySelector('.cx-row.on')?.scrollIntoView({ block: 'nearest' });
+  }
+
   function renderControls() {
     const t = (rows) => el('table', { className: 'cx-keys' }, rows.map(([a, b]) => el('tr', {}, [el('td', { text: a }), el('td', { text: b })])));
     page.append(
@@ -495,6 +536,11 @@ export function renderMenu(root, { go }) {
       else if (it.id === 'bones') leave('bones');
       else if (it.id === 'anims') leave('anims');
       else push(it.id);
+    } else if (p.id === 'polygon') {
+      const t = POLYGON[p.sel];
+      screen.classList.add('launch');
+      playSfx('superudar.WAV', { volume: 0.45 * volume('sfx') });
+      setTimeout(() => leave('brawl', { map: t.map, arena: t.arena }), 450);
     } else if (p.id === 'upgrades') {
       const id = Object.keys(UPGRADES)[p.sel];
       if (buyUpgrade(id)) {

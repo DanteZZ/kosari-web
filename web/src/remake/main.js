@@ -16,5 +16,9 @@ const params = new URLSearchParams(window.location.search);
 if (params.get('hero')) GameState.hero = params.get('hero');
 // ?bones or ?bones=<skin id> opens the bone editor directly
 if (params.has('bones')) app.go('bones', { skin: params.get('bones') || undefined });
-else if (params.has('brawl')) app.go('brawl', { map: params.get('map') || undefined });
+else if (params.has('brawl')) {
+  // &arena=N starts at that arena (test ground, see the menu's «Полигон»)
+  const arena = params.has('arena') ? Number(params.get('arena')) : undefined;
+  app.go('brawl', { map: params.get('map') || undefined, arena });
+}
 else app.go('splash');
