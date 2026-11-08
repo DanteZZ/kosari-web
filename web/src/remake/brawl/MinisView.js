@@ -1,4 +1,4 @@
-import { stage } from './stage.js';
+import { stage, gradeLikeBg } from './stage.js';
 import { VIEW_W, VIEW_H } from '../game/constants.js';
 import { crateTexture } from './CrateView.js';
 import { TRAVEL } from '../sim/bench.js';
@@ -100,9 +100,13 @@ export class MinisView {
         // A statue at the front edge of the lane: whoever stands behind it is in its shadow
         const key = [`kit_museum_statue_${(i % 3) + 1}`, `item_statue_${(i % 3) + 1}`].find((k) => s.textures.exists(k));
         const y = stage.groundY(b.zMax) + 26;
-        const shadow = s.add.ellipse(c.x, stage.groundY(b.zMax) - 20, HIDE_W * 2.4, 46, 0x000000, 0.35).setDepth(stage.depth(b.zMin) - 2);
+        // The hiding spot: a dark patch right below the statue's base
+        const shadow = s.add.ellipse(c.x, stage.groundY(b.zMax - 20), HIDE_W * 2.3, 50, 0x05060c, 0.55).setDepth(stage.depth(b.zMin) - 2);
         const im = key ? s.add.image(c.x, y, key).setOrigin(0.5, 1) : s.add.rectangle(c.x, y, 120, 360, 0xd8d0c0).setOrigin(0.5, 1);
         im.setScale(key ? 400 / im.height : 1).setDepth(stage.depth(b.zMax) + 20);
+        // Night museum: the statues stand in the dark
+        if (key) im.setTint(0x7c8090);
+        gradeLikeBg(im, 0.6);
         const tag = c.practice ? s.add.text(c.x, y - 420, 'спрячься тут', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '22px', color: '#9fd3e0', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(9000) : null;
         this.covers.push(shadow, im);
         if (tag) this.covers.push(tag);

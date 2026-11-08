@@ -60,12 +60,14 @@ run(museum, 'museum stealth', (w, p) => {
   if (!m || m.type !== 'stealth') return null;
   const gs = m.guards.map((id) => w.fighters.find((f) => f.id === id)).filter((g) => g && !g.dead);
   // Would anyone see me a few steps further on?
+  // Hide spots are below the statues: keep to the near edge of the lane
+  const down = p.z < 140 ? BTN.DOWN : 0;
   const danger = (x) => gs.some((g) => guardSees(m, g, x, p.z) || guardSees(m, g, x + 80, p.z));
-  if (!danger(p.x + 40)) return BTN.RIGHT;
+  if (!danger(p.x + 40)) return BTN.RIGHT | down;
   // Back to the nearest crate behind me
   const c = [...m.covers].reverse().find((cv) => cv.x - 50 <= p.x + 5);
-  if (c && p.x > c.x - 50) return BTN.LEFT;
-  return 0;
+  if (c && p.x > c.x - 50) return BTN.LEFT | down;
+  return down;
 });
 
 // Raft: jump the logs, fight the rest

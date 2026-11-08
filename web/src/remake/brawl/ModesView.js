@@ -2,7 +2,7 @@ import { stage } from './stage.js';
 import { TRAPS } from '../sim/td.js';
 import { VIEW_W } from '../game/constants.js';
 
-const TRAP_ART = { rake: ['item_rake', 110], petard: ['item_petard', 64], glue: ['item_glue_puddle', 170] };
+const TRAP_ART = { rake: ['item_rake', 190], petard: ['item_petard', 120], glue: ['item_glue_puddle', 220] };
 const TRAP_COLOR = { rake: 0x9a6532, petard: 0xd83a2a, glue: 0xe8c43a };
 
 /**
@@ -59,17 +59,24 @@ export class ModesView {
       if (this.ghostKind !== kind) {
         this.ghostKind = kind;
         this.ghostImg?.destroy();
-        this.ghostImg = this._trap({ kind, x: 0, z: 0 }).setAlpha(0.55);
+        this.ghostImg = this._trap({ kind, x: 0, z: 0 }).setAlpha(0.7);
+        this.ghostLabel?.destroy();
+        this.ghostLabel = s.add
+          .text(0, 0, TRAPS[kind].title, { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '22px', color: '#ffffff', stroke: '#000', strokeThickness: 5 })
+          .setOrigin(0.5, 1);
       }
       this.ghost.setVisible(!!p).setSize(TRAPS[kind].r * 2, TRAPS[kind].r * 0.9);
       if (p) {
         const gx = p.x + p.facing * 90;
         this.ghost.setPosition(gx, stage.groundY(p.z)).setDepth(stage.depth(p.z) - 3);
-        this.ghostImg.setPosition(gx, stage.groundY(p.z)).setDepth(stage.depth(p.z) - 2).setAlpha(0.45 + 0.15 * Math.sin(s.time.now / 160));
+        this.ghostImg.setPosition(gx, stage.groundY(p.z)).setDepth(stage.depth(p.z) - 2).setAlpha(0.6 + 0.2 * Math.sin(s.time.now / 160));
+        this.ghostLabel.setPosition(gx, stage.groundY(p.z) - 70).setDepth(9000);
       }
     } else if (this.ghost) {
       this.ghost.destroy();
       this.ghostImg?.destroy();
+      this.ghostLabel?.destroy();
+      this.ghostLabel = null;
       this.ghost = null;
       this.ghostImg = null;
       this.ghostKind = null;

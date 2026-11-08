@@ -15,9 +15,10 @@ const SEE_T = 45;
 /** Half-width of a statue's hiding spot: stand inside it and you are in its shadow. */
 export const HIDE_W = 70;
 
-/** Is x behind a statue? */
-export function hiddenAt(m, x) {
-  return m.covers.some((c) => Math.abs(x - c.x) < HIDE_W);
+/** Is (x, z) in a statue's shadow? Statues stand at the near edge of the lane:
+ * you hide right below one — at its base, close to the camera. */
+export function hiddenAt(m, x, z) {
+  return z >= m.zHide && m.covers.some((c) => Math.abs(x - c.x) < HIDE_W);
 }
 
 /** Does guard g see the point (x, z)? (cone ahead; a statue hides you unless he walks into you) */
@@ -25,7 +26,7 @@ export function guardSees(m, g, x, z) {
   const dx = (x - g.x) * g.facing;
   if (dx < 0 || dx > VIEW) return false;
   if (Math.abs(z - g.z) > 50 + dx * 0.3) return false;
-  if (hiddenAt(m, x) && dx > 90) return false;
+  if (hiddenAt(m, x, z) && dx > 90) return false;
   return true;
 }
 
@@ -55,6 +56,7 @@ export function startStealth(world, b, cfg) {
   world.mini = {
     type: 'stealth',
     practiceX: practice ? start : null,
+    zHide: world.bounds.zMax - 42,
     guards,
     covers,
     exitX: b.right - 160,
@@ -80,7 +82,7 @@ export function stepStealth(world) {
     if (guardSees(m, g, p.x, p.z)) seenNow = true;
   }
   m.seen = seenNow ? m.seen + 1 : Math.max(0, m.seen - 2);
-  const hid = hiddenAt(m, p.x);
+  const hid = hiddenAt(m, p.x, p.z);
   if (hid !== m.hidden) {
     m.hidden = hid;
     world.events.push({ type: 'stealthHide', on: hid });

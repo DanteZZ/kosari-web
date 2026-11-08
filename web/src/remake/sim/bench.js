@@ -39,6 +39,11 @@ export function startBench(world, b, cfg) {
   // The real opponent (after his meeting scene) or a stand-in
   const zr = (world.bounds.zMin + world.bounds.zMax) / 2 - 30;
   const rival = cfg.rivalId != null ? world.fighters.find((f) => f.id === cfg.rivalId) : world.spawn(cfg.rival || 'rival', mx + 260, zr, { facing: -1 });
+  // On the stage floor, at his mic (1Kla$ arrives flying)
+  rival.hoverY = null;
+  rival.y = rival.py = 0;
+  rival.vy = 0;
+  if (rival.state !== 'idle') rival.state = 'idle';
   rival.x = rival.px = mx + 260;
   rival.z = rival.pz = zr;
   rival.facing = -1;

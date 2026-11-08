@@ -1,4 +1,4 @@
-import { stage } from './stage.js';
+import { stage, gradeLikeBg } from './stage.js';
 import { VIEW_W, VIEW_H } from '../game/constants.js';
 
 /**
@@ -33,6 +33,10 @@ export class SetView {
         s.tweens.add({ targets: this.black, alpha: 0, duration: 420, delay: 120 });
       },
     });
+  }
+
+  _grade() {
+    for (const o of this.parts) gradeLikeBg(o);
   }
 
   _clear() {
@@ -88,7 +92,10 @@ export class SetView {
       const k = want;
       this.kind = want;
       this._fade(() => {
-        if (k && (world.elevator || world.raftBox)) this._build(k, world);
+        if (k && (world.elevator || world.raftBox)) {
+          this._build(k, world);
+          this._grade();
+        }
         else this._clear();
       });
     }

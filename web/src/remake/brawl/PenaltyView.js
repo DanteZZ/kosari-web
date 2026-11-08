@@ -1,4 +1,4 @@
-import { stage } from './stage.js';
+import { stage, gradeLikeBg } from './stage.js';
 
 /**
  * Draws the village penalties (sim/penalty.js): the goal, the ball, your aim
@@ -21,6 +21,7 @@ export class PenaltyView {
       if (!this.goalImg) {
         this.goalImg = this.scene.add.image(0, 0, 'item_football_goal').setOrigin(0.12, 1);
         this.goalImg.setScale(340 / this.goalImg.height);
+        gradeLikeBg(this.goalImg);
       }
       const zb = world.bounds.zMax;
       this.goalImg.setPosition(m.goalX - 50, stage.groundY(zb) + 12).setDepth(stage.depth(world.bounds.zMin) - 1);

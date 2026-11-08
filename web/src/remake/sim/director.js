@@ -342,7 +342,7 @@ export class MapDirector {
     const mn = this.world.mini;
     if (mn && !mn.done) return MINIS[mn.type].text(mn);
     const tc = this.world.torch;
-    if (tc && !tc.done) return `Найди пробки: ${tc.got}/${tc.need} · свети на Пахома!`;
+    if (tc && !tc.done) return `Выкрути пробки: ${tc.got}/${tc.need} (постой рядом) · свети на Пахома!`;
     const r = this.world.race;
     if (r && !r.done) {
       const p = this.world.players().find((f) => f.driving);

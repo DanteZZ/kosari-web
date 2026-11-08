@@ -193,7 +193,8 @@ export const panelki = eraMap({
   name: 'Панельки',
   chapter: 'Глава 3 · Эпоха стримов',
   next: 'pc_club',
-  world: [{ theme: 'panelki' }],
+  // Brick arenas stand under a wall of blocks; the kiosk arena is the open yard
+  world: [{ theme: 'panelki_wall', to: J1 }, { theme: 'panelki', to: J2 }, { theme: 'panelki_wall' }],
   loading: {
     title: 'Панельки',
     art: 'mongol',
@@ -408,12 +409,13 @@ export const office = eraMap({
   id: 'office',
   extra: [null, {
     elevator: { w: 1500 },
-    entry: { art: 'lift_doors', h: 330, at: 900, z: 4, prompt: 'J — вызвать лифт', intro: [['hero', 'Гительман наверху. Лифт — единственный путь.'], ['hero', 'Ехать придётся не одному.']] },
+    // At the far end of the floor, against the wall: the shaft runs up out of sight
+    entry: { art: 'lift_doors', h: 380, at: 2620, z: 2, reach: 170, prompt: 'J — вызвать лифт', intro: [['hero', 'Гительман наверху. Лифт — единственный путь.'], ['hero', 'Ехать придётся не одному.']] },
   }, {
     mini: { type: 'trading', ticks: 1500 },
     entry: {
       art: 'trading_desk',
-      h: 190,
+      h: 260,
       at: 800,
       prompt: 'J — сесть за терминал',
       intro: [

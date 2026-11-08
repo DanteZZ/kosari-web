@@ -190,7 +190,7 @@ Object.assign(KITS, {
     far: [{ key: 'far_blocks', y: ROAD_TOP - 10, h: 340, tint: 0xb4b9bc, fx: 0.16 }],
     // Real multi-storey blocks behind, and a block with balconies right by the road
     mid: { key: 'mid_tall_blocks', h: 470, fx: 0.42, tint: 0xdfe0de },
-    items: [it('block_near', 680, [1100, 1600], { noFlip: true }), it('garage', 200, [1300, 1900]), it('swing', 190, [1400, 2100]), it('horizontal_bar', 210, [1500, 2200]), it('carpet_rack', 160, [1200, 1800]),
+    items: [it('garage', 200, [1300, 1900]), it('swing', 190, [1400, 2100]), it('horizontal_bar', 210, [1500, 2200]), it('carpet_rack', 160, [1200, 1800]),
       it('trash_container', 130, [900, 1400]), it('lada', 110, [1600, 2400]), it('tree_poplar', 480, [700, 1100])],
     fg: [{ key: 'bush', h: 230, every: [800, 1300], y: ROAD_BOTTOM + 190 }],
   }),
@@ -283,6 +283,16 @@ Object.assign(KITS, {
   }),
 });
 KITS.club = { ...KITS.night_street, folder: 'night_street' };
+/** Panelki where bricks fly: a solid wall of 5-storey blocks with balconies right along the road. */
+KITS.panelki_wall = {
+  ...KITS.panelki,
+  folder: 'panelki',
+  layers: [
+    ...KITS.panelki.layers.slice(0, -1),
+    { fx: 1, strip: { key: 'block_near', y: ROAD_TOP + 44, h: 960 } },
+    { fx: 1, items: [it('trash_container', 130, [900, 1400]), it('carpet_rack', 160, [1300, 1900]), it('lada', 110, [1700, 2500])] },
+  ],
+};
 
 /**
  * Joins between two segments: every layer of a segment is cut hard at the join

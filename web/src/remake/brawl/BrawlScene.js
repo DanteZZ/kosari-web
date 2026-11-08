@@ -997,7 +997,7 @@ export class BrawlScene extends Phaser.Scene {
           for (const fz of ev.fuses) {
             const key = this.textures.exists('item_fuse') ? 'item_fuse' : 'item_energy';
             const im = this.add.image(fz.x, stage.groundY(fz.z) - 30, key).setDepth(1402);
-            im.setScale(54 / Math.max(im.width, im.height));
+            im.setScale(80 / Math.max(im.width, im.height));
             const glow = this.add.circle(fz.x, stage.groundY(fz.z) - 30, 42, 0xffe08a, 0.35).setDepth(1401);
             this.tweens.add({ targets: [im, glow], alpha: { from: 1, to: 0.35 }, yoyo: true, repeat: -1, duration: 700 });
             this.fuseViews.set(fz.id, [im, glow]);

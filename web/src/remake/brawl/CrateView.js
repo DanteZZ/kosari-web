@@ -1,4 +1,4 @@
-import { stage } from './stage.js';
+import { stage, gradeLikeBg } from './stage.js';
 
 /** Painted-ish wooden crate drawn once into a canvas texture. */
 export function crateTexture(scene) {
@@ -62,6 +62,20 @@ export class CrateView {
       .setOrigin(0.5, 1);
     // Entry art is drawn facing left; flip what should face the road ahead
     if (f.kind === 'entry' && ['car_lada', 'moped'].includes(f.art)) this.img.setFlipX(true);
+    // Props you walk up to sit in the graded picture
+    if (f.kind === 'entry' || f.kind === 'objective' || f.kind === 'target_cam') gradeLikeBg(this.img, f.art === 'lift_doors' ? 1 : 0.5);
+    // The lift is a shaft running up out of the picture, not a booth
+    if (f.kind === 'entry' && f.art === 'lift_doors') {
+      const key = scene.textures.exists('join_pillar_office') ? 'join_pillar_office' : 'join_beam_steel';
+      if (scene.textures.exists(key)) {
+        const w = this.img.displayWidth;
+        const src = scene.textures.get(key).getSourceImage();
+        this.shaftCol = scene.add.tileSprite(0, 0, w, 3200, key).setOrigin(0.5, 1);
+        this.shaftCol.setTileScale(w / src.width);
+        gradeLikeBg(this.shaftCol);
+      }
+      this.shadow.setVisible(false);
+    }
     if (!goalTex && !anvil && this.img.texture.key === 'item_crate') this.img.setScale(80 / this.img.height);
     if (goalTex) {
       this.img.setScale(goalTex[1] / this.img.height);
@@ -105,6 +119,7 @@ export class CrateView {
     const k = Math.min(1, y / 560);
     this.shadow.setPosition(x, gy).setScale(1 - k * 0.6).setAlpha(0.35 + (1 - k) * 0.15);
     this.img.setPosition(Math.round(x + ox), Math.round(gy - y)).setDepth(stage.depth(z));
+    this.shaftCol?.setPosition(this.img.x, this.img.y - this.img.displayHeight + 6).setDepth(this.img.depth - 0.5);
     const dmg = 1 - f.hp / f.maxHp;
     if (this.barBack) {
       const top = Math.round(gy - this.img.displayHeight - 18);
@@ -121,6 +136,7 @@ export class CrateView {
   destroy() {
     this.shadow.destroy();
     this.img.destroy();
+    this.shaftCol?.destroy();
     this.barBack?.destroy();
     this.barFill?.destroy();
     this.mark?.destroy();
