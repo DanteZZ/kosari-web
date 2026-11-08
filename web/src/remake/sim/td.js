@@ -77,7 +77,7 @@ export function stepTd(world) {
     let slow = false;
     for (const t of td.traps) {
       const def = TRAPS[t.kind];
-      if (t.uses <= 0 || Math.abs(t.x - f.x) > def.r || Math.abs(t.z - f.z) > def.r * 0.8) continue;
+      if (t.uses <= 0 || Math.abs(t.x - f.x) > def.r || Math.abs(t.z - f.z) > def.r * 0.45) continue;
       if (t.kind === 'glue') {
         slow = true;
         continue;
@@ -94,7 +94,7 @@ export function stepTd(world) {
         world.events.push({ type: 'explode', kind: 'petard', x: t.x, z: t.z, y: 0 });
         for (const g of world.fighters) {
           if (g.team !== 'enemy' || g.dead) continue;
-          if (Math.abs(g.x - t.x) > def.r || Math.abs(g.z - t.z) > def.r * 0.5) continue;
+          if (Math.abs(g.x - t.x) > def.r || Math.abs(g.z - t.z) > def.r * 0.45) continue;
           world._applyHit({ id: -1, team: 'hazard', x: t.x, facing: 1, combo: 0, meter: 0 }, g, { dmg: 30, kb: 10, launch: true, knockdown: true, hitstop: 6, heavy: true }, { x: t.x, facing: Math.sign(g.x - t.x) || 1 });
         }
         break;

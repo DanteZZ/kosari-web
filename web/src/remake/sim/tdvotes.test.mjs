@@ -5,7 +5,7 @@ import { BTN } from './input.js';
 import { panelki, pcClub } from '../maps/eras.js';
 
 function run(map, label) {
-  const w = new World({ seed: 9, bounds: { xMin: 0, xMax: map.length, zMin: 0, zMax: 300 } });
+  const w = new World({ seed: 9, bounds: { xMin: 0, xMax: map.length, zMin: 0, zMax: 150 } });
   const p = w.spawn('player', map.start.x, map.start.z, { slot: 0 });
   p.hp = p.maxHp = 1e6;
   p.money = 40;

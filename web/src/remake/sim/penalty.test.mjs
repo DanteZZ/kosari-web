@@ -4,7 +4,7 @@ import { MapDirector } from './director.js';
 import { BTN } from './input.js';
 import { village } from '../maps/eras.js';
 
-const w = new World({ seed: 3, bounds: { xMin: 0, xMax: village.length, zMin: 0, zMax: 300 } });
+const w = new World({ seed: 3, bounds: { xMin: 0, xMax: village.length, zMin: 0, zMax: 150 } });
 const p = w.spawn('player', village.start.x, village.start.z, { slot: 0 });
 p.hp = p.maxHp = 1e6;
 w.viewW = 1920;

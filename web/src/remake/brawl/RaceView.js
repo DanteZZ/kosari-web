@@ -49,13 +49,13 @@ export class RaceView {
   }
 
   /** Red stripe across the road where a car is about to pass (traps). */
-  laneWarn(z, dir, t) {
+  laneWarn(z, dir, t, what = 'МАШИНА') {
     const s = this.scene;
     const cam = s.cameras.main;
     const y = stage.groundY(z);
     const g = s.add.rectangle(cam.midPoint.x, y - 10, cam.width / cam.zoom + 400, 56, 0xff3b2f, 0.22).setDepth(stage.depth(z) - 2);
     const arrow = s.add
-      .text(cam.midPoint.x - dir * (cam.width / cam.zoom / 2 - 90), y - 60, dir > 0 ? '▶▶ МАШИНА' : 'МАШИНА ◀◀', {
+      .text(cam.midPoint.x - dir * (cam.width / cam.zoom / 2 - 90), y - 60, dir > 0 ? `▶▶ ${what}` : `${what} ◀◀`, {
         fontFamily: 'Arial Black, Arial',
         fontSize: '28px',
         color: '#ff5a4a',

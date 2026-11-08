@@ -1,7 +1,7 @@
 import { stepTraps } from './traps.js';
 import { stepRace } from './race.js';
 import { stepTorch } from './torch.js';
-import { prePenalty, stepPenalty } from './penalty.js';
+import { MINIS } from './minis.js';
 import { preTd, stepTd } from './td.js';
 import { stepVotes, voteHit } from './votes.js';
 import {
@@ -184,7 +184,7 @@ export class World {
       if (f.slot != null) f.cmd = this.inputs.get(f.slot) ?? 0;
     }
     // Minigames read the controls themselves
-    if (this.mini && !this.mini.done && this.mini.type === 'penalty') prePenalty(this);
+    if (this.mini && !this.mini.done) MINIS[this.mini.type].pre?.(this);
     if (this.td) preTd(this);
     if (!frozen) thinkAll(this);
     for (const f of this.fighters) this._latchInput(f, frozen);
@@ -218,7 +218,7 @@ export class World {
     stepTraps(this);
     stepRace(this);
     stepTorch(this);
-    stepPenalty(this);
+    if (this.mini && !this.mini.done) MINIS[this.mini.type].step(this);
     stepTd(this);
     stepVotes(this);
 
@@ -1183,7 +1183,8 @@ export class World {
         if (Math.abs(d) < 320) f.x = w.x + (Math.sign(d) || -1) * 320;
       }
     }
-    const pb = f.team === 'player' && this.playerBounds ? this.playerBounds : b;
+    // On the river raft everybody stays on the raft
+    const pb = f.team === 'player' && this.playerBounds ? this.playerBounds : this.raftBox && !FIGHTERS[f.kind].prop ? this.raftBox : b;
     if (f.x < pb.xMin + 30) f.x = pb.xMin + 30;
     if (f.x > pb.xMax - 30) f.x = pb.xMax - 30;
     if (f.z < b.zMin) f.z = b.zMin;

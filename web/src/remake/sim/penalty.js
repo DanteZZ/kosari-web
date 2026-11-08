@@ -18,7 +18,7 @@ const GOAL_OFF = SPOT_OFF + 540;
 const POWER_PERIOD = 80;
 
 function lanes(world) {
-  return { zMin: world.bounds.zMin + 24, zMax: world.bounds.zMax - 24 };
+  return { zMin: world.bounds.zMin + 12, zMax: world.bounds.zMax - 12 };
 }
 
 function place(f, x, z) {
@@ -122,7 +122,7 @@ export function stepPenalty(world) {
       p.facing = 1;
       k.facing = -1;
       const dz = (cmd & BTN.UP ? -1 : 0) + (cmd & BTN.DOWN ? 1 : 0);
-      m.aimZ = Math.min(L.zMax, Math.max(L.zMin, m.aimZ + dz * 4.5));
+      m.aimZ = Math.min(L.zMax, Math.max(L.zMin, m.aimZ + dz * 2.6));
       m.t += 1;
       m.power = 0.5 - 0.5 * Math.cos((m.t / POWER_PERIOD) * Math.PI * 2);
       if (pressed & (BTN.LIGHT | BTN.HEAVY)) {
@@ -133,7 +133,7 @@ export function stepPenalty(world) {
         m.ball.power = m.power;
         // Дед guesses: often right, sometimes just the middle
         const r = world.rng.next();
-        m.dive = r < 0.45 ? m.aimZ + world.rng.range(-25, 25) : r < 0.7 ? (L.zMin + L.zMax) / 2 : world.rng.range(L.zMin, L.zMax);
+        m.dive = r < 0.45 ? m.aimZ + world.rng.range(-12, 12) : r < 0.7 ? (L.zMin + L.zMax) / 2 : world.rng.range(L.zMin, L.zMax);
         m.phase = 'shot';
       }
       break;
@@ -142,7 +142,7 @@ export function stepPenalty(world) {
     case 'shot': {
       // Дед dives after a short reaction
       if (m.ball.t < 26) {
-        k.z += Math.sign(m.dive - k.z) * Math.min(Math.abs(m.dive - k.z), 9);
+        k.z += Math.sign(m.dive - k.z) * Math.min(Math.abs(m.dive - k.z), 6);
         if (!m.dove) {
           m.dove = true;
           world.events.push({ type: 'keeperDive', id: k.id, dir: Math.sign(m.dive - k.z) });
@@ -154,7 +154,7 @@ export function stepPenalty(world) {
         m.ball = null;
         if (bl.over) endRound(world, m, false, 'you', 'Выше ворот!');
         else {
-          const reach = bl.power > 0.72 ? 34 : 60;
+          const reach = bl.power > 0.72 ? 18 : 30;
           if (Math.abs(k.z - bl.toZ) < reach) endRound(world, m, false, 'you', 'Дед взял!');
           else endRound(world, m, true, 'you', 'ГОЛ!');
         }
@@ -169,7 +169,7 @@ export function stepPenalty(world) {
       place(p, m.goalX, p.z);
       p.facing = -1;
       if (m.t === 70) {
-        m.target = world.rng.chance(0.5) ? L.zMin + world.rng.range(0, 60) : L.zMax - world.rng.range(0, 60);
+        m.target = world.rng.chance(0.5) ? L.zMin + world.rng.range(0, 30) : L.zMax - world.rng.range(0, 30);
         const feint = world.rng.chance(0.3);
         m.look = feint ? L.zMin + L.zMax - m.target : m.target;
         world.events.push({ type: 'dedLooks', z: m.look });
@@ -190,12 +190,12 @@ export function stepPenalty(world) {
         m.dived = true;
         world.events.push({ type: 'heroDive', dir: dz });
       }
-      p.z = Math.min(L.zMax, Math.max(L.zMin, p.z + dz * (m.dived ? 9 : 5.5)));
+      p.z = Math.min(L.zMax, Math.max(L.zMin, p.z + dz * (m.dived ? 6 : 3.4)));
       p.x = p.px = m.goalX;
       if (m.ball.t <= 0) {
         const bl = m.ball;
         m.ball = null;
-        const reach = m.dived ? 80 : 50;
+        const reach = m.dived ? 40 : 24;
         m.dived = false;
         if (Math.abs(p.z - bl.toZ) < reach) endRound(world, m, false, 'ded', 'ОТБИЛ!');
         else endRound(world, m, true, 'ded', 'Гол Деда…');

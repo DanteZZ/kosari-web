@@ -11,17 +11,17 @@ import { BTN } from './input.js';
  */
 
 export const CAR_HW = 118;
-export const CAR_HZ = 24;
+export const CAR_HZ = 14;
 const V_MIN = 9;
 const V_CRUISE = 15;
 const V_MAX = 22;
 
 /** Obstacles: half sizes, speed (world px/tick), damage on a crash. */
 export const OBS = {
-  truck: { halfW: 250, halfZ: 34, vx: -8, dmg: 34 },
-  car: { halfW: 118, halfZ: 26, vx: -6, dmg: 22 },
-  slow: { halfW: 118, halfZ: 26, vx: 7, dmg: 14 },
-  moped: { halfW: 70, halfZ: 22, vx: 0, dmg: 10 },
+  truck: { halfW: 250, halfZ: 20, vx: -8, dmg: 34 },
+  car: { halfW: 118, halfZ: 16, vx: -6, dmg: 22 },
+  slow: { halfW: 118, halfZ: 16, vx: 7, dmg: 14 },
+  moped: { halfW: 70, halfZ: 12, vx: 0, dmg: 10 },
 };
 
 export function startRace(world, p, x0, x1) {
@@ -80,7 +80,7 @@ export function stepRace(world) {
   p.x += r.v;
   p.facing = 1;
   const steer = (cmd & BTN.UP ? -1 : 0) + (cmd & BTN.DOWN ? 1 : 0);
-  p.z = Math.min(b.zMax - CAR_HZ, Math.max(b.zMin + CAR_HZ, p.z + steer * 5.5));
+  p.z = Math.min(b.zMax - CAR_HZ, Math.max(b.zMin + CAR_HZ, p.z + steer * 3.2));
   p.vx = r.v;
   if (p.iframes > 0) p.iframes -= 1;
 
@@ -92,7 +92,7 @@ export function stepRace(world) {
     world.events.push({ type: 'racePunch', id: p.id });
     for (const o of r.obs) {
       if (o.dead || o.kind !== 'moped' || o.fall) continue;
-      if (Math.abs(o.x - p.x) < 190 && Math.abs(o.z - p.z) < 80) {
+      if (Math.abs(o.x - p.x) < 190 && Math.abs(o.z - p.z) < 45) {
         o.fall = 1;
         r.punches += 1;
         world._spillKosari(o.x, o.z, 4, 40);
@@ -111,7 +111,7 @@ export function stepRace(world) {
   }
   if (k > 0.45 && world.tick % 75 === 0) {
     const x = p.x + r.v * 55 + world.rng.range(-80, 120);
-    const z = world.rng.chance(0.6) ? p.z : world.rng.range(b.zMin + 30, b.zMax - 30);
+    const z = world.rng.chance(0.6) ? p.z : world.rng.range(b.zMin + 15, b.zMax - 15);
     r.marks.push({ id: r.nextId++, x, z, t: 55 });
     world.events.push({ type: 'potWarn', x, z, t: 55 });
   }
@@ -130,7 +130,7 @@ export function stepRace(world) {
       // Catch up, then match speed and swerve into the car
       const dx = p.x - 150 - o.x;
       o.vx = r.v + Math.max(-3, Math.min(8, dx * 0.05));
-      o.z += Math.sign(p.z - o.z) * Math.min(2.4, Math.abs(p.z - o.z));
+      o.z += Math.sign(p.z - o.z) * Math.min(1.4, Math.abs(p.z - o.z));
       if (o.ramT > 0) o.ramT -= 1;
       if (o.ramT <= 0 && overlap(p, o)) {
         o.ramT = 60;
@@ -150,7 +150,7 @@ export function stepRace(world) {
     if (--m.t > 0) continue;
     m.done = true;
     world.events.push({ type: 'potLand', x: m.x, z: m.z });
-    if (Math.abs(m.x - p.x) < CAR_HW + 30 && Math.abs(m.z - p.z) < CAR_HZ + 30) crash(world, r, p, 16, m.x, m.z);
+    if (Math.abs(m.x - p.x) < CAR_HW + 30 && Math.abs(m.z - p.z) < CAR_HZ + 18) crash(world, r, p, 16, m.x, m.z);
   }
   r.marks = r.marks.filter((m) => !m.done);
 

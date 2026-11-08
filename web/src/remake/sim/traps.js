@@ -21,7 +21,7 @@ const CAR = {
   pierce: true,
   hitsAll: true,
   halfW: 120,
-  halfZ: 26,
+  halfZ: 18,
   hitH: 110,
   muzzle: { x: 0, y: 0 },
 };
@@ -41,6 +41,9 @@ const dropSpec = (tex) => ({
   muzzle: { x: 0, y: 0 },
 });
 
+/** River: a log floating down at the raft (jump over it). */
+const LOG = { ...CAR, kind: 'log', tex: 'river_log', speed: 9, dmg: 14, kb: 10, halfW: 100, halfZ: 16, hitH: 60 };
+
 const WARN_T = 70;
 
 export function setTraps(world, list) {
@@ -59,7 +62,13 @@ export function stepTraps(world) {
     if (--t.cd > 0) continue;
     t.cd = world.rng.int(t.every[0], t.every[1]);
     const p = ps[world.rng.int(0, ps.length - 1)];
-    if (t.type === 'traffic') {
+    if (t.type === 'logs') {
+      const z = world.rng.chance(0.6) ? p.z : world.rng.range(b.zMin + 20, b.zMax - 20);
+      const half = (world.viewW || 1920) / 2;
+      const x = p.x + half + 200;
+      world.trapQueue.push({ t: WARN_T, fire: () => world._spawnProj({ id: -1, team: 'hazard', x, z, y: 0, facing: -1, dmgMul: 1 }, LOG, { x, z, y: 0 }) });
+      world.events.push({ type: 'laneWarn', z, dir: -1, t: WARN_T, what: 'БРЕВНО' });
+    } else if (t.type === 'traffic') {
       // Aim at a player's lane most of the time
       const z = world.rng.chance(0.7) ? p.z : world.rng.range(b.zMin + 20, b.zMax - 20);
       const dir = world.rng.chance(0.5) ? 1 : -1;

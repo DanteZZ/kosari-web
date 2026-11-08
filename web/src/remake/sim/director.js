@@ -1,7 +1,7 @@
 import { setTraps } from './traps.js';
 import { startRace } from './race.js';
 import { startTorch } from './torch.js';
-import { startPenalty, penaltyText } from './penalty.js';
+import { MINIS } from './minis.js';
 import { startTd, tdText } from './td.js';
 import { startVotes, stopVotes } from './votes.js';
 import { FIGHTERS } from './fighters.js';
@@ -101,6 +101,35 @@ export class MapDirector {
       this._spawn(a, q);
     }
 
+    if (this.raft) {
+      const r = this.raft;
+      r.x += r.speed;
+      w.raftBox = { xMin: r.x, xMax: r.x + r.w };
+      w.playerBounds = { ...w.raftBox };
+      this.box = { left: r.x, right: r.x + r.w };
+      // Everyone on board drifts with the raft
+      for (const f of w.fighters) if (!f.dead && !FIGHTERS[f.kind]?.prop) f.x += r.speed;
+      w.raftX = r.x;
+      if (r.x + r.w >= r.end) {
+        // Landed: whoever is left jumps into the water
+        for (const f of w.fighters) if (this.arenaIds.includes(f.id) && !f.dead) {
+          f.dead = true;
+          f.removed = true;
+        }
+        this.raft = null;
+        w.raftBox = null;
+        w.raftX = null;
+        w.events.push({ type: 'raftEnd' });
+        this._clear(a);
+        return;
+      }
+      // The banks keep sending people until we land
+      if (this.queue.length === 0 && this.wave === a.waves.length - 1 && this._alive(this.waveIds) === 0) {
+        this.goal = this.goal || { looped: true };
+        this.goal.looped = true;
+        this._startWave(Math.max(0, a.waves.length - 2));
+      }
+    }
     if (this.waitTd) {
       if (w.td?.phase === 'fight') {
         this.waitTd = false;
@@ -118,8 +147,15 @@ export class MapDirector {
     }
     if (this.waitMini) {
       if (w.mini?.done) {
+        const mn = w.mini;
         w.mini = null;
         this.waitMini = false;
+        if (mn.skipWaves) {
+          this._clear(a);
+          return;
+        }
+        // Guards who raised the alarm fight as part of the arena
+        if (mn.guards) for (const id of mn.guards) this.arenaIds.push(id);
         this._startWave(0);
         if (w.miniResult && !w.miniResult.win && !w.miniResult.draw) {
           // Lost the penalties: Дед's mates are angry
@@ -245,10 +281,16 @@ export class MapDirector {
 
   /** One line for the HUD about the current goal. */
   goalText() {
+    if (this.raft) {
+      const r = this.raft;
+      const a = this.arena;
+      const k = Math.max(0, Math.min(1, (r.x - a.left) / (r.end - r.w - a.left)));
+      return `Сплав по реке: ${Math.round(k * 100)}% · прыгай через брёвна (Space)`;
+    }
     const tdt = tdText(this.world);
     if (tdt) return tdt;
     const mn = this.world.mini;
-    if (mn && !mn.done && mn.type === 'penalty') return penaltyText(mn);
+    if (mn && !mn.done) return MINIS[mn.type].text(mn);
     const tc = this.world.torch;
     if (tc && !tc.done) return `Найди пробки: ${tc.got}/${tc.need} · свети на Пахома!`;
     const r = this.world.race;
@@ -290,11 +332,21 @@ export class MapDirector {
     this.arenaIds = [];
     w.events.push({ type: 'arenaStart', index: this.idx, boss: !!a.boss, left: b.left, right: b.right, race: !!a.race });
     setTraps(w, a.traps);
-    if (a.mini?.type === 'penalty') {
-      // Penalties with Дед first, then his fight
-      startPenalty(w, b, a.mini);
+    if (a.mini) {
+      // Minigame first (penalties, bench press, stealth...), then the waves
+      MINIS[a.mini.type].start(w, b, a.mini);
       this.waitMini = true;
       return;
+    }
+    if (a.raft) {
+      // River: the arena is a raft drifting downstream; enemies jump on from the banks
+      const r = { x: b.left + 60, w: a.raft.w || 1100, speed: a.raft.speed || 3, end: b.right };
+      this.raft = r;
+      w.raftBox = { xMin: r.x, xMax: r.x + r.w };
+      w.playerBounds = { ...w.raftBox };
+      this.box = { left: r.x, right: r.x + r.w };
+      for (const p of w.players()) p.x = Math.min(r.x + r.w - 100, Math.max(r.x + 100, p.x));
+      w.events.push({ type: 'raftStart', x: r.x, w: r.w });
     }
     if (a.dark) {
       // Basement in the dark: fuses first, then the waves
@@ -366,7 +418,7 @@ export class MapDirector {
       const side = x >= px ? 1 : -1;
       f = w.spawn(q.kind, x, (zMin + zMax) / 2, { facing: -side, ...scale });
       f.waiting = true;
-    } else if (q.from === 'drop') {
+    } else if (q.from === 'drop' || this.raft) {
       // Drops out of the trees onto the road
       // Within sight of the player (arenas are wider than the screen)
       const pd = w.players()[0];

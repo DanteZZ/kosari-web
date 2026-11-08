@@ -49,15 +49,28 @@ function eraMap(o) {
       ...kinds.map((k) => ({ banner: 'Проверка', spawns: [{ kind: k, count: 3, from: 'both', every: 45 }] })),
     ];
   }
+  // Wider arenas (`widths: [extra px per arena]`, e.g. the river raft) push
+  // everything after them to the right — arenas, the finale, background joins
+  const extra = o.widths || [];
+  const geom = [];
+  let shift = 0;
+  for (let i = 0; i < 3; i += 1) {
+    const g = GEOM[i];
+    geom.push({ left: g.left + shift, right: g.right + shift + (extra[i] || 0), trigger: g.trigger + shift });
+    shift += extra[i] || 0;
+  }
+  const bossGeom = { left: BOSS.left + shift, right: BOSS.right + shift, trigger: BOSS.trigger + shift };
+  const shiftAt = (x) => GEOM.reduce((acc, g, i) => acc + (g.right <= x ? extra[i] || 0 : 0), 0);
+  const world = o.world.map((seg) => (seg.to != null ? { ...seg, to: seg.to + shiftAt(seg.to) } : seg));
   return {
     id: o.id,
     name: o.name,
     chapter: o.chapter,
     next: o.next,
-    length: lengthFor(4),
+    length: lengthFor(4) + shift,
     start: { x: 260, z: 80 },
     scaling: o.scaling ?? 0.12,
-    world: o.world,
+    world,
     loading: o.loading,
     anvils: o.anvils ?? false,
     airships: o.airships ?? false,
@@ -66,7 +79,7 @@ function eraMap(o) {
     arenas: [
       ...o.arenas.map((waves, i) => ({
         id: `${o.id}${i + 1}`,
-        ...GEOM[i],
+        ...geom[i],
         reward: [{ kind: 'heal', amount: 40 + i * 20 }],
         ...(o.goals?.[i] ? { goal: o.goals[i] } : {}),
         // Arena extras: traps, the dark basement, minigames (sim/traps.js, torch.js, ...)
@@ -74,8 +87,8 @@ function eraMap(o) {
         waves,
       })),
       o.boss
-        ? { id: 'boss', boss: true, ...BOSS, waves: o.boss }
-        : { id: 'finale', ...BOSS, reward: [{ kind: 'heal', amount: 100 }], ...(o.finaleMini ? { mini: o.finaleMini } : {}), waves: o.finale },
+        ? { id: 'boss', boss: true, ...bossGeom, waves: o.boss }
+        : { id: 'finale', ...bossGeom, reward: [{ kind: 'heal', amount: 100 }], ...(o.finaleMini ? { mini: o.finaleMini } : {}), waves: o.finale },
     ],
   };
 }
@@ -202,7 +215,7 @@ export const pcClub = eraMap({
 
 export const gym = eraMap({
   id: 'gym',
-  extra: [null, { traps: [{ type: 'drop', tex: 'dumbbell', every: [160, 260] }] }, null],
+  extra: [null, { traps: [{ type: 'drop', tex: 'dumbbell', every: [160, 260] }] }, { mini: { type: 'bench', ticks: 1500 } }],
   name: 'Качалка',
   chapter: 'Глава 4 · Пабликовая эпоха',
   next: 'museum',
@@ -231,6 +244,7 @@ export const gym = eraMap({
 
 export const museum = eraMap({
   id: 'museum',
+  extra: [null, null, { mini: { type: 'stealth', guards: 3 } }],
   goals: [null, { type: 'chase' }, null],
   name: 'Музей',
   chapter: 'Глава 4 · Пабликовая эпоха',
@@ -256,7 +270,9 @@ export const museum = eraMap({
 
 export const river = eraMap({
   id: 'river',
-  goals: [null, { type: 'survive', ticks: 3000 }, null],
+  // Arena 2: down the river on a raft — logs float at you, fishermen jump on board
+  widths: [0, 3800, 0],
+  extra: [null, { raft: { w: 1150, speed: 3 }, traps: [{ type: 'logs', every: [150, 260] }] }, null],
   name: 'Река',
   chapter: 'Глава 5 · Сигма-эпоха',
   next: 'sigma_gym',

@@ -1,7 +1,7 @@
 import { stage } from './stage.js';
 
 /** Painted-ish wooden crate drawn once into a canvas texture. */
-function crateTexture(scene) {
+export function crateTexture(scene) {
   const key = 'crate_tex';
   if (scene.textures.exists(key)) return key;
   const w = 76;

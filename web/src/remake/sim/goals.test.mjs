@@ -6,7 +6,7 @@ import { FIGHTERS } from './fighters.js';
 import { village, dacha, panelki, streamHouse } from '../maps/eras.js';
 
 function run(map, label) {
-  const w = new World({ seed: 7, bounds: { xMin: 0, xMax: map.length, zMin: 0, zMax: 300 } });
+  const w = new World({ seed: 7, bounds: { xMin: 0, xMax: map.length, zMin: 0, zMax: 150 } });
   const p = w.spawn('player', map.start.x, map.start.z, { slot: 0 });
   p.hp = p.maxHp = 1e9;
   w.viewW = 1920;
@@ -36,7 +36,7 @@ function run(map, label) {
     w.events.length = 0;
     const s = d.status();
     if (s.goal && s.goal.split(':')[0] !== lastGoal.split(':')[0]) lastGoal = s.goal;
-    if (s.state === 'done' || d.done) break;
+    if (s.state === 'done' || d.done || w.mini || w.torch) break;
     if (t % 3600 === 0 && s.goal) console.log(`  ${label} t=${t / 60}s ${s.goal}`);
   }
   console.log(JSON.stringify(d.status()), p.x, w.fighters.filter(f=>!f.dead).map(f=>f.kind+":"+Math.round(f.x)+(f.waiting?"w":"")).join(" "));

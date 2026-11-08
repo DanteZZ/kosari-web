@@ -20,6 +20,9 @@ export const VARIANTS = {
   runner: { skin: 'nikita', scale: 0.9, tint: 0x86c8ff },
   /** Arena goal «догони»: a Nikita in black with a bag of косари. */
   thief: { skin: 'nikita', scale: 0.88, tint: 0x6a6a78 },
+  /** Museum guards; Руки базуки on the bench next to you. */
+  guard: { skin: 'buiniy', scale: 1.02, tint: 0x5a6a90 },
+  rival: { skin: 'ruki', scale: 1, tint: null },
   /** Village penalties: Дед. */
   keeper: { skin: 'ded', scale: 0.98, tint: null },
   /** Dacha basement: Пахом's shadow. */

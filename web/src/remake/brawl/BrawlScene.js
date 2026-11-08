@@ -24,6 +24,7 @@ import { CrateView } from './CrateView.js';
 import { RaceView } from './RaceView.js';
 import { PenaltyView } from './PenaltyView.js';
 import { ModesView } from './ModesView.js';
+import { MinisView } from './MinisView.js';
 import { FUSE_T } from '../sim/torch.js';
 import { SpriteFighterView, SPRITE_KINDS } from './SpriteFighterView.js';
 import { ROAD_Y } from './stage.js';
@@ -335,6 +336,8 @@ export class BrawlScene extends Phaser.Scene {
     this.raceView.render(this.world, alpha);
     if (!this.modesView) this.modesView = new ModesView(this);
     this.modesView.render(this.world);
+    if (!this.minisView) this.minisView = new MinisView(this);
+    this.minisView.render(this.world);
     if (this.world.mini || this.penaltyView) {
       if (!this.penaltyView) this.penaltyView = new PenaltyView(this);
       this.penaltyView.render(this.world, alpha);
@@ -773,6 +776,41 @@ export class BrawlScene extends Phaser.Scene {
           this.banner('ЧАТ РЕШИЛ', ev.title, 1600);
           this.sound.play('cash', { volume: 0.35, rate: 1.4 });
           break;
+        // ---- Gym bench press / museum stealth / river raft
+        case 'benchStart':
+          this.banner('ЖИМ НА СПОР', 'Руки базуки против тебя · J и K в такт с нотами', 2400, true);
+          break;
+        case 'benchHit':
+          if (ev.grade === 'perfect') this.sound.play('punch', { volume: 0.25, rate: 1.5 });
+          else if (ev.grade !== 'ok') this.sound.play('no_bulet', { volume: 0.3, rate: 0.8 });
+          break;
+        case 'benchRep':
+          if (ev.who === 'you') {
+            this.popText(this.player.x, stage.groundY(this.player.z) - 360, `Раз! ${ev.reps}`, '#7dff7a', 28);
+            this.sound.play('cash', { volume: 0.3, rate: 1.6 });
+          }
+          break;
+        case 'benchEnd':
+          this.banner(ev.win ? 'ПЕРЕЖАЛ!' : 'РУКИ СИЛЬНЕЕ', `${ev.reps} : ${ev.rival}${ev.win ? ' · протеин на всю карту' : ''}`, 2000, !ev.win);
+          break;
+        case 'stealthStart':
+          this.banner('ТИХО…', 'Проберись мимо охраны за ящиками · красное — их взгляд', 2400, true);
+          break;
+        case 'stealthAlarm':
+          this.banner('ТРЕВОГА!', 'Тебя заметили — дерись', 1600, true);
+          this.cameras.main.flash(200, 255, 40, 30, false);
+          this.sound.play('beep', { volume: 0.5, rate: 0.6 });
+          break;
+        case 'stealthDone':
+          this.banner('ПРОШЁЛ НЕЗАМЕЧЕННЫМ', '+20 косарей', 1800);
+          this.sound.play('cash', { volume: 0.5 });
+          break;
+        case 'raftStart':
+          this.banner('НА ПЛОТ!', 'Сплав по реке · прыгай через брёвна · рыбаки лезут на борт', 2400, true);
+          break;
+        case 'raftEnd':
+          this.banner('БЕРЕГ!', 'Приплыли', 1400);
+          break;
         // ---- Village penalties
         case 'penaltyStart':
           this.banner('ПЕНАЛЬТИ!', `Дед вызывает: по ${ev.rounds} удара · победишь — косари`, 2400, true);
@@ -849,7 +887,7 @@ export class BrawlScene extends Phaser.Scene {
           break;
         case 'laneWarn':
           if (!this.raceView) this.raceView = new RaceView(this, this.heroSpeaker().face);
-          this.raceView.laneWarn(ev.z, ev.dir, ev.t);
+          this.raceView.laneWarn(ev.z, ev.dir, ev.t, ev.what);
           this.sound.play('beep', { volume: 0.3, rate: 1.4 });
           break;
         // ---- Arena goals

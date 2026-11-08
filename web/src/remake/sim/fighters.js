@@ -107,6 +107,30 @@ export const FIGHTERS = {
     jumpV: 0,
     moves: {},
   },
+  /** Museum guard: walks his beat, looks ahead (sim/stealth.js). */
+  guard: {
+    team: 'enemy',
+    title: 'Охранник',
+    hp: 70,
+    speedX: 3.6,
+    speedZ: 2.4,
+    jumpV: 0,
+    bossAI: 'guard',
+    moves: { light: 'e_jab' },
+    ai: {},
+  },
+  /** Gym: Руки базуки on the next bench (sim/bench.js). */
+  rival: {
+    team: 'prop',
+    prop: true,
+    keeper: true,
+    noGrab: true,
+    hp: 9999,
+    speedX: 0,
+    speedZ: 0,
+    jumpV: 0,
+    moves: {},
+  },
   /** Village penalties: Дед in goal / at the spot (driven by sim/penalty.js). */
   keeper: {
     team: 'prop',

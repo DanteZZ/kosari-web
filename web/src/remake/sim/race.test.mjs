@@ -5,7 +5,7 @@ import { BTN } from './input.js';
 import { OBS } from './race.js';
 import opushka from '../maps/opushka.js';
 
-const w = new World({ seed: 11, bounds: { xMin: 0, xMax: opushka.length, zMin: 0, zMax: 300 } });
+const w = new World({ seed: 11, bounds: { xMin: 0, xMax: opushka.length, zMin: 0, zMax: 150 } });
 const p = w.spawn('player', opushka.start.x, opushka.start.z, { slot: 0 });
 p.hp = p.maxHp = 1e6;
 w.viewW = 1920;
@@ -19,9 +19,9 @@ for (let t = 0; t < 60 * 60 * 15; t += 1) {
   if (w.race && !w.race.done) {
     raceTicks += 1;
     // Dodge the nearest thing ahead in my lane; punch mopeds
-    const ahead = w.race.obs.filter((o) => o.kind !== 'moped' && o.x + OBS[o.kind].halfW > p.x - 100 && o.x - p.x < 900 && Math.abs(o.z - p.z) < 80);
-    if (ahead.length) bits |= ahead[0].z > p.z || p.z > 260 ? BTN.UP : BTN.DOWN;
-    const mark = w.race.marks.find((m) => Math.abs(m.z - p.z) < 60 && m.x > p.x);
+    const ahead = w.race.obs.filter((o) => o.kind !== 'moped' && o.x + OBS[o.kind].halfW > p.x - 100 && o.x - p.x < 900 && Math.abs(o.z - p.z) < 40);
+    if (ahead.length) bits |= (ahead[0].z > p.z && p.z > 25) || p.z > 125 ? BTN.UP : BTN.DOWN;
+    const mark = w.race.marks.find((m) => Math.abs(m.z - p.z) < 34 && m.x > p.x);
     if (mark && !ahead.length) bits |= mark.z > p.z ? BTN.UP : BTN.DOWN;
     if (w.race.obs.some((o) => o.kind === 'moped' && Math.abs(o.x - p.x) < 180) && t % 10 === 0) bits |= BTN.LIGHT;
     bits |= BTN.RIGHT;
