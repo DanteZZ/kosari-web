@@ -129,6 +129,8 @@ export const ITEM_ART = [
   'shawarma', 'stone', 'shockwave', 'doshik', 'energy', 'protein', 'sigma_glasses', 'spear', 'microphone', 'kiosk', 'camera_tripod',
   'thief_bag', 'car_lada', 'truck', 'moped', 'fuse', 'football_goal', 'raft', 'river_log',
   'barbell', 'rake', 'petard', 'glue_puddle', 'crate', 'mic_stand', 'trading_desk',
+  'set_lift_wall', 'set_lift_floor', 'lift_doors', 'set_river_water', 'set_river_banks', 'set_river_pier',
+  'statue_1', 'statue_2', 'statue_3', 'panel_block',
 ];
 
 export function preloadGameAssets(scene) {

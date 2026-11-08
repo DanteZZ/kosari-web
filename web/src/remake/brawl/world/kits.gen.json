@@ -57,6 +57,14 @@
   "truck_far",
   "weeds"
  ],
+ "joins": [
+  "beam_steel",
+  "column_marble",
+  "pier_brick",
+  "pillar_concrete",
+  "pillar_office",
+  "trunk_oak"
+ ],
  "museum": [
   "armor",
   "bust",
@@ -87,6 +95,7 @@
   "trading_screens"
  ],
  "panelki": [
+  "block_near",
   "bush",
   "carpet_rack",
   "far_blocks",
@@ -94,6 +103,7 @@
   "horizontal_bar",
   "lada",
   "mid_entrances",
+  "mid_tall_blocks",
   "road",
   "roadside",
   "swing",
@@ -189,13 +199,5 @@
   "sunflowers",
   "water_pump",
   "well"
- ],
- "joins": [
-  "beam_steel",
-  "column_marble",
-  "pier_brick",
-  "pillar_concrete",
-  "pillar_office",
-  "trunk_oak"
  ]
 }

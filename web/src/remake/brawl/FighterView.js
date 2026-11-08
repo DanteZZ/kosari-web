@@ -185,6 +185,14 @@ export class FighterView {
     }
   }
 
+  /** In the shadow of a statue (museum stealth): the whole puppet goes dark. */
+  shade(on) {
+    if (this.shaded === on) return;
+    this.shaded = on;
+    if (on) for (const s of this.sprites) s.setTint(0x3c4458);
+    else this._baseTint();
+  }
+
   /** Pooling: hide while unused. */
   park() {
     this.visual.setVisible(false);

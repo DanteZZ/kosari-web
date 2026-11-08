@@ -26,6 +26,7 @@ import { RaceView } from './RaceView.js';
 import { PenaltyView } from './PenaltyView.js';
 import { ModesView } from './ModesView.js';
 import { MinisView } from './MinisView.js';
+import { SetView } from './SetView.js';
 import { FUSE_T } from '../sim/torch.js';
 import { SpriteFighterView, SPRITE_KINDS } from './SpriteFighterView.js';
 import { ROAD_Y } from './stage.js';
@@ -362,6 +363,8 @@ export class BrawlScene extends Phaser.Scene {
     this.raceView.render(this.world, alpha);
     if (!this.modesView) this.modesView = new ModesView(this);
     this.modesView.render(this.world);
+    if (!this.setView) this.setView = new SetView(this);
+    this.setView.render(this.world);
     if (!this.minisView) this.minisView = new MinisView(this);
     this.minisView.render(this.world);
     if (this.world.mini || this.penaltyView) {
@@ -899,7 +902,7 @@ export class BrawlScene extends Phaser.Scene {
           else this.resultCard(ev.win ? 'ПЕРЕЖАЛ!' : 'РУКИ СИЛЬНЕЕ', [`Повторы ${ev.reps} : ${ev.rival}`, ev.win ? 'Протеин на всю карту' : 'А теперь он злой'], ev.win);
           break;
         case 'stealthStart':
-          this.banner('ТИХО…', 'Проберись мимо охраны за ящиками · красное — их взгляд', 2400, true);
+          this.banner('ТИХО…', 'Перебегай от статуи к статуе · красное — их взгляд', 2400, true);
           break;
         case 'stealthAlarm':
           this.banner('ТРЕВОГА!', 'Тебя заметили — дерись', 1600, true);
@@ -951,6 +954,8 @@ export class BrawlScene extends Phaser.Scene {
           break;
         case 'elevatorStart':
           this.inLift = true;
+          // The camera stays on the cabin
+          this.lock = { left: ev.left, right: ev.right };
           this.banner('ЛИФТ', 'Двери закрываются… на каждом этаже — новые гости', 2000, true);
           break;
         case 'elevatorFloor':

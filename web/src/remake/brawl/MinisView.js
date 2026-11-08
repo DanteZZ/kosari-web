@@ -2,7 +2,7 @@ import { stage } from './stage.js';
 import { VIEW_W, VIEW_H } from '../game/constants.js';
 import { crateTexture } from './CrateView.js';
 import { TRAVEL } from '../sim/bench.js';
-import { VIEW as GUARD_VIEW } from '../sim/stealth.js';
+import { VIEW as GUARD_VIEW, HIDE_W } from '../sim/stealth.js';
 
 const NOTE_COL = { J: '#d0412f', K: '#2f6fd0', W: '#d0412f', A: '#2fa04a', S: '#2f6fd0', D: '#c08a1a' };
 
@@ -96,17 +96,21 @@ export class MinisView {
     const s = this.scene;
     const b = world.bounds;
     if (!this.covers.length) {
-      for (const c of m.covers) {
-        for (const z of [b.zMin + 12, (b.zMin + b.zMax) / 2, b.zMax - 12]) {
-          const im = s.add.image(c.x, stage.groundY(z), crateTexture(s)).setOrigin(0.5, 1).setScale(1.5);
-          im.setDepth(stage.depth(z));
-          this.covers.push(im);
-          if (z !== b.zMin + 12) continue;
-          // Taller stack at the back
-          const top = s.add.image(c.x, stage.groundY(z) - 96, crateTexture(s)).setOrigin(0.5, 1).setScale(1.5);
-          top.setDepth(stage.depth(z));
-          this.covers.push(top);
-        }
+      m.covers.forEach((c, i) => {
+        // A statue at the front edge of the lane: whoever stands behind it is in its shadow
+        const key = [`kit_museum_statue_${(i % 3) + 1}`, `item_statue_${(i % 3) + 1}`].find((k) => s.textures.exists(k));
+        const y = stage.groundY(b.zMax) + 26;
+        const shadow = s.add.ellipse(c.x, stage.groundY(b.zMax) - 20, HIDE_W * 2.4, 46, 0x000000, 0.35).setDepth(stage.depth(b.zMin) - 2);
+        const im = key ? s.add.image(c.x, y, key).setOrigin(0.5, 1) : s.add.rectangle(c.x, y, 120, 360, 0xd8d0c0).setOrigin(0.5, 1);
+        im.setScale(key ? 400 / im.height : 1).setDepth(stage.depth(b.zMax) + 20);
+        const tag = c.practice ? s.add.text(c.x, y - 420, 'спрячься тут', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '22px', color: '#9fd3e0', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(9000) : null;
+        this.covers.push(shadow, im);
+        if (tag) this.covers.push(tag);
+      });
+      if (m.practiceX) {
+        this.covers.push(
+          s.add.text(m.practiceX, stage.groundY(b.zMin) - 300, 'ОХРАНА ДАЛЬШЕ →', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '26px', color: '#ff8a7a', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(9000),
+        );
       }
       this.exit = s.add
         .text(m.exitX, stage.groundY(b.zMin) - 260, 'ВЫХОД →', { fontFamily: 'Arial Black, Arial', fontSize: '30px', color: '#7dff7a', stroke: '#000', strokeThickness: 6 })
@@ -133,6 +137,9 @@ export class MinisView {
       const hot = m.seen > 0 && p && Math.abs(p.x - gd.x) < GUARD_VIEW + 20 && Math.sign(p.x - gd.x) === gd.facing;
       g.fillStyle(hot ? 0xff2a1a : 0xff5a4a, hot ? 0.42 : 0.26).fillPoints(pts, true);
     }
+    // The hero darkens in a statue's shadow
+    const pv = p && s.views.get(p.id);
+    pv?.shade?.(!!m.hidden);
     // «!» over the hero while he is being noticed
     if (!this.alert) this.alert = s.add.text(0, 0, '!', { fontFamily: 'Arial Black, Arial', fontSize: '54px', color: '#ff3b2f', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5, 1);
     this.alert.setVisible(m.seen > 0 && !!p);
@@ -140,6 +147,8 @@ export class MinisView {
   }
 
   _clearStealth() {
+    const p = this.scene.player;
+    this.scene.views.get(p?.id)?.shade?.(false);
     for (const c of this.covers) c.destroy();
     this.covers = [];
     this.exit?.destroy();
@@ -156,14 +165,15 @@ export class MinisView {
     if (!this.raft) {
       const tex = s.textures.exists('item_raft') ? 'item_raft' : null;
       this.raft = tex ? s.add.image(0, 0, tex).setOrigin(0, 0.5) : s.add.rectangle(0, 0, 100, 100, 0x7a5a32).setOrigin(0, 0.5);
-      this.water = s.add.graphics();
+      this.water = true;
     }
     const y0 = stage.groundY(b.zMin) - 20;
     const y1 = stage.groundY(b.zMax) + 30;
     const w = rb.xMax - rb.xMin;
     this.raft.setPosition(rb.xMin, (y0 + y1) / 2 + 10).setDepth(stage.depth(b.zMin) - 3);
     this.raft.setDisplaySize(w, y1 - y0 + 40);
-    // Water around the raft
+    // (the water itself is the river set, brawl/SetView.js)
+    if (this.water) return;
     const cam = s.cameras.main;
     const vx0 = cam.worldView.x - 200;
     const vx1 = cam.worldView.right + 200;
@@ -377,7 +387,6 @@ export class MinisView {
     if (world.raftBox) this._raft(world);
     else if (this.raft) {
       this.raft.destroy();
-      this.water.destroy();
       this.raft = null;
       this.water = null;
     }

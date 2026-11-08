@@ -159,6 +159,7 @@ export class MapDirector {
         w.raftBox = null;
         w.enemyBox = null;
         w.raftX = null;
+        this.landNext = true;
         w.events.push({ type: 'raftEnd' });
         this._clear(a);
         return;
@@ -409,6 +410,7 @@ export class MapDirector {
       // River: the arena is a raft drifting downstream; enemies jump on from the banks
       const r = { x: b.left + 60, w: a.raft.w || 1100, speed: a.raft.speed || 3, end: b.right };
       this.raft = r;
+      w.raftEndX = r.end;
       w.raftBox = { xMin: r.x, xMax: r.x + r.w };
       w.enemyBox = w.raftBox;
       w.playerBounds = { ...w.raftBox };
@@ -556,11 +558,25 @@ export class MapDirector {
     if (w.elevator) {
       w.elevator = null;
       w.enemyBox = null;
+      this.landNext = true;
     }
     stopVotes(w);
     this.idx += 1;
     this.wave = -1;
     this.queue = [];
+    if (this.landNext) {
+      // Off the raft onto the bank / out of the lift onto the floor: straight to the next stretch
+      this.landNext = false;
+      const nx = this.map.arenas[this.idx];
+      if (nx) {
+        w.playerBounds = null;
+        for (const p of w.players()) {
+          p.x = p.px = nx.left - 220;
+          p.vx = 0;
+        }
+        w.events.push({ type: 'landed', x: nx.left - 220 });
+      }
+    }
     if (this.idx >= this.map.arenas.length) {
       this.state = 'done';
       w.playerBounds = { xMin: box.left, xMax: this.map.length };

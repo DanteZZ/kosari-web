@@ -12,16 +12,20 @@
 export const VIEW = 470;
 const SEE_T = 45;
 
-/** Does guard g see the point (x, z)? (cone ahead, blocked by crate stacks) */
+/** Half-width of a statue's hiding spot: stand inside it and you are in its shadow. */
+export const HIDE_W = 70;
+
+/** Is x behind a statue? */
+export function hiddenAt(m, x) {
+  return m.covers.some((c) => Math.abs(x - c.x) < HIDE_W);
+}
+
+/** Does guard g see the point (x, z)? (cone ahead; a statue hides you unless he walks into you) */
 export function guardSees(m, g, x, z) {
   const dx = (x - g.x) * g.facing;
   if (dx < 0 || dx > VIEW) return false;
   if (Math.abs(z - g.z) > 50 + dx * 0.3) return false;
-  // A stack between us, and you pressed up against it
-  for (const c of m.covers) {
-    const between = (c.x - g.x) * g.facing > 0 && (x - c.x) * g.facing > 0;
-    if (between && Math.abs(x - c.x) < 240) return false;
-  }
+  if (hiddenAt(m, x) && dx > 90) return false;
   return true;
 }
 
@@ -30,9 +34,16 @@ export function startStealth(world, b, cfg) {
   const n = cfg.guards || 3;
   const covers = [];
   const guards = [];
-  const span = b.right - b.left - 700;
+  // Practice stretch: statues and no guards — try hiding first
+  const practice = cfg.practice || 0;
+  if (practice) {
+    covers.push({ x: b.left + 420, practice: true });
+    covers.push({ x: b.left + practice - 200, practice: true });
+  }
+  const start = b.left + practice;
+  const span = b.right - start - 700;
   for (let i = 0; i < n; i += 1) {
-    const x0 = b.left + 450 + (span * (i + 0.15)) / n;
+    const x0 = start + 450 + (span * (i + 0.15)) / n;
     const x1 = x0 + span / n - 260;
     covers.push({ x: x0 - 90 });
     covers.push({ x: (x0 + x1) / 2 + 40 });
@@ -43,6 +54,7 @@ export function startStealth(world, b, cfg) {
   }
   world.mini = {
     type: 'stealth',
+    practiceX: practice ? start : null,
     guards,
     covers,
     exitX: b.right - 160,
@@ -68,6 +80,11 @@ export function stepStealth(world) {
     if (guardSees(m, g, p.x, p.z)) seenNow = true;
   }
   m.seen = seenNow ? m.seen + 1 : Math.max(0, m.seen - 2);
+  const hid = hiddenAt(m, p.x);
+  if (hid !== m.hidden) {
+    m.hidden = hid;
+    world.events.push({ type: 'stealthHide', on: hid });
+  }
   m.seenK = m.seen / SEE_T;
   if (m.seen >= SEE_T) {
     m.alarm = true;
@@ -128,5 +145,6 @@ export function guardBrain(world, e, players) {
 }
 
 export function stealthText(m) {
-  return m.seen > 0 ? `Тебя замечают! ${Math.round(m.seenK * 100)}%` : 'Проберись к выходу за ящиками · не попадайся в красное';
+  if (m.seen > 0) return `Тебя замечают! ${Math.round(m.seenK * 100)}%`;
+  return m.hidden ? 'Ты в тени статуи — тебя не видно' : 'Перебегай от статуи к статуе · красное — их взгляд';
 }

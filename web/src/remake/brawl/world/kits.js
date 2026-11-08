@@ -188,8 +188,9 @@ Object.assign(KITS, {
     bottom: [b('bush', 200), b('gym_street/trash_bags', 120, 0.4), b('highway/tires', 120, 0.3)],
     sky: ['#87909a', '#d2d6d8'],
     far: [{ key: 'far_blocks', y: ROAD_TOP - 10, h: 340, tint: 0xb4b9bc, fx: 0.16 }],
-    mid: { key: 'mid_entrances', h: 240, tint: 0xdfe0de },
-    items: [it('garage', 200, [1300, 1900]), it('swing', 190, [1400, 2100]), it('horizontal_bar', 210, [1500, 2200]), it('carpet_rack', 160, [1200, 1800]),
+    // Real multi-storey blocks behind, and a block with balconies right by the road
+    mid: { key: 'mid_tall_blocks', h: 470, fx: 0.42, tint: 0xdfe0de },
+    items: [it('block_near', 680, [1100, 1600], { noFlip: true }), it('garage', 200, [1300, 1900]), it('swing', 190, [1400, 2100]), it('horizontal_bar', 210, [1500, 2200]), it('carpet_rack', 160, [1200, 1800]),
       it('trash_container', 130, [900, 1400]), it('lada', 110, [1600, 2400]), it('tree_poplar', 480, [700, 1100])],
     fg: [{ key: 'bush', h: 230, every: [800, 1300], y: ROAD_BOTTOM + 190 }],
   }),

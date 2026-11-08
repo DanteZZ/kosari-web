@@ -407,8 +407,8 @@ export const streamHouse = eraMap({
 export const office = eraMap({
   id: 'office',
   extra: [null, {
-    elevator: { w: 1040 },
-    entry: { art: 'lift_doors', h: 330, at: 900, prompt: 'J — вызвать лифт', intro: [['hero', 'Гительман наверху. Лифт — единственный путь.'], ['hero', 'Ехать придётся не одному.']] },
+    elevator: { w: 1500 },
+    entry: { art: 'lift_doors', h: 330, at: 900, z: 4, prompt: 'J — вызвать лифт', intro: [['hero', 'Гительман наверху. Лифт — единственный путь.'], ['hero', 'Ехать придётся не одному.']] },
   }, {
     mini: { type: 'trading', ticks: 1500 },
     entry: {
