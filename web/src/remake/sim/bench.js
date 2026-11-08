@@ -22,6 +22,8 @@ export function startBench(world, b, cfg) {
   const keys = cfg.keys || ['J', 'K'];
   const notes = [];
   // A beat every 30 ticks, with some doubles and rests
+  // Notes sit on the track's beat (bpm from the arena config; 120 = every 30 ticks)
+  const beat = 3600 / (cfg.bpm || 120);
   let at = 120;
   // Rap: verses take turns — 8 bars him, 8 bars you
   let n = 0;
@@ -29,10 +31,10 @@ export function startBench(world, b, cfg) {
   while (at < total - 40) {
     notes.push({ at, key: keys[world.rng.int(0, keys.length - 1)], hit: null, who });
     n += 1;
-    at += world.rng.chance(0.2) ? 15 : world.rng.chance(0.15) ? 60 : 30;
+    at += world.rng.chance(0.2) ? beat / 2 : world.rng.chance(0.15) ? beat * 2 : beat;
     if (cfg.rap && n % 8 === 0) {
       who = who === 'rival' ? 'you' : 'rival';
-      at += 50;
+      at += beat * 2;
     }
   }
   const mx = b.left + (b.right - b.left) * 0.4;

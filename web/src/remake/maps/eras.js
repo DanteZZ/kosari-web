@@ -453,7 +453,7 @@ export const office = eraMap({
 
 export const concert = eraMap({
   id: 'concert',
-  finaleMini: { type: 'bench', rap: true, afterMeet: 'klas', keys: ['W', 'A', 'S', 'D'], ticks: 2100, bossHp: 0.8 },
+  finaleMini: { type: 'bench', rap: true, afterMeet: 'klas', keys: ['W', 'A', 'S', 'D'], ticks: 2100, bossHp: 0.8, bpm: 130 },
   name: 'Концерт',
   chapter: 'Финал',
   next: null,

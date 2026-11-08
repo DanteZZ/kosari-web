@@ -105,18 +105,8 @@
   "credit": "Kevin MacLeod (incompetech.com) — CC BY 4.0"
  },
  {
-  "slot": "mi_race",
-  "title": "Rollin at 5",
-  "credit": "Kevin MacLeod (incompetech.com) — CC BY 4.0"
- },
- {
   "slot": "mi_survive",
   "title": "Exhilarate",
-  "credit": "Kevin MacLeod (incompetech.com) — CC BY 4.0"
- },
- {
-  "slot": "mi_penalty",
-  "title": "Jaunty Gumption",
   "credit": "Kevin MacLeod (incompetech.com) — CC BY 4.0"
  },
  {
@@ -167,11 +157,6 @@
  {
   "slot": "mi_qte",
   "title": "Discovery Hit",
-  "credit": "Kevin MacLeod (incompetech.com) — CC BY 4.0"
- },
- {
-  "slot": "mi_rap",
-  "title": "Galactic Rap",
   "credit": "Kevin MacLeod (incompetech.com) — CC BY 4.0"
  },
  {

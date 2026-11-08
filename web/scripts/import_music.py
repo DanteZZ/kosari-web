@@ -47,10 +47,10 @@ SLOTS = {
     "en_zubarev": ("26", CC),
     "en_gitelman": ("27", CC),
     # Minigames
-    "mi_race": ("30", CC),
+    # The race runs on DNTZ's car phonk
+    "mi_race": (DL / "tranzipone - включите мужику с завода фонк из альта.mp3", None),
     "mi_survive": ("31", CC),
-    "mi_penalty": ("32", CC),
-    "mi_village_finale": (DL / "Геннадий Горин - Футбол (grindcore mashup).mp3", None),
+    "mi_penalty": (DL / "Геннадий Горин - Футбол (grindcore mashup).mp3", None),
     "mi_chase": ("33", CC),
     "mi_td": ("34", CC),
     "mi_bench": ("35", CC),
@@ -61,7 +61,8 @@ SLOTS = {
     "mi_lift3": ("40", CC),
     "mi_trading": ("41", CC),
     "mi_qte": ("42", CC),
-    "mi_rap": ("43", CC),
+    # Rap battle on 1Kla$'s own track (~130 BPM, sim/bench.js `bpm`)
+    "mi_rap": (DL / "VØJ x ATSMXN x 1.Kla$ - 1.Kla$ ушел в разнос (Mashup by.xanax).mp3", None),
     # Screens
     "ui_menu": ("50", CC),
     "ui_loading": ("51", CC),
@@ -75,7 +76,6 @@ SLOTS = {
     "bo_papich": (DL / "даня - без фонка.mp3", None),
     "bo_papich2": (DL / "ymo - КОГДА ВЫПАЛ АВТОМАТ!!!.mp3", None),
     "bo_chad": (DL / "- - JACKPHONK.mp3", None),
-    "bo_chad2": (DL / "tranzipone - включите мужику с завода фонк из альта.mp3", None),
     "bo_klas": (DL / "1.Kla$ - DOOMины дети.mp3", None),
     "bo_klas4": (DL / "VØJ x ATSMXN x 1.Kla$ - 1.Kla$ ушел в разнос (Mashup by.xanax).mp3", None),
 }

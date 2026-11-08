@@ -40,7 +40,6 @@ const CHAPTER = {
 const ARENA = {
   opushka: ['ch_forest', null, 'ch_opushka', 'ch_shawarma'],
   dacha: [null, null, 'ch_cellar', 'ch_cellar'],
-  village: [null, null, null, 'mi_village_finale'],
 };
 
 /** Meeting a meme enemy: his theme while he is alive. */
@@ -65,7 +64,7 @@ const BOSS = {
   pahom: [{ slot: 'bo_pahom' }],
   ponasenkov: [{ slot: 'ch_museum' }],
   papich: [{ slot: 'bo_papich' }, { below: 0.45, slot: 'bo_papich2' }],
-  gigachad: [{ slot: 'bo_chad' }, { below: 0.5, slot: 'bo_chad2' }],
+  gigachad: [{ slot: 'bo_chad' }],
   klas: [
     { slot: 'bo_klas', from: 0, to: 310 },
     { below: 0.68, slot: 'bo_klas', from: 480, to: 705 },
