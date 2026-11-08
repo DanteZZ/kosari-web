@@ -127,7 +127,7 @@ export const WORLD_PARTS = [
 export const ITEM_ART = [
   'football', 'jar', 'donation_bomb', 'book', 'dumbbell', 'coin', 'money_pack', 'music_note', 'brick',
   'shawarma', 'stone', 'shockwave', 'doshik', 'energy', 'protein', 'sigma_glasses', 'spear', 'microphone', 'kiosk', 'camera_tripod',
-  'thief_bag', 'car_lada', 'truck', 'moped',
+  'thief_bag', 'car_lada', 'truck', 'moped', 'fuse', 'football_goal', 'raft', 'river_log',
 ];
 
 export function preloadGameAssets(scene) {

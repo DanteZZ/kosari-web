@@ -22,6 +22,7 @@ import { MOVES } from '../sim/moves.js';
 import { FighterView } from './FighterView.js';
 import { CrateView } from './CrateView.js';
 import { RaceView } from './RaceView.js';
+import { PenaltyView } from './PenaltyView.js';
 import { FUSE_T } from '../sim/torch.js';
 import { SpriteFighterView, SPRITE_KINDS } from './SpriteFighterView.js';
 import { ROAD_Y } from './stage.js';
@@ -331,6 +332,10 @@ export class BrawlScene extends Phaser.Scene {
     this.renderProjectiles(alpha);
     if (!this.raceView) this.raceView = new RaceView(this, this.heroSpeaker().face);
     this.raceView.render(this.world, alpha);
+    if (this.world.mini || this.penaltyView) {
+      if (!this.penaltyView) this.penaltyView = new PenaltyView(this);
+      this.penaltyView.render(this.world, alpha);
+    }
     this.renderAirships(alpha);
 
     this.updateCamera(frameMs / 1000, alpha);
@@ -736,6 +741,21 @@ export class BrawlScene extends Phaser.Scene {
           if (ev.banner) this.banner(ev.banner, ev.boss ? null : `Волна ${ev.n}/${ev.total}`, 1300, ev.boss);
           else this.banner(`Волна ${ev.n}/${ev.total}`, null, 900);
           this.sound.play('beep', { volume: 0.25, rate: 0.7 });
+          break;
+        // ---- Village penalties
+        case 'penaltyStart':
+          this.banner('ПЕНАЛЬТИ!', `Дед вызывает: по ${ev.rounds} удара · победишь — косари`, 2400, true);
+          break;
+        case 'penaltyKick':
+          this.sound.play('punch', { volume: 0.5, rate: 0.8 });
+          break;
+        case 'penaltyResult':
+          this.banner(ev.text, `Ты ${ev.score.you} : ${ev.score.ded} Дед`, 1100, !ev.scored === (ev.who === 'you'));
+          if (ev.scored && ev.who === 'you') this.sound.play('cash', { volume: 0.5 });
+          if (!ev.scored && ev.who === 'ded') this.sound.play('superudar', { volume: 0.35, rate: 1.3 });
+          break;
+        case 'penaltyEnd':
+          this.banner(ev.win ? 'ПОБЕДА В СЕРИИ!' : ev.draw ? 'НИЧЬЯ' : 'ДЕД ПОБЕДИЛ', ev.win ? '+25 косарей и здоровье' : ev.draw ? 'Ну, бывает' : 'Он позвал корешей…', 2000, !ev.win);
           break;
         // ---- Dacha basement (flashlight)
         case 'torchStart':

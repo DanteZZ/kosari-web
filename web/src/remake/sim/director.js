@@ -1,6 +1,7 @@
 import { setTraps } from './traps.js';
 import { startRace } from './race.js';
 import { startTorch } from './torch.js';
+import { startPenalty, penaltyText } from './penalty.js';
 import { FIGHTERS } from './fighters.js';
 
 /**
@@ -98,6 +99,19 @@ export class MapDirector {
       this._spawn(a, q);
     }
 
+    if (this.waitMini) {
+      if (w.mini?.done) {
+        w.mini = null;
+        this.waitMini = false;
+        this._startWave(0);
+        if (w.miniResult && !w.miniResult.win && !w.miniResult.draw) {
+          // Lost the penalties: Дед's mates are angry
+          for (let k = 0; k < 2; k += 1) this.queue.push({ at: 60 + k * 40, kind: 'ded', from: 'both', k, elite: 1 });
+          this.queue.sort((p, q) => p.at - q.at);
+        }
+      }
+      return;
+    }
     if (this.waitTorch) {
       if (w.torch?.done) {
         w.torch = null;
@@ -214,6 +228,8 @@ export class MapDirector {
 
   /** One line for the HUD about the current goal. */
   goalText() {
+    const mn = this.world.mini;
+    if (mn && !mn.done && mn.type === 'penalty') return penaltyText(mn);
     const tc = this.world.torch;
     if (tc && !tc.done) return `Найди пробки: ${tc.got}/${tc.need} · свети на Пахома!`;
     const r = this.world.race;
@@ -255,6 +271,12 @@ export class MapDirector {
     this.arenaIds = [];
     w.events.push({ type: 'arenaStart', index: this.idx, boss: !!a.boss, left: b.left, right: b.right, race: !!a.race });
     setTraps(w, a.traps);
+    if (a.mini?.type === 'penalty') {
+      // Penalties with Дед first, then his fight
+      startPenalty(w, b, a.mini);
+      this.waitMini = true;
+      return;
+    }
     if (a.dark) {
       // Basement in the dark: fuses first, then the waves
       startTorch(w, b, a.dark);
@@ -301,6 +323,11 @@ export class MapDirector {
     // Elite (a meme enemy's debut): tougher and hits a bit harder
     const scale = { hpMul: (1 + k) * q.elite, dmgMul: (1 + k * 0.5) * (q.elite > 1 ? 1.2 : 1) };
     const def = FIGHTERS[q.kind];
+    // Village penalties decide how fresh Дед is
+    if (def?.boss && w.bossHpMul) {
+      scale.hpMul *= w.bossHpMul;
+      w.bossHpMul = null;
+    }
     const meets = (def?.boss || q.elite > 1) && !this.met.has(q.kind);
     if (meets) {
       // Boss / newcomer: already standing in the arena, waits for his scene

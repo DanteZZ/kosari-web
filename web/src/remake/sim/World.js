@@ -1,6 +1,7 @@
 import { stepTraps } from './traps.js';
 import { stepRace } from './race.js';
 import { stepTorch } from './torch.js';
+import { prePenalty, stepPenalty } from './penalty.js';
 import {
   GRAVITY,
   MAX_FALL,
@@ -180,6 +181,8 @@ export class World {
     for (const f of this.fighters) {
       if (f.slot != null) f.cmd = this.inputs.get(f.slot) ?? 0;
     }
+    // Minigames read the controls themselves
+    if (this.mini && !this.mini.done && this.mini.type === 'penalty') prePenalty(this);
     if (!frozen) thinkAll(this);
     for (const f of this.fighters) this._latchInput(f, frozen);
 
@@ -212,6 +215,7 @@ export class World {
     stepTraps(this);
     stepRace(this);
     stepTorch(this);
+    stepPenalty(this);
 
     for (const f of this.fighters) {
       this._clamp(f);
@@ -1741,6 +1745,7 @@ export class World {
 
   _hitProp(c, m, dir, att, src) {
     const pdef = FIGHTERS[c.kind];
+    if (pdef.keeper) return;
     if (pdef.objective) {
       // Only enemies (and hazards) wreck the kiosk
       if (att && att.team === 'player') return;

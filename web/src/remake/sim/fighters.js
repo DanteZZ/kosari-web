@@ -107,6 +107,18 @@ export const FIGHTERS = {
     jumpV: 0,
     moves: {},
   },
+  /** Village penalties: Дед in goal / at the spot (driven by sim/penalty.js). */
+  keeper: {
+    team: 'prop',
+    prop: true,
+    keeper: true,
+    noGrab: true,
+    hp: 9999,
+    speedX: 0,
+    speedZ: 0,
+    jumpV: 0,
+    moves: {},
+  },
   /** Dacha basement: Пахом's shadow — freezes in the flashlight beam, a hit banishes him. */
   shade: {
     team: 'enemy',

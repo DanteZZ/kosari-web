@@ -75,7 +75,7 @@ function eraMap(o) {
       })),
       o.boss
         ? { id: 'boss', boss: true, ...BOSS, waves: o.boss }
-        : { id: 'finale', ...BOSS, reward: [{ kind: 'heal', amount: 100 }], waves: o.finale },
+        : { id: 'finale', ...BOSS, reward: [{ kind: 'heal', amount: 100 }], ...(o.finaleMini ? { mini: o.finaleMini } : {}), waves: o.finale },
     ],
   };
 }
@@ -107,6 +107,7 @@ export const village = eraMap({
     [{ nextAt: 1, spawns: [sp('nikita', 2), sp('thrower', 2, 'left', 50)] }, { banner: 'Болельщики!', spawns: [sp('runner', 3, 'both', 26), sp('buiniy', 1)] }],
     [{ spawns: [sp('buiniy', 2), sp('nikita', 2)] }, { banner: 'С поля!', spawns: [sp('blocker', 2), sp('nikita', 3, 'drop', 30)] }],
   ],
+  finaleMini: { type: 'penalty', rounds: 3 },
   finale: [
     { banner: 'Дед «я футбольный мячик»', spawns: [el('ded')] },
     { banner: 'Дедова команда', spawns: [sp('ded', 2, 'both', 60), sp('runner', 2)] },
