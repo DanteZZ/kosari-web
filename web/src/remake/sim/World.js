@@ -1,3 +1,5 @@
+import { stepTraps } from './traps.js';
+import { stepRace } from './race.js';
 import {
   GRAVITY,
   MAX_FALL,
@@ -194,6 +196,7 @@ export class World {
       f.pz = f.z;
       f.py = f.y;
       if (skipEnemies && f.team !== 'player') continue;
+      if (f.driving) continue;
       this._update(f);
     }
     this._bodyCollisions();
@@ -205,6 +208,8 @@ export class World {
     this._dropLoot();
     this._crateDropper();
     this._hazards();
+    stepTraps(this);
+    stepRace(this);
 
     for (const f of this.fighters) {
       this._clamp(f);
@@ -1423,7 +1428,10 @@ export class World {
     if (t.dead || UNHITTABLE.has(t.state) || t.iframes > 0 || t.state === 'grabbed') return false;
     if (pr.hitsAll ? t.id === pr.owner : t.team === pr.team) return false;
     if (pr.hit.includes(t.id)) return false;
-    if (Math.abs(t.x - pr.x) > 30 + Math.abs(pr.vx) * 0.5 || Math.abs(t.z - pr.z) > 24) return false;
+    const sp = pr.spec;
+    if (Math.abs(t.x - pr.x) > (sp.halfW ?? 30) + Math.abs(pr.vx) * 0.5 || Math.abs(t.z - pr.z) > (sp.halfZ ?? 24)) return false;
+    // Cars: jump over them
+    if (sp.hitH && t.y > sp.hitH) return false;
     if (pr.y < t.y - 10 || pr.y > t.y + 250) return false;
     return true;
   }
@@ -1574,6 +1582,8 @@ export class World {
     const pb = this.playerBounds || this.bounds;
     const near = () => ps[this.rng.int(0, ps.length - 1)];
 
+    // Nothing drops on the road during the race
+    if (this.race && !this.race.done) return;
     // Anvils from the sky (Влад Борщ phases, or a map can switch them on)
     if (this.anvilEvery && ps.length) {
       if (this.anvilT <= 0) this.anvilT = this.rng.int(this.anvilEvery[0], this.anvilEvery[1]);

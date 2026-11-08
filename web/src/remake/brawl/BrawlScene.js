@@ -21,6 +21,7 @@ import { DT, METER_MAX } from '../sim/constants.js';
 import { MOVES } from '../sim/moves.js';
 import { FighterView } from './FighterView.js';
 import { CrateView } from './CrateView.js';
+import { RaceView } from './RaceView.js';
 import { SpriteFighterView, SPRITE_KINDS } from './SpriteFighterView.js';
 import { ROAD_Y } from './stage.js';
 import { WEAPONS, WEAPON_SLOTS, SHOP, BUFFS } from '../sim/items.js';
@@ -49,6 +50,8 @@ const ORIG_PROJ = {
   shockwave: { key: 'item_shockwave', size: 190 },
   spear: { key: 'item_spear', size: 230 },
   microphone: { key: 'item_microphone', size: 74, spin: 9 },
+  // Roadside traffic (traps): the art faces left
+  car_lada: { key: 'item_car_lada', size: 280, faceLeft: true, ground: true },
 };
 
 /** Pickup art by kind (food heals pick big or small by amount). */
@@ -325,6 +328,8 @@ export class BrawlScene extends Phaser.Scene {
     }
     this.renderPickups(alpha);
     this.renderProjectiles(alpha);
+    if (!this.raceView) this.raceView = new RaceView(this, this.heroSpeaker().face);
+    this.raceView.render(this.world, alpha);
     this.renderAirships(alpha);
 
     this.updateCamera(frameMs / 1000, alpha);
@@ -664,6 +669,36 @@ export class BrawlScene extends Phaser.Scene {
           if (ev.banner) this.banner(ev.banner, ev.boss ? null : `Волна ${ev.n}/${ev.total}`, 1300, ev.boss);
           else this.banner(`Волна ${ev.n}/${ev.total}`, null, 900);
           this.sound.play('beep', { volume: 0.25, rate: 0.7 });
+          break;
+        // ---- Highway race / roadside traps
+        case 'raceStart':
+          this.banner('В ТАЧКУ!', 'W/S — полоса · D — газ · A — тормоз · J — в морду', 2200, true);
+          this.sound.play('superudar', { volume: 0.35, rate: 1.4 });
+          break;
+        case 'raceCrash':
+          this.shake(260, 9);
+          this.sound.play('hit', { volume: 0.7, rate: 0.6 });
+          this.popText(ev.x, stage.groundY(ev.z) - 160, `−${ev.dmg}`, '#ff5a4a', 30);
+          break;
+        case 'racePunch':
+          this.sound.play('punch', { volume: 0.35, rate: 1.1 });
+          break;
+        case 'mopedDown':
+          this.sound.play('hit', { volume: 0.55, rate: 1.2 });
+          this.popText(ev.x, stage.groundY(ev.z) - 170, 'СБИТ!', '#ffd23f', 26);
+          break;
+        case 'potLand':
+          this.sound.play('punch', { volume: 0.4, rate: 0.7 });
+          this.shake(80, 3);
+          break;
+        case 'raceEnd':
+          this.banner('ПРИЕХАЛИ!', ev.crashes ? `Аварий: ${ev.crashes} · бонус ${ev.bonus} К` : `Ни царапины! Бонус ${ev.bonus} К`, 1800);
+          this.sound.play('cash', { volume: 0.5 });
+          break;
+        case 'laneWarn':
+          if (!this.raceView) this.raceView = new RaceView(this, this.heroSpeaker().face);
+          this.raceView.laneWarn(ev.z, ev.dir, ev.t);
+          this.sound.play('beep', { volume: 0.3, rate: 1.4 });
           break;
         // ---- Arena goals
         case 'goalStart': {
@@ -1059,12 +1094,14 @@ export class BrawlScene extends Phaser.Scene {
           img.setScale(orig.size / (Math.max(img.width, img.height) || 1));
           if (orig.angle) img.setAngle(orig.angle);
           img.origSpin = orig.spin || 0;
+          img.faceLeft = !!orig.faceLeft;
+          if (orig.ground) img.setOrigin(0.5, 1);
         } else {
           const key = `proj_${pr.spec.tex}`;
           img = this.add.image(0, 0, this.textures.exists(key) ? key : '__DEFAULT').setOrigin(0.5);
           img.setScale(pr.spec.kind === 'rocket' ? 0.75 : pr.spec.kind === 'pellet' ? 0.5 : pr.spec.kind === 'bottle' ? 1 : 0.55);
         }
-        img.setFlipX(pr.vx < 0);
+        img.setFlipX(img.faceLeft ? pr.vx > 0 : pr.vx < 0);
         // Line the shot up with the barrel as drawn this frame (aim pose / recoil
         // move the gun a little; the sim keeps a fixed muzzle height)
         img.offY = 0;

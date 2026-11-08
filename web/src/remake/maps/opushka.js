@@ -1,4 +1,13 @@
 import { arenaAt, lengthFor, joinBefore } from './geom.js';
+
+/** The highway race replaces the second arena: a long stretch of road. */
+const RACE_LEN = 16000;
+const RACE = { left: arenaAt(1).left, right: arenaAt(1).left + RACE_LEN, trigger: arenaAt(1).left + 40 };
+const SHIFT = RACE.right - arenaAt(1).right;
+const shifted = (i) => {
+  const a = arenaAt(i);
+  return { left: a.left + SHIFT, right: a.right + SHIFT, trigger: a.trigger + SHIFT };
+};
 /**
  * Map "Опушка" — second map: from the forest edge out onto the highway, ending
  * at the roadside shawarma kiosk where Повар lives (3 phases + fork rain).
@@ -11,8 +20,8 @@ export default {
   chapter: 'Глава 1 · 2011',
   next: 'village',
   /** Forest → highway → shawarma kiosk (brawl/world/ThemeWorld.js). */
-  world: [{ theme: 'forest', to: joinBefore(1) }, { theme: 'highway', to: joinBefore(3) }, { theme: 'shawarma' }],
-  length: lengthFor(4),
+  world: [{ theme: 'forest', to: joinBefore(1) }, { theme: 'highway', to: joinBefore(3) + SHIFT }, { theme: 'shawarma' }],
+  length: lengthFor(4) + SHIFT,
   start: { x: 260, z: 80 },
   scaling: 0.1,
   loading: {
@@ -21,9 +30,9 @@ export default {
     text: [
       'Борщ остался в лесу, а слухи пошли дальше: за опушкой, у самого шоссе, стоит шаурмичная, и заведует ею Повар.',
       'Повар не любит гостей. Кастрюли у него летают по дуге, сковородки — над самой землёй, а когда дела идут плохо, он уходит, и с неба начинают падать вилки.',
-      'Над опушкой то и дело проплывает дирижабль. Что он сбрасывает — лучше не проверять головой.',
+      'Над опушкой то и дело проплывает дирижабль. Что он сбрасывает — лучше не проверять головой. А до шаурмичной — по трассе, в старых «Жигулях», мимо фур и Никит на мопедах.',
     ],
-    tip: 'Повара ранит только его собственная посуда. Отбей кастрюлю или сковородку ударом, а в дождь из вилок следи за красными метками.',
+    tip: 'В гонке: W/S — полоса, D — газ, A — тормоз, J — врезать мопедщику. Повара ранит только его собственная посуда. Отбей кастрюлю или сковородку ударом, а в дождь из вилок следи за красными метками.',
   },
   /** Original hazards on this map: [min, max] ticks between drops / flights. */
   anvils: [520, 820],
@@ -39,17 +48,18 @@ export default {
       ],
     },
     {
-      id: 'o2',
-      ...arenaAt(1),
+      // Гонка по трассе: в «Жигули» и к шаурмичной
+      id: 'race',
+      race: true,
+      ...RACE,
       reward: [{ kind: 'heal', amount: 60 }],
-      waves: [
-        { nextAt: 2, spawns: [{ kind: 'thrower', count: 3, from: 'both', every: 40 }, { kind: 'blocker', count: 2, from: 'left', every: 60 }] },
-        { banner: 'Толпа!', spawns: [{ kind: 'nikita', count: 9, from: 'both', every: 12 }, { kind: 'buiniy', count: 2, from: 'both', every: 70 }] },
-      ],
+      waves: [{ spawns: [] }],
     },
     {
       id: 'o3',
-      ...arenaAt(2),
+      ...shifted(2),
+      // On the roadside: cars fly past — throw the crowd under them
+      traps: [{ type: 'traffic', every: [240, 400] }],
       reward: [{ kind: 'heal', amount: 80 }],
       waves: [
         { nextAt: 2, spawns: [{ kind: 'runner', count: 4, from: 'both', every: 24 }, { kind: 'blocker', count: 2, from: 'both', every: 50 }] },
@@ -59,7 +69,7 @@ export default {
     {
       id: 'boss',
       boss: true,
-      ...arenaAt(3),
+      ...shifted(3),
       waves: [{ banner: 'Повар', spawns: [{ kind: 'povar', count: 1, from: 'right' }] }],
     },
   ],

@@ -38,6 +38,9 @@ def key_magenta(im: Image.Image) -> Image.Image:
     d = np.sqrt(((a - bg) ** 2).sum(-1))
     alpha = np.clip((d - 40) / 60, 0, 1)
     mag = np.minimum(a[..., 0], a[..., 2]) - a[..., 1]
+    # Enclosed magenta (car windows, wheel spokes) is not touching the border:
+    # key strongly magenta pixels anywhere
+    alpha = alpha * (1 - np.clip((mag - 70) / 50, 0, 1))
     spill = np.clip((mag - 10) / 120, 0, 1) * (1 - alpha * 0.6)
     g = a[..., 1]
     a[..., 0] -= (a[..., 0] - g) * spill * 0.85

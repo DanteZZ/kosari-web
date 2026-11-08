@@ -1,3 +1,5 @@
+import { setTraps } from './traps.js';
+import { startRace } from './race.js';
 import { FIGHTERS } from './fighters.js';
 
 /**
@@ -95,6 +97,13 @@ export class MapDirector {
       this._spawn(a, q);
     }
 
+    if (a.race) {
+      if (w.race?.done) {
+        w.race = null;
+        this._clear(a);
+      }
+      return;
+    }
     const wv = a.waves[this.wave];
     const g = this.goal;
     if (g) this._goalStep(a, g);
@@ -196,6 +205,12 @@ export class MapDirector {
 
   /** One line for the HUD about the current goal. */
   goalText() {
+    const r = this.world.race;
+    if (r && !r.done) {
+      const p = this.world.players().find((f) => f.driving);
+      const k = p ? Math.max(0, Math.min(1, (p.x - r.x0) / (r.x1 - r.x0))) : 0;
+      return `Гони к шаурмичной: ${Math.round(k * 100)}% · ${Math.round(r.v * 6)} км/ч`;
+    }
     const g = this.goal;
     if (!g || g.done) return '';
     if (g.type === 'survive') {
@@ -227,7 +242,14 @@ export class MapDirector {
       p.x = Math.min(b.right - 40, Math.max(b.left + 40, p.x));
     }
     this.arenaIds = [];
-    w.events.push({ type: 'arenaStart', index: this.idx, boss: !!a.boss, left: b.left, right: b.right });
+    w.events.push({ type: 'arenaStart', index: this.idx, boss: !!a.boss, left: b.left, right: b.right, race: !!a.race });
+    setTraps(w, a.traps);
+    if (a.race) {
+      // Highway race: no waves, drive to the end of the arena
+      const p = w.players()[0];
+      if (p) startRace(w, p, b.left, b.right - 260);
+      return;
+    }
     this._setupGoal(a, b);
     this._startWave(0);
   }
@@ -321,6 +343,7 @@ export class MapDirector {
       }
     }
     this.goal = null;
+    setTraps(w, null);
     this.idx += 1;
     this.wave = -1;
     this.queue = [];
