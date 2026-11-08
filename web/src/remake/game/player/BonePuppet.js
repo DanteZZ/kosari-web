@@ -333,9 +333,8 @@ export class BonePuppet {
   }
 
   /**
-   * Armed Z-order on torso:
-   * body → gun → left arm (support) → right arm (trigger / fist on top) → head
-   * Unarmed: left arm back on hips behind torso.
+   * The left (far) arm always stays on the hips behind the torso.
+   * Armed Z-order on the torso: body → gun → head → right arm (fist on top).
    */
   _stackForWeapon(armed) {
     const hips = this.nodes.hips;
@@ -345,23 +344,21 @@ export class BonePuppet {
     if (!hips || !torso || !armL) return;
 
     if (armed) {
-      if (armL.parentContainer !== torso) {
-        // hips-local → torso-local (torso at hips origin ≈ 0)
+      // The far (left) arm stays behind the body even with a gun — only the
+      // gun, the head and the near arm go on top of the torso
+      if (armL.parentContainer !== hips) {
         const layout = this._layout().arm_l_u || {};
-        const torsoLay = this._layout().torso || {};
-        armL.x = (layout.x ?? armL.x) - (torsoLay.x ?? 0);
-        armL.y = (layout.y ?? armL.y) - (torsoLay.y ?? 0);
-        torso.add(armL);
+        armL.x = layout.x ?? 29;
+        armL.y = layout.y ?? -115;
+        hips.add(armL);
       }
-      this._restack(hips, ['leg_l_u', 'leg_r_u', 'torso']);
-      // Depth: body → left support → gun → head → right arm (fist on grip)
+      this._restack(hips, ['arm_l_u', 'leg_l_u', 'leg_r_u', 'torso']);
+      // Depth on the torso: body → gun → head → right arm (fist on the grip)
       if (torso.sprite) torso.sprite.setDepth(0);
-      if (armL) armL.setDepth(1);
       if (this.weaponImage) this.weaponImage.setDepth(2);
       if (this.nodes.head) this.nodes.head.setDepth(3);
       if (armR) armR.setDepth(4);
       torso.sort('depth');
-      // Ensure list order matches after sort
       if (armR) torso.bringToTop(armR);
     } else {
       if (armL.parentContainer !== hips) {

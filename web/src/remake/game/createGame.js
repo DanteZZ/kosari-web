@@ -1,3 +1,4 @@
+import { stopAllMusic } from '../brawl/Music.js';
 import Phaser from 'phaser';
 import { VIEW_W, VIEW_H, applyViewSize } from './constants.js';
 import { PreloadScene } from './PreloadScene.js';
@@ -93,6 +94,7 @@ export function startBrawl({ parent, onExit, map, arena }) {
 
 export function stopGame() {
   hideLoading();
+  stopAllMusic();
   if (game) {
     game.destroy(true);
     game = null;

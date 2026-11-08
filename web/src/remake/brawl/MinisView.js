@@ -87,8 +87,12 @@ export class MinisView {
       if (tex) this[key].setScale(130 / this[key].width);
     }
     const v = s.views.get(f.id);
-    const top = v ? v.visual.y - (v.bodyH || 300) : stage.groundY(f.z) - 300;
-    this[key].setPosition(f.x, top - 70 - k * 60).setDepth(stage.depth(f.z) + 4);
+    // Above the head (the puppet's real head, whatever the rig's height)
+    const head = v?.puppet?.nodes?.head?.sprite;
+    const top = head ? head.getBounds().top : v ? v.visual.y - (v.bodyH || 300) : stage.groundY(f.z) - 300;
+    // The plate's lower edge clears the head, and rises with each good rep
+    const r = this[key].displayHeight / 2;
+    this[key].setPosition(f.x, top - r - 12 - k * 50).setDepth(stage.depth(f.z) + 4);
   }
 
   // ---------------------------------------------------------------- stealth

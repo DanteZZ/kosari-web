@@ -1595,3 +1595,9 @@ body {
   .cr-role { grid-template-columns: 1fr; gap: 2px; }
   .cr-name, .cr-what { text-align: center; }
 }
+
+/* The chosen hero faces left everywhere in the menu (`scale` composes with the float animation's transform) */
+.cx-hero-show img,
+.cx-hero-big img,
+.cx-phero img,
+.cx-tab img { scale: -1 1; }

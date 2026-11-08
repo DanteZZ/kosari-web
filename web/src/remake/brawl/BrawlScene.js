@@ -28,7 +28,7 @@ import { PenaltyView } from './PenaltyView.js';
 import { ModesView } from './ModesView.js';
 import { MinisView } from './MinisView.js';
 import { SetView } from './SetView.js';
-import { MusicDirector } from './Music.js';
+import { MusicDirector, stopAllMusic } from './Music.js';
 import { FUSE_T } from '../sim/torch.js';
 import { SpriteFighterView, SPRITE_KINDS } from './SpriteFighterView.js';
 import { ROAD_Y } from './stage.js';
@@ -206,6 +206,8 @@ export class BrawlScene extends Phaser.Scene {
         return;
       }
       this.sound.stopAll();
+      // The map's music is streamed outside Phaser: silence it before the menu starts its own
+      stopAllMusic();
       this.onExit?.();
     });
     kb.on('keydown-B', () => this.toggleShop());

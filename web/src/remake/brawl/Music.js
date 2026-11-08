@@ -73,6 +73,18 @@ const BOSS = {
   ],
 };
 
+/** Every stream this module started (so leaving a mission can silence them all). */
+const LIVE = new Set();
+
+/** Stop all music right away (leaving the mission, the game being torn down). */
+export function stopAllMusic() {
+  for (const a of LIVE) {
+    a.pause();
+    a.src = '';
+  }
+  LIVE.clear();
+}
+
 const key = (t) => (t ? `${t.slot}@${t.from ?? ''}-${t.to ?? ''}` : '');
 
 export class MusicDirector {
@@ -136,6 +148,7 @@ export class MusicDirector {
 
   _start(t) {
     const a = new Audio(DIR + t.slot + '.mp3');
+    LIVE.add(a);
     a.loop = t.to == null;
     a.volume = 0;
     a.preload = 'auto';
@@ -156,7 +169,10 @@ export class MusicDirector {
       const k = Math.min(1, (performance.now() - t0) / FADE_MS);
       a.volume = v0 * (1 - k);
       if (k < 1) requestAnimationFrame(step);
-      else a.pause();
+      else {
+        a.pause();
+        LIVE.delete(a);
+      }
     };
     step();
   }
@@ -191,6 +207,7 @@ export class MusicDirector {
     this.stop();
     this.cur = { slot: `${slot}#sting` };
     const a = new Audio(DIR + slot + '.mp3');
+    LIVE.add(a);
     a.volume = BASE_VOL * volume('music');
     a.play().catch(() => {});
     this.audio = a;
@@ -204,6 +221,7 @@ export class MusicDirector {
   }
 
   stop() {
+    this.frozen = true;
     this._fadeOut(this.audio);
     this.audio = null;
     this.cur = null;
