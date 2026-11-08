@@ -319,7 +319,7 @@ export const river = eraMap({
   widths: [0, 3800, 0],
   extra: [null, {
     raft: { w: 1150, speed: 3 },
-    entry: { art: 'raft', h: 120, at: 520, reach: 220, prompt: 'J — прыгнуть на плот', intro: [['hero', 'Плот у берега. Течение само донесёт.'], ['hero', 'Рыбаки на мостах что-то задумали…']] },
+    entry: { art: 'raft', h: 110, at: 520, z: 2, reach: 220, prompt: 'J — прыгнуть на плот', intro: [['hero', 'Плот у берега. Течение само донесёт.'], ['hero', 'Рыбаки на мостах что-то задумали…']] },
   }, null],
   name: 'Река',
   chapter: 'Глава 5 · Сигма-эпоха',

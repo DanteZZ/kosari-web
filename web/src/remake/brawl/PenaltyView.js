@@ -16,6 +16,18 @@ export class PenaltyView {
   _goal(m, world) {
     const g = this.gfx;
     g.clear();
+    if (this.scene.textures.exists('item_football_goal')) {
+      // Painted goal (Cursor art), seen from the side: the post faces the shooter
+      if (!this.goalImg) {
+        this.goalImg = this.scene.add.image(0, 0, 'item_football_goal').setOrigin(0.12, 1);
+        this.goalImg.setScale(340 / this.goalImg.height);
+      }
+      const zb = world.bounds.zMax;
+      this.goalImg.setPosition(m.goalX - 50, stage.groundY(zb) + 12).setDepth(stage.depth(world.bounds.zMin) - 1);
+      g.fillStyle(0xffffff, 0.9).fillEllipse(m.spotX, stage.groundY((world.bounds.zMin + zb) / 2), 22, 8);
+      g.setDepth(stage.depth(world.bounds.zMin) - 2);
+      return;
+    }
     const z0 = world.bounds.zMin + 6;
     const z1 = world.bounds.zMax - 6;
     const x = m.goalX + 70;
@@ -115,6 +127,8 @@ export class PenaltyView {
     this.ballShadow?.destroy();
     this.label?.destroy();
     this.front?.destroy();
+    this.goalImg?.destroy();
+    this.goalImg = null;
     this.gfx.clear();
     this.ui.clear();
     this.ball = null;

@@ -335,7 +335,7 @@ export class MapDirector {
       const r = this.raft;
       const a = this.arena;
       const k = Math.max(0, Math.min(1, (r.x - a.left) / (r.end - r.w - a.left)));
-      return `Сплав по реке: ${Math.round(k * 100)}% · прыгай через брёвна (Space)`;
+      return `Сплав по реке: ${Math.round(k * 100)}% · рыбаки прыгают с мостов — не дай столкнуть себя`;
     }
     const tdt = tdText(this.world);
     if (tdt) return tdt;

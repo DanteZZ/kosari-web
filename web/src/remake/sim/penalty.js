@@ -56,7 +56,8 @@ export function startPenalty(world, b, cfg) {
     p.facing = 1;
   }
   m.ballZ = m.aimZ;
-  world.events.push({ type: 'penaltyStart', rounds: m.rounds / 2, goalX: m.goalX, spotX: m.spotX });
+  if (!cfg.early) world.events.push({ type: 'penaltyStart', rounds: m.rounds / 2, goalX: m.goalX, spotX: m.spotX });
+  m.announced = !cfg.early;
   return m;
 }
 
@@ -110,6 +111,10 @@ export function stepPenalty(world) {
 
   switch (m.phase) {
     case 'intro':
+      if (!m.announced) {
+        m.announced = true;
+        world.events.push({ type: 'penaltyStart', rounds: m.rounds / 2, goalX: m.goalX, spotX: m.spotX });
+      }
       p.mini = true;
       p.facing = 1;
       place(p, m.spotX - 70, p.z);

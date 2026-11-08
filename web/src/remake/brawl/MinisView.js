@@ -88,7 +88,7 @@ export class MinisView {
     }
     const v = s.views.get(f.id);
     const top = v ? v.visual.y - (v.bodyH || 300) : stage.groundY(f.z) - 300;
-    this[key].setPosition(f.x, top + 30 - k * 70).setDepth(stage.depth(f.z) + 4);
+    this[key].setPosition(f.x, top - 70 - k * 60).setDepth(stage.depth(f.z) + 4);
   }
 
   // ---------------------------------------------------------------- stealth

@@ -914,7 +914,7 @@ export class BrawlScene extends Phaser.Scene {
           this.sound.play('cash', { volume: 0.5 });
           break;
         case 'raftStart':
-          this.banner('НА ПЛОТ!', 'Сплав по реке · прыгай через брёвна · рыбаки лезут на борт', 2400, true);
+          this.banner('НА ПЛОТ!', 'Течение несёт · рыбаки прыгают на плот сверху', 2400, true);
           break;
         case 'raftEnd':
           this.resultCard('БЕРЕГ!', ['Приплыли — прыгай на причал'], true);

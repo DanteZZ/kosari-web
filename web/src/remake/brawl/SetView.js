@@ -67,7 +67,7 @@ export class SetView {
     } else if (kind === 'river') {
       this.sky = s.add.rectangle(0, 0, W, VIEW_H * 2, 0xb6c4c8);
       this.parts.push(this.sky);
-      this.bankH = 300;
+      this.bankH = 120;
       this.banks = this._tile('item_set_river_banks', W, this.bankH, 0x6d7a6a);
       if (this.banks.setTileScale) this.banks.setTileScale(this.bankH / (this.banks.texture.source[0].height || 1));
       this.waterH = roadBot - roadTop + 260;
