@@ -363,7 +363,7 @@ export class FighterView {
         airborne: f.y > 2 && f.state !== 'airhit',
         falling: f.state === 'jump' && (f.flip || f.vy < 0),
         aiming: !!f.weapon && (f.state === 'idle' || f.state === 'walk'),
-        walkAmp: f.state === 'dash' ? 1.2 : 1,
+        walkAmp: this.stepAmp(f),
         walkSpeed: this.cadence(f),
         dtBlend: true,
       });
@@ -433,14 +433,25 @@ export class FighterView {
 
   /**
    * Leg cadence for the walk cycle from the real ground speed: one step covers
-   * about 0.9 × the hip height (the rig's leg length on screen), and the walk
-   * clip makes 4 steps a second at cadence 1 — so the feet don't slide.
+   * ~1.5 × leg length × stride width (stepAmp), and the walk clip makes 4 steps
+   * a second at cadence 1 — so the feet don't slide.
    */
   cadence(f) {
-    const v = Math.hypot(f.x - f.px, (f.z - f.pz) * 0.7) * 60;
+    const v = this.groundSpeed(f);
     if (f.state === 'dash') return 1.4;
-    const stride = Math.max(40, this.hipsH * 0.9);
-    return Math.min(1.8, Math.max(0.45, v / (4 * stride)));
+    // The walk clip swings the legs ±48° at amp 1: one step ≈ 1.5 × leg length
+    const stride = Math.max(40, this.hipsH * 1.5 * this.stepAmp(f));
+    return Math.min(1.8, Math.max(0.3, v / (4 * stride)));
+  }
+
+  groundSpeed(f) {
+    return Math.hypot(f.x - f.px, (f.z - f.pz) * 0.7) * 60;
+  }
+
+  /** Stride width: slow walkers take short steps, runners long ones. */
+  stepAmp(f) {
+    if (f.state === 'dash') return 1.2;
+    return Math.min(1, Math.max(0.45, this.groundSpeed(f) / 500));
   }
 
   /** Take-off / landing squash (called from scene events). */
