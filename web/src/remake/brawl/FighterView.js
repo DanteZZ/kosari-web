@@ -19,7 +19,7 @@ const SQUASH_MS = 130;
 export const VARIANTS = {
   runner: { skin: 'nikita', scale: 0.9, tint: 0x86c8ff },
   /** Arena goal «догони»: a Nikita in black with a bag of косари. */
-  thief: { skin: 'nikita', scale: 0.88, tint: 0x6a6a78 },
+  thief: { skin: 'nikita', scale: 0.88, tint: 0x3a3a44 },
   /** Museum guards; Руки базуки on the bench next to you. */
   guard: { skin: 'buiniy', scale: 1.02, tint: 0x5a6a90 },
   rival: { skin: 'ruki', scale: 1, tint: null },
@@ -133,9 +133,11 @@ export class FighterView {
 
     if (f.kind === 'thief') {
       const tex = scene.textures.exists('item_thief_bag') ? 'item_thief_bag' : 'item_money_pack';
-      this.bag = scene.add.image(-34, -150, tex).setOrigin(0.5, 0.5);
-      this.bag.setScale(70 / Math.max(this.bag.width, this.bag.height)).setAngle(-14);
+      // A big sack of косари over his shoulder and a tag, so he stands out from the crowd
+      this.bag = scene.add.image(-70, -430, tex).setOrigin(0.5, 0.5);
+      this.bag.setScale(230 / Math.max(this.bag.width, this.bag.height)).setAngle(-18);
       this.mount.addAt(this.bag, 0);
+      this.tag = scene.add.text(0, 0, 'ВОР', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '26px', color: '#ff3b2f', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5, 1);
     }
     const gun = f.team !== 'player' ? FIGHTERS[f.kind]?.weapon : 0;
     if (gun) {
@@ -195,6 +197,7 @@ export class FighterView {
 
   /** Pooling: hide while unused. */
   park() {
+    this.tag?.setVisible(false);
     this.visual.setVisible(false);
     this.shadow.setVisible(false);
     this.hpBar?.setVisible(false);
@@ -242,6 +245,7 @@ export class FighterView {
     this.shadow.setAlpha(0.3 * (1 - lift * 0.5));
 
     this.visual.setPosition(Math.round(x), Math.round(gy - y + this.footFix));
+    if (this.tag) this.tag.setPosition(this.visual.x, this.visual.y - (this.bodyH || 260) - 40).setDepth(1500).setVisible(!f.dead);
     if (this.aura) {
       if (!this.halo) {
         if (!scene.textures.exists('fx_halo')) {
@@ -602,6 +606,7 @@ export class FighterView {
 
   destroy() {
     this.halo?.destroy();
+    this.tag?.destroy();
     this.shadow.destroy();
     this.visual.destroy(true);
     this.hpBar?.destroy();

@@ -46,7 +46,7 @@ const ORIG_PROJ = {
   // Meme-era bosses (assets/items, Cursor art)
   football: { key: 'item_football', size: 44, spin: 12 },
   jar: { key: 'item_jar', size: 52, spin: 7 },
-  brick: { key: 'item_brick', size: 46, spin: 10 },
+  brick: { key: 'item_brick', size: 62, spin: 10 },
   donation_bomb: { key: 'item_donation_bomb', size: 54, spin: 4 },
   book: { key: 'item_book', size: 50, spin: 9 },
   stone: { key: 'item_stone', size: 40, spin: 8 },

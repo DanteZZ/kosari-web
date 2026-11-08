@@ -56,7 +56,7 @@ export class CrateView {
     this.shadow = scene.add.ellipse(0, 0, 90, 22, 0x000000, 0.35).setDepth(99);
     const anvil = f.kind === 'anvil' && scene.textures.exists('nakovalna_0');
     // Arena-goal props: the kiosk to defend and the cameras to break
-    const goalTex = { objective: ['item_kiosk', 250, 150], target_cam: ['item_camera_tripod', 190, 70], entry: [`item_${f.art}`, f.artH || 200, 200] }[f.kind];
+    const goalTex = { objective: ['item_kiosk', 250, 150], target_cam: ['item_camera_tripod', 250, 80], entry: [`item_${f.art}`, f.artH || 200, 200] }[f.kind];
     this.img = scene.add
       .image(0, 0, goalTex && scene.textures.exists(goalTex[0]) ? goalTex[0] : anvil ? 'nakovalna_0' : crateTexture(scene))
       .setOrigin(0.5, 1);
@@ -80,6 +80,10 @@ export class CrateView {
     if (goalTex) {
       this.img.setScale(goalTex[1] / this.img.height);
       this.shadow.setSize(goalTex[2], 24);
+    }
+    if (f.kind === 'target_cam') {
+      // Tell the cameras to break from the studio's own: a blinking REC tag
+      this.rec = scene.add.text(0, 0, '● REC', { fontFamily: 'Arial Black, Arial', fontSize: '22px', color: '#ff3b2f', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5, 1);
     }
     if (f.kind === 'objective') {
       // Health bar over the kiosk
@@ -121,6 +125,10 @@ export class CrateView {
     this.img.setPosition(Math.round(x + ox), Math.round(gy - y)).setDepth(stage.depth(z));
     this.shaftCol?.setPosition(this.img.x, this.img.y - this.img.displayHeight + 6).setDepth(this.img.depth - 0.5);
     const dmg = 1 - f.hp / f.maxHp;
+    if (this.rec) {
+      this.rec.setPosition(x, Math.round(gy - y - this.img.displayHeight - 8)).setDepth(stage.depth(z) + 1);
+      this.rec.setAlpha(Math.floor(Date.now() / 450) % 2 ? 1 : 0.35);
+    }
     if (this.barBack) {
       const top = Math.round(gy - this.img.displayHeight - 18);
       const d = stage.depth(z) + 1;
@@ -137,6 +145,7 @@ export class CrateView {
     this.shadow.destroy();
     this.img.destroy();
     this.shaftCol?.destroy();
+    this.rec?.destroy();
     this.barBack?.destroy();
     this.barFill?.destroy();
     this.mark?.destroy();

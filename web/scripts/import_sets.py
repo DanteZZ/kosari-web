@@ -23,6 +23,13 @@ _m = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(_m)
 key_magenta = _m.key_magenta
 
+_k = importlib.util.spec_from_file_location("ikits", Path(__file__).with_name("import_kits.py"))
+_km = importlib.util.module_from_spec(_k)
+_k.loader.exec_module(_km)
+seamless = _km.seamless
+# Tiled horizontally in the game: cross-fade the ends so no seam shows
+SEAMLESS = {"set_river_water", "set_river_banks", "set_lift_floor"}
+
 # (source, output name, keyed?, max width)
 PIECES = [
     ("lift/far_wall.png", "set_lift_wall", False, 1600),
@@ -65,6 +72,8 @@ def main():
             continue
         im = Image.open(p)
         im = key_magenta(im) if keyed else im.convert("RGB")
+        if out in SEAMLESS:
+            im = seamless(im).convert("RGBA" if keyed else "RGB")
         if keyed and out.startswith("statue"):
             im = key_hue(im)
         if im.width > maxw:

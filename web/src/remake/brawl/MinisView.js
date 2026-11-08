@@ -105,15 +105,16 @@ export class MinisView {
         const im = key ? s.add.image(c.x, y, key).setOrigin(0.5, 1) : s.add.rectangle(c.x, y, 120, 360, 0xd8d0c0).setOrigin(0.5, 1);
         im.setScale(key ? 400 / im.height : 1).setDepth(stage.depth(b.zMax) + 20);
         // Night museum: the statues stand in the dark
-        if (key) im.setTint(0x7c8090);
+        if (key) im.setTint(0x55596a);
         gradeLikeBg(im, 0.6);
-        const tag = c.practice ? s.add.text(c.x, y - 420, 'спрячься тут', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '22px', color: '#9fd3e0', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(9000) : null;
+        const tag = c.practice ? s.add.text(c.x, y + 34, '▲ спрячься тут ▲', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '22px', color: '#9fd3e0', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(9000) : null;
         this.covers.push(shadow, im);
         if (tag) this.covers.push(tag);
       });
+      const y0Floor = stage.groundY(b.zMax) + 26;
       if (m.practiceX) {
         this.covers.push(
-          s.add.text(m.practiceX, stage.groundY(b.zMin) - 300, 'ОХРАНА ДАЛЬШЕ →', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '26px', color: '#ff8a7a', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(9000),
+          s.add.text(m.practiceX, y0Floor + 34, 'ОХРАНА ДАЛЬШЕ →', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '26px', color: '#ff8a7a', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5).setDepth(9000),
         );
       }
       this.exit = s.add
@@ -174,8 +175,9 @@ export class MinisView {
     const y0 = stage.groundY(b.zMin) - 20;
     const y1 = stage.groundY(b.zMax) + 30;
     const w = rb.xMax - rb.xMin;
-    this.raft.setPosition(rb.xMin, (y0 + y1) / 2 + 10).setDepth(stage.depth(b.zMin) - 3);
-    this.raft.setDisplaySize(w, y1 - y0 + 40);
+    // A little wider than the box: a knocked-down fighter lies on logs, not on water
+    this.raft.setPosition(rb.xMin - 150, (y0 + y1) / 2 + 10).setDepth(stage.depth(b.zMin) - 3);
+    this.raft.setDisplaySize(w + 230, y1 - y0 + 40);
     // (the water itself is the river set, brawl/SetView.js)
     if (this.water) return;
     const cam = s.cameras.main;
