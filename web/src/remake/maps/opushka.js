@@ -1,3 +1,4 @@
+import { arenaAt, lengthFor, joinBefore } from './geom.js';
 /**
  * Map "Опушка" — second map: from the forest edge out onto the highway, ending
  * at the roadside shawarma kiosk where Повар lives (3 phases + fork rain).
@@ -10,8 +11,8 @@ export default {
   chapter: 'Глава 1 · 2011',
   next: 'village',
   /** Forest → highway → shawarma kiosk (brawl/world/ThemeWorld.js). */
-  world: [{ theme: 'forest', to: 1600 }, { theme: 'highway', to: 4250 }, { theme: 'shawarma' }],
-  length: 5600,
+  world: [{ theme: 'forest', to: joinBefore(1) }, { theme: 'highway', to: joinBefore(3) }, { theme: 'shawarma' }],
+  length: lengthFor(4),
   start: { x: 260, z: 80 },
   scaling: 0.1,
   loading: {
@@ -30,9 +31,7 @@ export default {
   arenas: [
     {
       id: 'o1',
-      trigger: 720,
-      left: 380,
-      right: 1500,
+      ...arenaAt(0),
       reward: [{ kind: 'heal', amount: 50 }],
       waves: [
         { nextAt: 1, spawns: [{ kind: 'nikita', count: 4, from: 'both', every: 26 }, { kind: 'runner', count: 2, from: 'right', every: 50 }] },
@@ -41,9 +40,7 @@ export default {
     },
     {
       id: 'o2',
-      trigger: 2000,
-      left: 1700,
-      right: 2850,
+      ...arenaAt(1),
       reward: [{ kind: 'heal', amount: 60 }],
       waves: [
         { nextAt: 2, spawns: [{ kind: 'thrower', count: 3, from: 'both', every: 40 }, { kind: 'blocker', count: 2, from: 'left', every: 60 }] },
@@ -52,9 +49,7 @@ export default {
     },
     {
       id: 'o3',
-      trigger: 3300,
-      left: 3000,
-      right: 4150,
+      ...arenaAt(2),
       reward: [{ kind: 'heal', amount: 80 }],
       waves: [
         { nextAt: 2, spawns: [{ kind: 'runner', count: 4, from: 'both', every: 24 }, { kind: 'blocker', count: 2, from: 'both', every: 50 }] },
@@ -64,9 +59,7 @@ export default {
     {
       id: 'boss',
       boss: true,
-      trigger: 4650,
-      left: 4350,
-      right: 5600,
+      ...arenaAt(3),
       waves: [{ banner: 'Повар', spawns: [{ kind: 'povar', count: 1, from: 'right' }] }],
     },
   ],

@@ -42,10 +42,12 @@ function wanderZ(world, e) {
 
 /** Spawn backup from both arena edges (used on boss phase changes). */
 function backup(world, kinds) {
-  const pb = world.playerBounds || world.bounds;
+  const p = world.players()[0];
+  const half = (world.viewW || 1280) / 2 + 100;
+  const cx = p ? p.x : 0;
   kinds.forEach((k, i) => {
     const side = i % 2 ? -1 : 1;
-    const x = side > 0 ? pb.xMax + 120 + i * 40 : pb.xMin - 120 - i * 40;
+    const x = cx + side * (half + i * 40);
     world.spawn(k, x, world.rng.range(world.bounds.zMin + 10, world.bounds.zMax - 10), { facing: -side });
   });
 }
@@ -106,7 +108,8 @@ function povar(world, e, players) {
     // Walk off-screen on his side
     // Off past the arena edge (the map edge may come first — then he hides there)
     const W = world.bounds;
-    const exitX = home > 0 ? Math.min(pb.xMax + 260, W.xMax - 32) : Math.max(pb.xMin - 260, W.xMin + 32);
+    const off = (t ? t.x : e.x) + home * ((world.viewW || 1280) / 2 + 260);
+    const exitX = Math.min(W.xMax - 32, Math.max(W.xMin + 32, off));
     e.faceX = null;
     if (FREE.has(e.state)) e.cmd = steer(e, exitX, e.z, 12);
     if ((home > 0 && e.x >= exitX - 20) || (home < 0 && e.x <= exitX + 20)) {
@@ -126,7 +129,8 @@ function povar(world, e, players) {
     e.away = false;
     e.iframes = 0;
     const nh = e.phase === 2 ? -1 : 1;
-    e.x = nh > 0 ? pb.xMax + 160 : pb.xMin - 160;
+    const tp = nearest(e, players);
+    e.x = (tp ? tp.x : e.x) + nh * ((world.viewW || 1280) / 2 + 160);
     world.events.push({ type: 'bossReturn', id: e.id, phase: e.phase });
     if (e.phase === 3) backup(world, ['nikita', 'buiniy']);
     return;
@@ -135,7 +139,7 @@ function povar(world, e, players) {
   e.faceX = t.x;
   if (!FREE.has(e.state)) return;
 
-  const goalX = home > 0 ? pb.xMax - 150 : pb.xMin + 150;
+  const goalX = Math.min(pb.xMax - 150, Math.max(pb.xMin + 150, t.x + home * 470));
   let bits = steer(e, goalX, wanderZ(world, e), 30);
   if (ai.cd == null) ai.cd = 70;
   if (--ai.cd <= 0) {
@@ -226,8 +230,9 @@ function pahom(world, e, players) {
   if (tickCd(ai, 'blinkCd', ph === 1 ? 300 : 200, ph === 1 ? 420 : 300, world)) {
     const pb = world.playerBounds || world.bounds;
     const x0 = e.x;
-    const right = t.x < (pb.xMin + pb.xMax) / 2;
-    e.x = right ? pb.xMax - 120 : pb.xMin + 120;
+    const side = e.x > t.x ? -1 : 1;
+    const reach = Math.min(520, (world.viewW || 1280) / 2 - 140);
+    e.x = Math.min(pb.xMax - 120, Math.max(pb.xMin + 120, t.x + side * reach));
     e.z = world.rng.chance(0.5) ? world.bounds.zMin + 20 : world.bounds.zMax - 20;
     e.px = e.x;
     e.iframes = 20;

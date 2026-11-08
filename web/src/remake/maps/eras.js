@@ -1,10 +1,16 @@
+import { arenaAt, lengthFor, joinBefore } from './geom.js';
+
+const J1 = joinBefore(1);
+const J2 = joinBefore(2);
+const J3 = joinBefore(3);
+
 /**
  * Meme-era chapters 2–6 and the finale. Same format as forest.js; built with
  * eraMap() so every map shares the proven arena geometry of «Опушка»:
  * three locked arenas, then the boss arena at the end of the road.
  *
  * world: background segments along the road (brawl/world/ThemeWorld.js). Joins sit
- *        in the gaps between arenas (1600 / 2930 / 4250), never inside a locked fight.
+ *        in the gaps between arenas (J1 / J2 / J3, maps/geom.js), never inside a fight.
  * Enemy roster: a sliding window of the three newest enemy types — every
  * debut pushes the oldest one out (Никита → Буйный → Дед → Монгол → Глад →
  * Вертуха / Руки → Идущий к реке → Зубарев → Гительман). Runner / blocker are
@@ -15,12 +21,8 @@
  * meeting dialogue — `debuts`); after that he turns up in regular waves.
  */
 
-const GEOM = [
-  { trigger: 720, left: 380, right: 1500 },
-  { trigger: 2000, left: 1700, right: 2850 },
-  { trigger: 3300, left: 3000, right: 4150 },
-];
-const BOSS = { trigger: 4650, left: 4350, right: 5600 };
+const GEOM = [arenaAt(0), arenaAt(1), arenaAt(2)];
+const BOSS = arenaAt(3);
 /** HP multiplier of a debuting meme enemy. */
 const ELITE = 2.2;
 
@@ -37,7 +39,7 @@ function eraMap(o) {
     name: o.name,
     chapter: o.chapter,
     next: o.next,
-    length: 5600,
+    length: lengthFor(4),
     start: { x: 260, z: 80 },
     scaling: o.scaling ?? 0.12,
     world: o.world,
@@ -69,7 +71,7 @@ export const village = eraMap({
   name: 'Деревня',
   chapter: 'Глава 2 · Ранний ютуб',
   next: 'dacha',
-  world: [{ theme: 'village', to: 4250 }, { theme: 'stadium' }],
+  world: [{ theme: 'village', to: J3 }, { theme: 'stadium' }],
   loading: {
     title: 'Деревня',
     art: 'ded',
@@ -97,7 +99,7 @@ export const dacha = eraMap({
   name: 'Дача',
   chapter: 'Глава 2 · Ранний ютуб',
   next: 'panelki',
-  world: [{ theme: 'dacha', to: 4250 }, { theme: 'cellar' }],
+  world: [{ theme: 'dacha', to: J3 }, { theme: 'cellar' }],
   loading: {
     title: 'Дача',
     art: 'pahom',
@@ -177,7 +179,7 @@ export const gym = eraMap({
   name: 'Качалка',
   chapter: 'Глава 4 · Пабликовая эпоха',
   next: 'museum',
-  world: [{ theme: 'gym_street', to: 1600 }, { theme: 'gym' }],
+  world: [{ theme: 'gym_street', to: J1 }, { theme: 'gym' }],
   loading: {
     title: 'Качалка',
     art: 'ruki',
@@ -257,7 +259,7 @@ export const sigmaGym = eraMap({
   name: 'Зал сигм',
   chapter: 'Глава 5 · Сигма-эпоха',
   next: 'stream_house',
-  world: [{ theme: 'sigma_gym', to: 4250 }, { theme: 'ring' }],
+  world: [{ theme: 'sigma_gym', to: J3 }, { theme: 'ring' }],
   loading: {
     title: 'Зал сигм',
     art: 'gigachad',
@@ -312,7 +314,7 @@ export const office = eraMap({
   name: 'Бизнес-центр',
   chapter: 'Глава 6 · Новая волна',
   next: 'concert',
-  world: [{ theme: 'office', to: 4250 }, { theme: 'trading' }],
+  world: [{ theme: 'office', to: J3 }, { theme: 'trading' }],
   loading: {
     title: 'Бизнес-центр',
     art: 'gitelman',
@@ -341,7 +343,7 @@ export const concert = eraMap({
   chapter: 'Финал',
   next: null,
   scaling: 0.15,
-  world: [{ theme: 'night_street', to: 2930 }, { theme: 'stage' }],
+  world: [{ theme: 'night_street', to: J2 }, { theme: 'stage' }],
   anvils: [700, 1000],
   loading: {
     title: 'Концерт',

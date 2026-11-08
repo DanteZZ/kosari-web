@@ -159,14 +159,21 @@ export class MapDirector {
     if (meets) {
       // Boss / newcomer: already standing in the arena, waits for his scene
       this.met.add(q.kind);
+      // Ahead of the player, towards the far end of the arena (players come from the left)
       const p = w.players()[0];
-      const mid = (a.left + a.right) / 2;
-      const side = p && p.x > mid ? -1 : 1;
-      f = w.spawn(q.kind, mid + side * 220, (zMin + zMax) / 2, { facing: -side, ...scale });
+      const px = p ? p.x : (a.left + a.right) / 2;
+      const vw = w.viewW || 1280;
+      const x = Math.min(a.right - 200, Math.max(px + Math.min(520, vw * 0.32), (a.left + a.right) / 2));
+      const side = x >= px ? 1 : -1;
+      f = w.spawn(q.kind, x, (zMin + zMax) / 2, { facing: -side, ...scale });
       f.waiting = true;
     } else if (q.from === 'drop') {
       // Drops out of the trees onto the road
-      const x = rng.range(a.left + 140, a.right - 140);
+      // Within sight of the player (arenas are wider than the screen)
+      const pd = w.players()[0];
+      const hv = (w.viewW || 1280) / 2 - 140;
+      const cx = pd ? pd.x : (a.left + a.right) / 2;
+      const x = rng.range(Math.max(a.left + 140, cx - hv), Math.min(a.right - 140, cx + hv));
       f = w.spawn(q.kind, x, rng.range(zMin, zMax), scale);
       f.y = f.py = rng.range(380, 460);
       f.state = 'jump';
@@ -174,8 +181,13 @@ export class MapDirector {
       f.facing = rng.chance(0.5) ? 1 : -1;
     } else {
       const side = q.from === 'both' ? (q.k % 2 ? -1 : 1) : q.from === 'left' ? -1 : 1;
-      // Just past the screen edge (the box edge is the screen edge)
-      const x = side < 0 ? a.left - 70 - rng.range(0, 120) : a.right + 70 + rng.range(0, 120);
+      // Just past the edge of what the camera shows (or the arena wall, whichever is nearer)
+      const p = w.players()[0];
+      const half = (w.viewW || 1280) / 2;
+      const px = p ? p.x : (a.left + a.right) / 2;
+      const edgeL = Math.max(a.left, px - half);
+      const edgeR = Math.min(a.right, px + half);
+      const x = side < 0 ? edgeL - 70 - rng.range(0, 120) : edgeR + 70 + rng.range(0, 120);
       f = w.spawn(q.kind, x, rng.range(zMin, zMax), { facing: -side, ...scale });
     }
     this.waveIds.push(f.id);
