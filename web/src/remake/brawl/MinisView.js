@@ -51,7 +51,7 @@ export class MinisView {
         T.notes.set(n, o);
       }
       o.setPosition(ringX + (dt / TRAVEL) * len, y);
-      o.setAlpha(n.hit === 'miss' ? 0.25 : n.hit ? 0 : 1);
+      o.setAlpha(n.who === 'rival' ? (n.hit ? 0 : 0.3) : n.hit === 'miss' ? 0.25 : n.hit ? 0 : 1);
     }
     for (const [n, o] of T.notes) {
       if (!seen.has(n)) {
@@ -62,7 +62,18 @@ export class MinisView {
     // Barbells over the lifters: yours rises with each good hit
     const p = world.players()[0];
     const r = world.fighters.find((f) => f.id === m.rival);
-    if (m.cfg.rap) return;
+    if (m.cfg.rap) {
+      // Mic stands in front of both rappers
+      for (const [key, f] of [['micP', p], ['micR', r]]) {
+        if (!f) continue;
+        if (!this[key]) {
+          this[key] = this.scene.add.image(0, 0, 'item_mic_stand').setOrigin(0.5, 1);
+          this[key].setScale(230 / this[key].height);
+        }
+        this[key].setPosition(f.x + f.facing * 70, stage.groundY(f.z) + 4).setDepth(stage.depth(f.z) + 2);
+      }
+      return;
+    }
     this._bar('barP', p, 0.15 + (m.prog / 3) * 0.85);
     this._bar('barR', r, 0.5 + 0.5 * Math.sin((m.rivalT / 150) * Math.PI * 2));
   }
@@ -288,7 +299,57 @@ export class MinisView {
     this.liftLabel.setText(`ЭТАЖ ${lift.floor * 4 + 3}`).setPosition((lift.left + lift.right) / 2, top - 44).setDepth(stage.depth(b.zMax) + 7);
   }
 
+  // ---------------------------------------------------------------- entry hint
+  _entry(world) {
+    const s = this.scene;
+    const e = world.entry;
+    if (!e || e.used || e.cfg.auto) {
+      this._drop('entryHint');
+      return;
+    }
+    if (!this.entryHint) {
+      this.entryHint = s.add
+        .text(0, 0, '', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '26px', color: '#ffd23f', stroke: '#000', strokeThickness: 6, align: 'center' })
+        .setOrigin(0.5, 1);
+    }
+    const art = e.cfg.h || 120;
+    const bob = Math.sin(s.time.now / 220) * 6;
+    this.entryHint
+      .setText(e.near ? e.cfg.prompt || 'J' : '▼')
+      .setFontSize(e.near ? 26 : 34)
+      .setPosition(e.x, stage.groundY(e.z) - art - 40 + bob)
+      .setDepth(9000);
+  }
+
+  // ---------------------------------------------------------------- QTE
+  _qte(q) {
+    const s = this.scene;
+    const Q = this._hud('qteHud', () => {
+      const c = s.add.container(VIEW_W / 2, VIEW_H / 2 + 120).setDepth(9400);
+      c.g = s.add.graphics();
+      c.key = s.add.text(0, 0, '', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '72px', color: '#ffffff', stroke: '#000', strokeThickness: 10 }).setOrigin(0.5);
+      c.dots = s.add.text(0, 96, '', { fontFamily: 'Arial Black, Arial', fontSize: '26px', color: '#ffd23f' }).setOrigin(0.5);
+      c.add([c.g, c.key, c.dots]);
+      return c;
+    });
+    const ARR = { W: '↑', A: '←', S: '↓', D: '→' };
+    const g = Q.g.clear();
+    if (q.intro > 0 || q.done) {
+      Q.key.setText('');
+      Q.dots.setText('');
+      return;
+    }
+    const k = 1 - q.t / q.win;
+    g.fillStyle(0x000000, 0.55).fillCircle(0, 0, 78);
+    g.lineStyle(10, k > 0.35 ? 0xffd23f : 0xff3b2f, 1).beginPath().arc(0, 0, 70, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k).strokePath();
+    Q.key.setText(ARR[q.seq[q.i]] || q.seq[q.i]);
+    Q.dots.setText(q.seq.map((_, i) => (i < q.i ? '●' : '○')).join(' '));
+  }
+
   render(world) {
+    this._entry(world);
+    if (world.qte) this._qte(world.qte);
+    else this._drop('qteHud');
     const m = world.mini;
     if (m && m.type === 'pose' && !m.done) this._pose(m);
     else this._drop('poseHud');
@@ -306,10 +367,10 @@ export class MinisView {
       for (const o of this.track.notes.values()) o.destroy();
       this.track.destroy();
       this.track = null;
-      this.barP?.destroy();
-      this.barR?.destroy();
-      this.barP = null;
-      this.barR = null;
+      for (const k of ['barP', 'barR', 'micP', 'micR']) {
+        this[k]?.destroy();
+        this[k] = null;
+      }
     }
     if (m && m.type === 'stealth' && !m.done) this._stealth(world, m);
     else if (this.covers.length) this._clearStealth();

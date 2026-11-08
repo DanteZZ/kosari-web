@@ -52,14 +52,27 @@ export class ModesView {
     }
     // Ghost of the trap you are about to place
     if (td?.phase === 'prep') {
+      // Ghost of the trap you are about to set: the trap itself, see-through, with its reach
       const p = world.players()[0];
-      if (!this.ghost) this.ghost = s.add.ellipse(0, 0, 10, 10, 0xffffff, 0.25).setStrokeStyle(2, 0xffffff, 0.8);
       const kind = Object.keys(TRAPS)[td.kind];
-      this.ghost.setVisible(!!p).setSize(TRAPS[kind].r * 2, TRAPS[kind].r * 0.8);
-      if (p) this.ghost.setPosition(p.x, stage.groundY(p.z)).setDepth(stage.depth(p.z) - 2);
+      if (!this.ghost) this.ghost = s.add.ellipse(0, 0, 10, 10, 0xffffff, 0.18).setStrokeStyle(2, 0xffffff, 0.7);
+      if (this.ghostKind !== kind) {
+        this.ghostKind = kind;
+        this.ghostImg?.destroy();
+        this.ghostImg = this._trap({ kind, x: 0, z: 0 }).setAlpha(0.55);
+      }
+      this.ghost.setVisible(!!p).setSize(TRAPS[kind].r * 2, TRAPS[kind].r * 0.9);
+      if (p) {
+        const gx = p.x + p.facing * 90;
+        this.ghost.setPosition(gx, stage.groundY(p.z)).setDepth(stage.depth(p.z) - 3);
+        this.ghostImg.setPosition(gx, stage.groundY(p.z)).setDepth(stage.depth(p.z) - 2).setAlpha(0.45 + 0.15 * Math.sin(s.time.now / 160));
+      }
     } else if (this.ghost) {
       this.ghost.destroy();
+      this.ghostImg?.destroy();
       this.ghost = null;
+      this.ghostImg = null;
+      this.ghostKind = null;
     }
 
     // ---- Chat poll (top right, under the weapon box)

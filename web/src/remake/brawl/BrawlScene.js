@@ -59,6 +59,9 @@ const ORIG_PROJ = {
   car_lada: { key: 'item_car_lada', size: 280, faceLeft: true, ground: true },
 };
 
+/** Sizes for item art used as projectiles without an ORIG_PROJ entry. */
+const PROJ_SIZE = { dumbbell: 70, river_log: 220, brick: 46 };
+
 /** Pickup art by kind (food heals pick big or small by amount). */
 const BUFF_ART = { speed: 'item_energy', power: 'item_protein', shield: 'item_sigma_glasses' };
 
@@ -329,7 +332,7 @@ export class BrawlScene extends Phaser.Scene {
           v.reset(f);
         } else {
           v =
-            f.kind === 'crate' || f.kind === 'anvil' || f.kind === 'objective' || f.kind === 'target_cam'
+            f.kind === 'crate' || f.kind === 'anvil' || f.kind === 'objective' || f.kind === 'target_cam' || f.kind === 'entry'
               ? new CrateView(this, f)
               : SPRITE_KINDS.has(f.kind)
                 ? new SpriteFighterView(this, f)
@@ -468,6 +471,82 @@ export class BrawlScene extends Phaser.Scene {
       ...(BOSSES[kind]?.voice || {}),
       voice: hasBlips(kind) ? kind : hasBlips(skin) ? skin : null,
     };
+  }
+
+  /** Who says a line in an entry intro: the hero, the kiosk seller, or a meme by kind. */
+  speakerOf(who) {
+    if (who === 'hero') return this.heroSpeaker();
+    if (who === 'seller') return { name: 'Продавщица', face: null, color: '#ffb0c8' };
+    return this.bossSpeaker(who);
+  }
+
+  /** The hero used an entry (or the arena opened one by itself): play its lines, then the mode begins. */
+  playEntry() {
+    const a = this.map?.arenas?.[this.director.idx];
+    const lines = a?.entry?.intro || [];
+    const go = () => {
+      if (this.world.entry) this.world.entry.go = true;
+    };
+    if (!lines.length) return go();
+    this.cine
+      .play(async (c) => {
+        const f = this.focusOf(this.player);
+        const ex = this.world.entry?.x ?? this.player.x;
+        await c.camTo((f.x + ex) / 2, f.y, 1.25, 550);
+        for (const [who, text] of lines) await c.say(this.speakerOf(who), text);
+        c.hideBox();
+      })
+      .then(go);
+  }
+
+  /** Cinematic close-up that does not take the controls (rap verses, QTE). */
+  focusOn(x, y, zoom = 1.35, speed = 3) {
+    this.cine.cam = { x, y, zoom, speed };
+    if (!this.cineBars) {
+      this.cineBars = true;
+      this.cine._bars(1, 300);
+    }
+  }
+
+  focusOff() {
+    if (!this.cineBars && !this.cine.cam) return;
+    if (!this.cine.active) this.cine.cam = null;
+    this.cineBars = false;
+    if (!this.cine.active) this.cine._bars(0, 300);
+  }
+
+  /** A minigame's result: a framed card in the middle of the screen. */
+  resultCard(title, rows = [], good = true) {
+    this.cardUi?.destroy();
+    const W = 620;
+    const H = 150 + rows.length * 38;
+    const c = this.add.container(VIEW_W / 2, VIEW_H / 2 - 40).setDepth(9500);
+    const col = good ? 0xffd23f : 0xff5a4a;
+    const bg = this.add.rectangle(0, 0, W, H, 0x0b0b12, 0.9).setStrokeStyle(4, col, 1);
+    const glow = this.add.rectangle(0, -H / 2 + 6, W - 8, 8, col, 0.8);
+    const t = this.add
+      .text(0, -H / 2 + 48, title, { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '46px', color: good ? '#ffd23f' : '#ff6a5a', stroke: '#000', strokeThickness: 8 })
+      .setOrigin(0.5);
+    c.add([bg, glow, t]);
+    rows.forEach((r, i) => {
+      c.add(this.add.text(0, -H / 2 + 104 + i * 38, r, { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '24px', color: '#ffffff' }).setOrigin(0.5));
+    });
+    this.tagUi(c);
+    for (const o of c.list) this.tagUi(o);
+    c.setScale(0.6).setAlpha(0);
+    this.tweens.add({ targets: c, scale: 1, alpha: 1, duration: 260, ease: 'Back.Out' });
+    this.tweens.add({ targets: c, alpha: 0, y: c.y - 30, delay: 2600, duration: 400, onComplete: () => c.destroy() });
+    this.sound.play(good ? 'cash' : 'no_bulet', { volume: 0.45 });
+    this.cardUi = c;
+  }
+
+  /** Little bounce on a fighter's puppet (rapping on the beat). */
+  bounce(id) {
+    const v = this.views.get(id);
+    if (!v?.visual) return;
+    this.tweens.killTweensOf(v.mount);
+    v.mount.y = 0;
+    this.tweens.add({ targets: v.mount, y: -18, duration: 90, yoyo: true, ease: 'Quad.Out' });
   }
 
   /** Point (world) a little above a fighter's feet. */
@@ -815,8 +894,9 @@ export class BrawlScene extends Phaser.Scene {
           }
           break;
         case 'benchEnd':
-          if (ev.rap) this.banner(ev.win ? 'ТОЛПА ЗА ТЕБЯ!' : 'ТОЛПА ЗА 1KLA$', `${ev.reps} : ${ev.rival} · ${ev.win ? 'он выходит на бой осипшим' : 'он заряжен'}`, 2200, !ev.win);
-          else this.banner(ev.win ? 'ПЕРЕЖАЛ!' : 'РУКИ СИЛЬНЕЕ', `${ev.reps} : ${ev.rival}${ev.win ? ' · протеин на всю карту' : ''}`, 2000, !ev.win);
+          this.focusOff();
+          if (ev.rap) this.resultCard(ev.win ? 'ТОЛПА ЗА ТЕБЯ!' : 'ТОЛПА ЗА 1KLA$', [`Панчи ${ev.reps} : ${ev.rival}`, ev.win ? 'Он выходит на бой осипшим' : 'Он заряжен — держись'], ev.win);
+          else this.resultCard(ev.win ? 'ПЕРЕЖАЛ!' : 'РУКИ СИЛЬНЕЕ', [`Повторы ${ev.reps} : ${ev.rival}`, ev.win ? 'Протеин на всю карту' : 'А теперь он злой'], ev.win);
           break;
         case 'stealthStart':
           this.banner('ТИХО…', 'Проберись мимо охраны за ящиками · красное — их взгляд', 2400, true);
@@ -827,14 +907,14 @@ export class BrawlScene extends Phaser.Scene {
           this.sound.play('beep', { volume: 0.5, rate: 0.6 });
           break;
         case 'stealthDone':
-          this.banner('ПРОШЁЛ НЕЗАМЕЧЕННЫМ', '+20 косарей', 1800);
+          this.resultCard('ПРОШЁЛ НЕЗАМЕЧЕННЫМ', ['Ни одна статуя не проболталась', '+20 косарей'], true);
           this.sound.play('cash', { volume: 0.5 });
           break;
         case 'raftStart':
           this.banner('НА ПЛОТ!', 'Сплав по реке · прыгай через брёвна · рыбаки лезут на борт', 2400, true);
           break;
         case 'raftEnd':
-          this.banner('БЕРЕГ!', 'Приплыли', 1400);
+          this.resultCard('БЕРЕГ!', ['Приплыли — прыгай на причал'], true);
           break;
         // ---- Sigma pose-off / stream style / office lift + trading
         case 'poseStart':
@@ -870,6 +950,7 @@ export class BrawlScene extends Phaser.Scene {
           this.sound.play('cash', { volume: 0.25, rate: 1.5 });
           break;
         case 'elevatorStart':
+          this.inLift = true;
           this.banner('ЛИФТ', 'Двери закрываются… на каждом этаже — новые гости', 2000, true);
           break;
         case 'elevatorFloor':
@@ -887,7 +968,7 @@ export class BrawlScene extends Phaser.Scene {
           this.banner('ОБВАЛ!', 'Рынок летит вниз', 1100, true);
           break;
         case 'tradeEnd':
-          this.banner(ev.profit >= 0 ? 'В ПЛЮСЕ' : 'ЛИКВИДАЦИЯ', `${ev.profit >= 0 ? '+' : ''}${ev.profit} косарей`, 2000, ev.profit < 0);
+          this.resultCard(ev.profit >= 0 ? 'В ПЛЮСЕ' : 'ЛИКВИДАЦИЯ', [`${ev.profit >= 0 ? '+' : ''}${ev.profit} косарей`, ev.profit >= 0 ? 'Гительман в ярости' : 'Гительман доволен'], ev.profit >= 0);
           break;
         // ---- Village penalties
         case 'penaltyStart':
@@ -902,7 +983,7 @@ export class BrawlScene extends Phaser.Scene {
           if (!ev.scored && ev.who === 'ded') this.sound.play('superudar', { volume: 0.35, rate: 1.3 });
           break;
         case 'penaltyEnd':
-          this.banner(ev.win ? 'ПОБЕДА В СЕРИИ!' : ev.draw ? 'НИЧЬЯ' : 'ДЕД ПОБЕДИЛ', ev.win ? '+25 косарей и здоровье' : ev.draw ? 'Ну, бывает' : 'Он позвал корешей…', 2000, !ev.win);
+          this.resultCard(ev.win ? 'ПОБЕДА В СЕРИИ!' : ev.draw ? 'НИЧЬЯ' : 'ДЕД ПОБЕДИЛ', [`Счёт ${ev.score.you} : ${ev.score.ded}`, ev.win ? '+25 косарей и здоровье' : ev.draw ? 'Ну, бывает' : 'Он позвал корешей…'], ev.win);
           break;
         // ---- Dacha basement (flashlight)
         case 'torchStart':
@@ -923,7 +1004,7 @@ export class BrawlScene extends Phaser.Scene {
           this.sound.play('cash', { volume: 0.4, rate: 1.3 });
           break;
         case 'torchDone':
-          this.banner('ДА БУДЕТ СВЕТ!', 'А теперь — гости', 1600);
+          this.resultCard('ДА БУДЕТ СВЕТ!', ['Пробки на месте', 'А теперь — гости'], true);
           this.cameras.main.flash(260, 255, 250, 220, false);
           break;
         case 'shadeLit':
@@ -937,6 +1018,45 @@ export class BrawlScene extends Phaser.Scene {
           break;
         case 'puff':
           this.puff(ev.x, ev.z);
+          break;
+        // ---- Entries (sit in the car, walk up to the ball...) and results
+        case 'entryUse':
+          if (!ev.auto) this.sound.play('DE_reload', { volume: 0.35, rate: 0.9 });
+          this.playEntry();
+          break;
+        case 'rapTurn': {
+          const f = this.world.fighters.find((x) => x.id === ev.id);
+          if (f) {
+            const fp = this.focusOf(f);
+            this.focusOn(f.x + (ev.who === 'you' ? 140 : -140), fp.y - 40, 1.4, 2.5);
+          }
+          this.banner(ev.who === 'you' ? 'ТВОЙ КУПЛЕТ' : 'КУПЛЕТ 1KLA$', ev.who === 'you' ? 'WASD в бит!' : 'слушай и жди', 900, ev.who !== 'you');
+          break;
+        }
+        case 'rapLine':
+          this.bounce(ev.id);
+          if (ev.ok) {
+            const f = this.world.fighters.find((x) => x.id === ev.id);
+            if (f) this.popText(f.x, stage.groundY(f.z) - 340, ['Йоу!', 'Скр!', 'Бит!', 'Флоу!', 'Е!'][Math.floor(Math.random() * 5)], '#ff9ad8', 26);
+          }
+          break;
+        case 'qteStart': {
+          const fp = this.focusOf(this.player);
+          this.focusOn((ev.x + ev.px) / 2, fp.y - 30, 1.55, 6);
+          this.cameras.main.flash(200, 255, 255, 255, false);
+          this.sound.play('superudar', { volume: 0.5, rate: 0.6 });
+          this.banner('ДОБЕЙ!', 'жми кнопки, пока не закрылся круг', 900, true);
+          break;
+        }
+        case 'qteHit':
+          this.cameras.main.flash(80, 255, 255, 255, false);
+          this.sound.play('punch', { volume: 0.5, rate: 1 + ev.i * 0.08 });
+          this.shake(120, 6);
+          break;
+        case 'qteEnd':
+          this.focusOff();
+          this.shake(400, ev.ok ? 14 : 8);
+          this.resultCard(ev.ok ? 'КРАСИВО!' : 'СОРВАЛОСЬ', ev.ok ? ['Гигачад теряет пятую часть здоровья'] : ['Он перехватил и бросил тебя'], ev.ok);
           break;
         // ---- Highway race / roadside traps
         case 'raceStart':
@@ -960,7 +1080,12 @@ export class BrawlScene extends Phaser.Scene {
           this.shake(80, 3);
           break;
         case 'raceEnd':
-          this.banner('ПРИЕХАЛИ!', ev.crashes ? `Аварий: ${ev.crashes} · бонус ${ev.bonus} К` : `Ни царапины! Бонус ${ev.bonus} К`, 1800);
+          this.resultCard('ПРИЕХАЛИ!', [`Аварий: ${ev.crashes}`, `Бонус: ${ev.bonus} косарей`], ev.crashes < 3);
+          {
+            const p = this.player;
+            const car = this.add.image(p.x - 40, stage.groundY(p.z), 'item_car_lada').setOrigin(0.5, 1).setFlipX(true);
+            car.setScale(290 / car.width).setDepth(stage.depth(p.z) - 1);
+          }
           this.sound.play('cash', { volume: 0.5 });
           break;
         case 'laneWarn':
@@ -981,8 +1106,8 @@ export class BrawlScene extends Phaser.Scene {
           break;
         }
         case 'goalDone':
-          if (ev.goal === 'survive') this.banner('ВРЕМЯ!', 'Они разбегаются', 1300);
-          if (ev.goal === 'destroy') this.banner('КАМЕРЫ РАЗБИТЫ!', 'Добей остальных', 1300);
+          if (ev.goal === 'survive') this.resultCard('ВЫСТОЯЛ!', ['Время вышло — они разбегаются'], true);
+          if (ev.goal === 'destroy') this.resultCard('КАМЕРЫ РАЗБИТЫ!', ['Эфир сорван', 'Добей остальных'], true);
           break;
         case 'objLost':
           this.banner('ЛАРЁК РАЗГРОМИЛИ!', '−10 косарей', 1300, true);
@@ -997,13 +1122,17 @@ export class BrawlScene extends Phaser.Scene {
           this.popText(ev.x, stage.groundY(ev.z) - 230, ev.climb ? 'Перелезает через забор!' : ['Не догонишь!', 'Лови, лох!', 'Ха-ха!'][this.world.tick % 3], '#ffffff', 22);
           break;
         case 'thiefCaught':
-          this.banner('ПОЙМАЛ!', 'Косари твои', 1300);
+          this.resultCard('ПОЙМАЛ!', ['Вор лежит, мешок твой'], true);
           this.sound.play('cash', { volume: 0.5 });
           break;
         case 'thiefEscaped':
-          this.banner('ВОР УБЕЖАЛ', '−20 косарей', 1400, true);
+          this.resultCard('ВОР УБЕЖАЛ', ['−20 косарей'], false);
           break;
         case 'arenaClear':
+          if (this.inLift) {
+            this.inLift = false;
+            this.resultCard('ПРИЕХАЛИ', ['Последний этаж', 'Двери открываются…'], true);
+          }
           this.lock = null;
           if (!ev.boss) this.banner('ЧИСТО!', 'Вперёд →', 1200);
           this.sound.play('cash', { volume: 0.4 });
@@ -1362,7 +1491,9 @@ export class BrawlScene extends Phaser.Scene {
       let img = this.projViews.get(pr.id);
       if (!img) {
         if (pr.spec.tex === 'bottle') this.bottleTexture();
-        const orig = ORIG_PROJ[pr.spec.tex];
+        // Any item art works as a projectile (dumbbells from the ceiling, logs...)
+        const orig = ORIG_PROJ[pr.spec.tex] || (this.textures.exists(`item_${pr.spec.tex}`) ? { key: `item_${pr.spec.tex}`, size: PROJ_SIZE[pr.spec.tex] || 64, spin: 8 } : null);
+        if (!orig && !this.textures.exists(`proj_${pr.spec.tex}`) && pr.spec.tex !== 'bottle') console.warn('[proj] no art for', pr.spec.tex);
         if (orig) {
           img = this.add.sprite(0, 0, this.textures.exists(orig.key) ? orig.key : '__DEFAULT').setOrigin(0.5);
           if (orig.anim && this.anims.exists(orig.anim)) img.play(orig.anim);

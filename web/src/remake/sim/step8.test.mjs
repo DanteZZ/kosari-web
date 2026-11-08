@@ -26,6 +26,7 @@ function run(map, label, bot) {
   const p = w.spawn('player', map.start.x, map.start.z, { slot: 0 });
   p.hp = p.maxHp = 1e6;
   w.viewW = 1920;
+  w.autoEntry = true;
   const d = new MapDirector(w, map);
   const seen = {};
   let maxView = 0;

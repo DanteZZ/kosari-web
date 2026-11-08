@@ -10,6 +10,7 @@ function run(map, label) {
   const p = w.spawn('player', map.start.x, map.start.z, { slot: 0 });
   p.hp = p.maxHp = 1e9;
   w.viewW = 1920;
+  w.autoEntry = true;
   const d = new MapDirector(w, map);
   const seen = {};
   let lastGoal = '';

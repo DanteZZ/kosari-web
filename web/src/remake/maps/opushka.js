@@ -59,6 +59,16 @@ export default {
       // Гонка по трассе: в «Жигули» и к шаурмичной
       id: 'race',
       race: true,
+      entry: {
+        art: 'car_lada',
+        h: 175,
+        at: 700,
+        prompt: 'J — сесть в «Жигули»',
+        intro: [
+          ['hero', 'Ключи в зажигании. Хозяина нет.'],
+          ['hero', 'До шаурмичной по трассе — с ветерком.'],
+        ],
+      },
       ...RACE,
       reward: [{ kind: 'heal', amount: 60 }],
       waves: [{ spawns: [] }],

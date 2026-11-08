@@ -89,8 +89,8 @@ function eraMap(o) {
         waves,
       })),
       o.boss
-        ? { id: 'boss', boss: true, ...bossGeom, ...(o.finaleMini ? { mini: o.finaleMini } : {}), waves: o.boss }
-        : { id: 'finale', ...bossGeom, reward: [{ kind: 'heal', amount: 100 }], ...(o.finaleMini ? { mini: o.finaleMini } : {}), waves: o.finale },
+        ? { id: 'boss', boss: true, ...bossGeom, ...(o.finaleMini ? { mini: o.finaleMini } : {}), ...(o.finaleEntry ? { entry: o.finaleEntry } : {}), waves: o.boss }
+        : { id: 'finale', ...bossGeom, reward: [{ kind: 'heal', amount: 100 }], ...(o.finaleMini ? { mini: o.finaleMini } : {}), ...(o.finaleEntry ? { entry: o.finaleEntry } : {}), waves: o.finale },
     ],
   };
 }
@@ -122,7 +122,20 @@ export const village = eraMap({
     [{ nextAt: 1, spawns: [sp('nikita', 2), sp('thrower', 2, 'left', 50)] }, { banner: 'Болельщики!', spawns: [sp('runner', 3, 'both', 26), sp('buiniy', 1)] }],
     [{ spawns: [sp('buiniy', 2), sp('nikita', 2)] }, { banner: 'С поля!', spawns: [sp('blocker', 2), sp('nikita', 3, 'drop', 30)] }],
   ],
-  finaleMini: { type: 'penalty', rounds: 3 },
+  finaleMini: { type: 'penalty', rounds: 3, early: true },
+  finaleEntry: {
+    art: 'none',
+    early: true,
+    at: 760,
+    reach: 120,
+    prompt: 'J — к мячу',
+    intro: [
+      ['ded', 'Внучок! Без пенальти отсюда не уйдёшь.'],
+      ['ded', 'Три удара твоих, три моих. Я — на воротах.'],
+      ['hero', 'А если выиграю?'],
+      ['ded', 'Косари твои. Проиграешь — позову своих.'],
+    ],
+  },
   finale: [
     { banner: 'Дед «я футбольный мячик»', spawns: [el('ded')] },
     { banner: 'Дедова команда', spawns: [sp('ded', 2, 'both', 60), sp('runner', 2)] },
@@ -131,12 +144,16 @@ export const village = eraMap({
 
 export const dacha = eraMap({
   id: 'dacha',
-  extra: [null, null, { dark: { fuses: 3 } }],
+  widths: [0, 0, 1400],
+  extra: [null, null, {
+    dark: { fuses: 3 },
+    entry: { auto: true, intro: [['hero', 'Подвал. Лампочка мигнула… и погасла.'], ['hero', 'Щиток где-то здесь. И кто-то дышит в темноте.']] },
+  }],
   goals: [null, { type: 'chase' }, null],
   name: 'Дача',
   chapter: 'Глава 2 · Ранний ютуб',
   next: 'panelki',
-  world: [{ theme: 'dacha', to: J3 }, { theme: 'cellar' }],
+  world: [{ theme: 'dacha', to: J2 }, { theme: 'cellar' }],
   loading: {
     title: 'Дача',
     art: 'pahom',
@@ -157,7 +174,21 @@ export const dacha = eraMap({
 
 export const panelki = eraMap({
   id: 'panelki',
-  extra: [{ traps: [{ type: 'drop', tex: 'brick', every: [150, 260] }] }, { td: { prep: 720, max: 6 } }, { traps: [{ type: 'drop', tex: 'brick', every: [120, 220] }] }],
+  extra: [{ traps: [{ type: 'drop', tex: 'brick', every: [150, 260] }] }, {
+    td: { prep: 1500, max: 6 },
+    entry: {
+      art: 'kiosk',
+      h: 250,
+      at: 1100,
+      prompt: 'J — поговорить с продавщицей',
+      intro: [
+        ['seller', 'Сынок, выручай! Гопота обещала ларёк разнести.'],
+        ['seller', 'Вон грабли, петарды и клей. Расставь на дороге, пока не пришли.'],
+        ['hero', 'Как ставить?'],
+        ['seller', 'Встал куда надо — J. Q и E — другое. L — когда готов. По три-пять косарей, не до жиру.'],
+      ],
+    },
+  }, { traps: [{ type: 'drop', tex: 'brick', every: [120, 220] }] }],
   goals: [null, { type: 'defend', hp: 280 }, null],
   name: 'Панельки',
   chapter: 'Глава 3 · Эпоха стримов',
@@ -187,7 +218,7 @@ export const panelki = eraMap({
 
 export const pcClub = eraMap({
   id: 'pc_club',
-  extra: [{ votes: { every: 840 } }, { votes: { every: 780 } }, { votes: { every: 720 } }],
+  extra: [{ votes: { every: 840 }, entry: { auto: true, intro: [['hero', 'Стрим идёт? Чат, вы тут?'], ['hero', 'Голосуйте, как мне его бить. Только без доната на жизнь.']] } }, { votes: { every: 780 } }, { votes: { every: 720 } }],
   goals: [null, null, { type: 'survive', ticks: 3000 }],
   name: 'Компьютерный клуб',
   chapter: 'Глава 3 · Эпоха стримов',
@@ -210,7 +241,7 @@ export const pcClub = eraMap({
     [{ spawns: [sp('mongol', 2, 'both', 60), sp('ded', 1)] }, { banner: 'Чат в атаке', spawns: [sp('ded', 3, 'drop', 24), sp('mongol', 1)] }],
   ],
   finale: [
-    { banner: 'Глад Валакас', spawns: [el('glad')] },
+    { banner: 'Глад Валакас', spawns: [{ ...el('glad'), elite: ELITE * 3 }] },
     { banner: 'Рейд из чата', spawns: [sp('glad', 2, 'both', 50), sp('mongol', 1, 'right')] },
   ],
 });
@@ -225,7 +256,7 @@ export const gym = eraMap({
       { id: 'river', label: 'Река — сплав на плоту' },
     ],
   },
-  extra: [null, { traps: [{ type: 'drop', tex: 'dumbbell', every: [160, 260] }] }, { mini: { type: 'bench', ticks: 1500 } }],
+  extra: [{ mini: { type: 'bench', ticks: 1500, afterMeet: 'ruki' } }, { traps: [{ type: 'drop', tex: 'dumbbell', every: [160, 260] }] }, null],
   name: 'Качалка',
   chapter: 'Глава 4 · Пабликовая эпоха',
   next: 'museum',
@@ -254,7 +285,11 @@ export const gym = eraMap({
 
 export const museum = eraMap({
   id: 'museum',
-  extra: [null, null, { mini: { type: 'stealth', guards: 3 } }],
+  widths: [0, 0, 1200],
+  extra: [null, null, {
+    mini: { type: 'stealth', guards: 3, practice: 900 },
+    entry: { auto: true, intro: [['hero', 'Ночной музей. Охрана с фонарями.'], ['hero', 'Красное — куда они смотрят. За статуей меня не видно — проверю на первых.']] },
+  }],
   goals: [null, { type: 'chase' }, null],
   name: 'Музей',
   chapter: 'Глава 4 · Пабликовая эпоха',
@@ -282,7 +317,10 @@ export const river = eraMap({
   id: 'river',
   // Arena 2: down the river on a raft — logs float at you, fishermen jump on board
   widths: [0, 3800, 0],
-  extra: [null, { raft: { w: 1150, speed: 3 }, traps: [{ type: 'logs', every: [150, 260] }] }, null],
+  extra: [null, {
+    raft: { w: 1150, speed: 3 },
+    entry: { art: 'raft', h: 120, at: 520, reach: 220, prompt: 'J — прыгнуть на плот', intro: [['hero', 'Плот у берега. Течение само донесёт.'], ['hero', 'Рыбаки на мостах что-то задумали…']] },
+  }, null],
   name: 'Река',
   chapter: 'Глава 5 · Сигма-эпоха',
   next: 'sigma_gym',
@@ -311,7 +349,6 @@ export const river = eraMap({
 
 export const sigmaGym = eraMap({
   id: 'sigma_gym',
-  finaleMini: { type: 'pose', rounds: 3 },
   name: 'Зал сигм',
   chapter: 'Глава 5 · Сигма-эпоха',
   next: 'stream_house',
@@ -369,11 +406,27 @@ export const streamHouse = eraMap({
 
 export const office = eraMap({
   id: 'office',
-  extra: [null, { elevator: { w: 1040 } }, { mini: { type: 'trading', ticks: 1500 } }],
+  extra: [null, {
+    elevator: { w: 1040 },
+    entry: { art: 'lift_doors', h: 330, at: 900, prompt: 'J — вызвать лифт', intro: [['hero', 'Гительман наверху. Лифт — единственный путь.'], ['hero', 'Ехать придётся не одному.']] },
+  }, {
+    mini: { type: 'trading', ticks: 1500 },
+    entry: {
+      art: 'trading_desk',
+      h: 190,
+      at: 800,
+      prompt: 'J — сесть за терминал',
+      intro: [
+        ['gitelman', 'Молодой человек! Раз уж дошли — вложитесь.'],
+        ['gitelman', 'J — купить, K — продать. Всё по-честному. Почти.'],
+        ['hero', 'Ставлю все косари. Посмотрим, кто кого.'],
+      ],
+    },
+  }],
   name: 'Бизнес-центр',
   chapter: 'Глава 6 · Новая волна',
   next: 'concert',
-  world: [{ theme: 'office', to: J3 }, { theme: 'trading' }],
+  world: [{ theme: 'office', to: J2 }, { theme: 'trading' }],
   loading: {
     title: 'Бизнес-центр',
     art: 'gitelman',
@@ -398,7 +451,7 @@ export const office = eraMap({
 
 export const concert = eraMap({
   id: 'concert',
-  finaleMini: { type: 'bench', rap: true, rival: 'mc', keys: ['W', 'A', 'S', 'D'], ticks: 1800, rivalEvery: 130, bossHp: 0.8 },
+  finaleMini: { type: 'bench', rap: true, afterMeet: 'klas', keys: ['W', 'A', 'S', 'D'], ticks: 2100, bossHp: 0.8 },
   name: 'Концерт',
   chapter: 'Финал',
   next: null,

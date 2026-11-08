@@ -8,6 +8,7 @@ const w = new World({ seed: 5, bounds: { xMin: 0, xMax: dacha.length, zMin: 0, z
 const p = w.spawn('player', dacha.start.x, dacha.start.z, { slot: 0 });
 p.hp = p.maxHp = 1e6;
 w.viewW = 1920;
+w.autoEntry = true;
 const d = new MapDirector(w, dacha);
 const seen = {};
 let darkTicks = 0;

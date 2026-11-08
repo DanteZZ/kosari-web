@@ -10,6 +10,7 @@ function run(map, label) {
   p.hp = p.maxHp = 1e6;
   p.money = 40;
   w.viewW = 1920;
+  w.autoEntry = true;
   const d = new MapDirector(w, map);
   const seen = {};
   for (let t = 0; t < 60 * 60 * 15; t += 1) {

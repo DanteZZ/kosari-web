@@ -33,8 +33,10 @@ export function startRace(world, p, x0, x1) {
   p.y = 0;
   p.vy = 0;
   p.punchT = 0;
-  p.x = x0 + 120;
+  // Drive off from where the car was parked
+  p.x = Math.max(x0 + 120, world.entryX ?? p.x);
   p.px = p.x;
+  world.entryX = null;
   world.events.push({ type: 'raceStart', x0, x1 });
 }
 

@@ -2,6 +2,8 @@ import { stage } from './stage.js';
 
 /** Painted-ish wooden crate drawn once into a canvas texture. */
 export function crateTexture(scene) {
+  // Painted crate (Cursor art); the canvas one is only a fallback
+  if (scene.textures.exists('item_crate')) return 'item_crate';
   const key = 'crate_tex';
   if (scene.textures.exists(key)) return key;
   const w = 76;
@@ -54,10 +56,13 @@ export class CrateView {
     this.shadow = scene.add.ellipse(0, 0, 90, 22, 0x000000, 0.35).setDepth(99);
     const anvil = f.kind === 'anvil' && scene.textures.exists('nakovalna_0');
     // Arena-goal props: the kiosk to defend and the cameras to break
-    const goalTex = { objective: ['item_kiosk', 250, 150], target_cam: ['item_camera_tripod', 190, 70] }[f.kind];
+    const goalTex = { objective: ['item_kiosk', 250, 150], target_cam: ['item_camera_tripod', 190, 70], entry: [`item_${f.art}`, f.artH || 200, 200] }[f.kind];
     this.img = scene.add
       .image(0, 0, goalTex && scene.textures.exists(goalTex[0]) ? goalTex[0] : anvil ? 'nakovalna_0' : crateTexture(scene))
       .setOrigin(0.5, 1);
+    // Entry art is drawn facing left; flip what should face the road ahead
+    if (f.kind === 'entry' && ['car_lada', 'moped'].includes(f.art)) this.img.setFlipX(true);
+    if (!goalTex && !anvil && this.img.texture.key === 'item_crate') this.img.setScale(80 / this.img.height);
     if (goalTex) {
       this.img.setScale(goalTex[1] / this.img.height);
       this.shadow.setSize(goalTex[2], 24);

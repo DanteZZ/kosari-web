@@ -70,7 +70,7 @@ export class PenaltyView {
     } else {
       const kicker = m.phase === 'run' ? world.fighters.find((f) => f.id === m.keeper) : p;
       bx = m.spotX;
-      bz = kicker ? kicker.z : 150;
+      bz = m.standby ? m.ballZ : kicker ? kicker.z : 75;
     }
     this.ball.setPosition(bx, stage.groundY(bz) - 20 - by).setDepth(stage.depth(bz) + 3);
     this.ballShadow.setPosition(bx, stage.groundY(bz)).setDepth(stage.depth(bz) - 1);
@@ -100,8 +100,9 @@ export class PenaltyView {
         .setOrigin(0.5, 1)
         .setDepth(5001);
     }
-    const hint =
-      m.phase === 'aim'
+    const hint = m.standby
+      ? ''
+      : m.phase === 'aim'
         ? 'W/S — куда · J — бей в зелёное'
         : m.phase === 'run' || m.phase === 'save'
           ? 'W/S — вдоль ворот · L — прыжок'

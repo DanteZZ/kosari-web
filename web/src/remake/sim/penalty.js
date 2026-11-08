@@ -49,11 +49,13 @@ export function startPenalty(world, b, cfg) {
     done: false,
   };
   world.mini = m;
-  if (p) {
+  // With an entry (walk up to the ball) the hero stays free until he uses it
+  if (p && !cfg.early) {
     p.mini = true;
     place(p, m.spotX - 70, m.aimZ);
     p.facing = 1;
   }
+  m.ballZ = m.aimZ;
   world.events.push({ type: 'penaltyStart', rounds: m.rounds / 2, goalX: m.goalX, spotX: m.spotX });
   return m;
 }
@@ -108,6 +110,8 @@ export function stepPenalty(world) {
 
   switch (m.phase) {
     case 'intro':
+      p.mini = true;
+      p.facing = 1;
       place(p, m.spotX - 70, p.z);
       if (--m.t <= 0) {
         m.phase = shooting ? 'aim' : 'run';

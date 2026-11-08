@@ -9,6 +9,7 @@ const w = new World({ seed: 11, bounds: { xMin: 0, xMax: opushka.length, zMin: 0
 const p = w.spawn('player', opushka.start.x, opushka.start.z, { slot: 0 });
 p.hp = p.maxHp = 1e6;
 w.viewW = 1920;
+w.autoEntry = true;
 const d = new MapDirector(w, opushka);
 const seen = {};
 let raceTicks = 0;

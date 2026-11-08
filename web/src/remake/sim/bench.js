@@ -23,12 +23,25 @@ export function startBench(world, b, cfg) {
   const notes = [];
   // A beat every 30 ticks, with some doubles and rests
   let at = 120;
+  // Rap: verses take turns — 8 bars him, 8 bars you
+  let n = 0;
+  let who = cfg.rap ? 'rival' : 'you';
   while (at < total - 40) {
-    notes.push({ at, key: keys[world.rng.int(0, keys.length - 1)], hit: null });
+    notes.push({ at, key: keys[world.rng.int(0, keys.length - 1)], hit: null, who });
+    n += 1;
     at += world.rng.chance(0.2) ? 15 : world.rng.chance(0.15) ? 60 : 30;
+    if (cfg.rap && n % 8 === 0) {
+      who = who === 'rival' ? 'you' : 'rival';
+      at += 50;
+    }
   }
   const mx = b.left + (b.right - b.left) * 0.4;
-  const rival = world.spawn(cfg.rival || 'rival', mx + 260, (world.bounds.zMin + world.bounds.zMax) / 2 - 30, { facing: -1 });
+  // The real opponent (after his meeting scene) or a stand-in
+  const zr = (world.bounds.zMin + world.bounds.zMax) / 2 - 30;
+  const rival = cfg.rivalId != null ? world.fighters.find((f) => f.id === cfg.rivalId) : world.spawn(cfg.rival || 'rival', mx + 260, zr, { facing: -1 });
+  rival.x = rival.px = mx + 260;
+  rival.z = rival.pz = zr;
+  rival.facing = -1;
   world.mini = {
     type: 'bench',
     cfg,
@@ -41,6 +54,9 @@ export function startBench(world, b, cfg) {
     rivalReps: 0,
     rivalT: 100,
     rival: rival.id,
+    ownRival: cfg.rivalId == null,
+    turn: null,
+    rivalProg: 0,
     x: mx - 260,
     streak: 0,
     done: false,
@@ -68,7 +84,7 @@ function judge(world, m, key) {
   // The closest open note to now
   let best = null;
   for (const n of m.notes) {
-    if (n.hit !== null) continue;
+    if (n.hit !== null || n.who === 'rival') continue;
     const d = Math.abs(n.at - m.t);
     if (d <= OK && (!best || d < Math.abs(best.at - m.t))) best = n;
     if (n.at > m.t + OK) break;
@@ -111,6 +127,22 @@ export function stepBench(world) {
   for (const k of m.keys) if (pr & KEY_BITS[k]) judge(world, m, k);
   // Notes that slid past the ring are misses
   for (const n of m.notes) {
+    if (n.who === 'rival') {
+      // His verse: he lands most of his lines
+      if (n.hit === null && n.at <= m.t) {
+        n.hit = world.rng.chance(0.72) ? 'perfect' : 'miss';
+        if (n.hit === 'perfect') {
+          m.rivalProg += 1;
+          if (m.rivalProg >= 3) {
+            m.rivalProg = 0;
+            m.rivalReps += 1;
+            world.events.push({ type: 'benchRep', who: 'rival', reps: m.rivalReps });
+          }
+        }
+        world.events.push({ type: 'rapLine', who: 'rival', id: m.rival, ok: n.hit === 'perfect' });
+      }
+      continue;
+    }
     if (n.hit === null && n.at < m.t - OK) {
       n.hit = 'miss';
       m.prog = Math.max(0, m.prog - 0.4);
@@ -118,8 +150,15 @@ export function stepBench(world) {
       world.events.push({ type: 'benchHit', grade: 'late' });
     }
   }
+  // Whose verse is it? (the scene zooms on the one rapping)
+  const next = m.notes.find((n) => n.at >= m.t - 10);
+  const turn = next ? next.who : m.turn;
+  if (turn !== m.turn) {
+    m.turn = turn;
+    world.events.push({ type: 'rapTurn', who: turn, id: turn === 'rival' ? m.rival : p.id });
+  }
   // Руки lifts steadily — a rep every ~2.6 s
-  if (--m.rivalT <= 0) {
+  if (!m.cfg.rap && --m.rivalT <= 0) {
     m.rivalT = (m.cfg.rivalEvery || 150) + world.rng.int(-20, 20);
     m.rivalReps += 1;
     world.events.push({ type: 'benchRep', who: 'rival', reps: m.rivalReps });
@@ -129,13 +168,17 @@ export function stepBench(world) {
     p.mini = false;
     const win = m.reps > m.rivalReps;
     const r = world.fighters.find((f) => f.id === m.rival);
-    if (r) {
+    if (r && m.ownRival) {
       r.dead = true;
       r.removed = true;
     }
     if (m.cfg.bossHp) {
       // Rap battle: the crowd decides how fresh 1Kla$ comes out
-      world.bossHpMul = win ? m.cfg.bossHp : 1.15;
+      if (r && !m.ownRival) {
+        const k = win ? m.cfg.bossHp : 1.15;
+        r.maxHp = Math.round(r.maxHp * k);
+        r.hp = Math.min(r.maxHp, Math.round(r.hp * k));
+      } else world.bossHpMul = win ? m.cfg.bossHp : 1.15;
     } else if (win) {
       p.buffs = p.buffs || {};
       p.buffs.power = 3600;

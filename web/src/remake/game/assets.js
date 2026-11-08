@@ -128,7 +128,7 @@ export const ITEM_ART = [
   'football', 'jar', 'donation_bomb', 'book', 'dumbbell', 'coin', 'money_pack', 'music_note', 'brick',
   'shawarma', 'stone', 'shockwave', 'doshik', 'energy', 'protein', 'sigma_glasses', 'spear', 'microphone', 'kiosk', 'camera_tripod',
   'thief_bag', 'car_lada', 'truck', 'moped', 'fuse', 'football_goal', 'raft', 'river_log',
-  'barbell', 'rake', 'petard', 'glue_puddle',
+  'barbell', 'rake', 'petard', 'glue_puddle', 'crate', 'mic_stand', 'trading_desk',
 ];
 
 export function preloadGameAssets(scene) {

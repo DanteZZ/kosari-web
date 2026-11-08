@@ -8,6 +8,7 @@ const w = new World({ seed: 3, bounds: { xMin: 0, xMax: village.length, zMin: 0,
 const p = w.spawn('player', village.start.x, village.start.z, { slot: 0 });
 p.hp = p.maxHp = 1e6;
 w.viewW = 1920;
+w.autoEntry = true;
 const d = new MapDirector(w, village);
 const seen = {};
 let res = null;

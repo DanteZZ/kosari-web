@@ -1,6 +1,7 @@
 import { setTraps } from './traps.js';
 import { startRace } from './race.js';
 import { startTorch } from './torch.js';
+import { startEntry, endEntry } from './entry.js';
 import { MINIS } from './minis.js';
 import { startTd, tdText } from './td.js';
 import { startVotes, stopVotes } from './votes.js';
@@ -104,10 +105,45 @@ export class MapDirector {
       this._spawn(a, q);
     }
 
+    if (this.waitEntry || (w.entry && w.entry.cfg.early)) {
+      const e = w.entry;
+      // Headless runs (tests) have no scene to play the intro
+      if (e && w.autoEntry) {
+        e.used = true;
+        e.go = true;
+      }
+      if (e?.go) {
+        const pend = this.waitEntry;
+        this.waitEntry = null;
+        endEntry(w);
+        if (pend) this._begin(pend.a, pend.b);
+        else if (w.mini) w.mini.standby = false;
+      }
+      if (this.waitEntry || w.entry) return;
+    }
+    if (this.meetMini) {
+      const f = w.fighters.find((x) => x.kind === this.meetMini.afterMeet && !x.dead);
+      if (f?.waiting) f.metWait = true;
+      else if (f?.metWait || (f && w.autoEntry)) {
+        // He said his lines: now the contest, with him standing right there
+        f.waiting = true;
+        MINIS[this.meetMini.type].start(w, this.box || a, { ...this.meetMini, rivalId: f.id });
+        this.meetMini = null;
+        this.waitMiniLive = f.id;
+      }
+    }
+    if (this.waitMiniLive != null) {
+      if (w.mini && !w.mini.done) return;
+      const f = w.fighters.find((x) => x.id === this.waitMiniLive);
+      if (f) f.waiting = false;
+      w.mini = null;
+      this.waitMiniLive = null;
+    }
     if (this.raft) {
       const r = this.raft;
       r.x += r.speed;
       w.raftBox = { xMin: r.x, xMax: r.x + r.w };
+      w.enemyBox = w.raftBox;
       w.playerBounds = { ...w.raftBox };
       this.box = { left: r.x, right: r.x + r.w };
       // Everyone on board drifts with the raft
@@ -121,6 +157,7 @@ export class MapDirector {
         }
         this.raft = null;
         w.raftBox = null;
+        w.enemyBox = null;
         w.raftX = null;
         w.events.push({ type: 'raftEnd' });
         this._clear(a);
@@ -187,7 +224,8 @@ export class MapDirector {
     const g = this.goal;
     if (g) this._goalStep(a, g);
     if (this.state !== 'locked') return;
-    if (this.queue.length === 0 && this._alive(this.waveIds) <= (wv.nextAt ?? 0)) {
+    const lim = g && g.type === 'survive' && !g.done ? 3 : wv.nextAt ?? 0;
+    if (this.queue.length === 0 && this._alive(this.waveIds) <= lim) {
       const nw = a.waves[this.wave + 1];
       if (nw && nw.bossHpBelow && !this._bossBelow(nw.bossHpBelow) && this._alive(this.arenaIds) > 0) return;
       if (nw) this._startWave(this.wave + 1);
@@ -195,6 +233,13 @@ export class MapDirector {
         // Survive / destroy: the waves keep coming until the goal is met
         g.looped = true;
         this._startWave(Math.max(0, a.waves.length - 2));
+        if (g.type === 'survive') {
+          // Hold-out arenas: a bigger crowd every time
+          const pool = (w.roster || []).filter((k) => !FIGHTERS[k]?.boss);
+          const extra = 3 + Math.min(4, Math.floor((g.loops = (g.loops || 0) + 1) / 2));
+          for (let k = 0; k < extra; k += 1) this.queue.push({ at: 30 + k * 22, kind: pool[k % pool.length] || 'nikita', from: 'both', k, elite: 1 });
+          this.queue.sort((p, q) => p.at - q.at);
+        }
       } else if (g && !g.done && g.type === 'chase') {
         /* wait for the thief */
       } else if (this._alive(this.arenaIds) === 0) this._clear(a);
@@ -219,7 +264,8 @@ export class MapDirector {
     const zMid = (w.bounds.zMin + w.bounds.zMax) / 2;
     if (g.type === 'survive') g.t = g.ticks || 3600;
     if (g.type === 'defend') {
-      const o = w.spawn('objective', Math.min(b.right - 300, (p ? p.x : mid) + 380), w.bounds.zMin + 18);
+      const o = w.spawn('objective', w.entryX ?? Math.min(b.right - 300, (p ? p.x : mid) + 380), w.bounds.zMin + 18);
+      w.entryX = null;
       if (g.hp) o.hp = o.maxHp = g.hp;
       g.obj = o.id;
     }
@@ -335,7 +381,25 @@ export class MapDirector {
     this.arenaIds = [];
     w.events.push({ type: 'arenaStart', index: this.idx, boss: !!a.boss, left: b.left, right: b.right, race: !!a.race });
     setTraps(w, a.traps);
-    if (a.mini) {
+    if (a.entry) {
+      // Walk up to the car / raft / lift / desk and press J — then the mode begins
+      startEntry(w, b, a.entry);
+      if (a.entry.early) {
+        this._begin(a, b);
+        if (w.mini) w.mini.standby = true;
+      } else this.waitEntry = { a, b };
+      return;
+    }
+    this._begin(a, b);
+  }
+
+  /** The arena's mode: minigame, raft, lift, dark basement, race, goal + waves. */
+  _begin(a, b) {
+    const w = this.world;
+    if (a.mini?.afterMeet) {
+      // The contest comes after his meeting scene (bench press with Руки, rap with 1Kla$)
+      this.meetMini = a.mini;
+    } else if (a.mini) {
       // Minigame first (penalties, bench press, stealth...), then the waves
       MINIS[a.mini.type].start(w, b, a.mini);
       this.waitMini = true;
@@ -346,6 +410,7 @@ export class MapDirector {
       const r = { x: b.left + 60, w: a.raft.w || 1100, speed: a.raft.speed || 3, end: b.right };
       this.raft = r;
       w.raftBox = { xMin: r.x, xMax: r.x + r.w };
+      w.enemyBox = w.raftBox;
       w.playerBounds = { ...w.raftBox };
       this.box = { left: r.x, right: r.x + r.w };
       for (const p of w.players()) p.x = Math.min(r.x + r.w - 100, Math.max(r.x + 100, p.x));
@@ -357,7 +422,7 @@ export class MapDirector {
       const half = a.elevator.w ? a.elevator.w / 2 : 520;
       this.box = { left: mid - half, right: mid + half };
       w.playerBounds = { xMin: mid - half, xMax: mid + half };
-      w.raftBox = { ...w.playerBounds };
+      w.enemyBox = { ...w.playerBounds };
       w.elevator = { left: mid - half, right: mid + half, floor: 0, floors: a.waves.length };
       for (const p of w.players()) p.x = Math.min(mid + half - 100, Math.max(mid - half + 100, p.x));
       w.events.push({ type: 'elevatorStart', left: mid - half, right: mid + half });
@@ -418,6 +483,8 @@ export class MapDirector {
     const k = this.idx * (this.map.scaling ?? 0.12);
     // Elite (a meme enemy's debut): tougher and hits a bit harder
     const scale = { hpMul: (1 + k) * q.elite, dmgMul: (1 + k * 0.5) * (q.elite > 1 ? 1.2 : 1) };
+    // Very tough debuts (×3 health) don't hit harder than the usual elite
+    if (q.elite > 3) scale.hpMul = (1 + k) * q.elite;
     const def = FIGHTERS[q.kind];
     // Village penalties decide how fresh Дед is
     if (def?.boss && w.bossHpMul) {
@@ -483,11 +550,12 @@ export class MapDirector {
       }
     }
     this.goal = null;
+    w.entryX = null;
     setTraps(w, null);
     w.td = null;
     if (w.elevator) {
       w.elevator = null;
-      w.raftBox = null;
+      w.enemyBox = null;
     }
     stopVotes(w);
     this.idx += 1;

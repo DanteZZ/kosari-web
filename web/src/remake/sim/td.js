@@ -37,8 +37,10 @@ export function preTd(world) {
   if (pressed & BTN.WNEXT) td.kind = (td.kind + 1) % KINDS.length;
   if (pressed & BTN.WPREV) td.kind = (td.kind + KINDS.length - 1) % KINDS.length;
   if (pressed & BTN.LIGHT) place(world, td, p);
+  // L: ready — bring them on
+  if (pressed & BTN.DASH) td.t = Math.min(td.t, 1);
   // Placing is not punching / switching weapons
-  p.cmd &= ~(BTN.LIGHT | BTN.WNEXT | BTN.WPREV);
+  p.cmd &= ~(BTN.LIGHT | BTN.WNEXT | BTN.WPREV | BTN.DASH);
 }
 
 function place(world, td, p) {
@@ -52,12 +54,12 @@ function place(world, td, p) {
     world.events.push({ type: 'tdNo', why: `Нужно ${def.price} косарей` });
     return;
   }
-  if (td.traps.some((t) => Math.abs(t.x - p.x) < 70 && Math.abs(t.z - p.z) < 40)) {
+  if (td.traps.some((t) => Math.abs(t.x - (p.x + p.facing * 90)) < 70 && Math.abs(t.z - p.z) < 40)) {
     world.events.push({ type: 'tdNo', why: 'Тут уже стоит' });
     return;
   }
   p.money -= def.price;
-  const t = { id: td.nextId++, kind, x: p.x, z: p.z, uses: def.uses, cd: 0 };
+  const t = { id: td.nextId++, kind, x: p.x + p.facing * 90, z: p.z, uses: def.uses, cd: 0 };
   td.traps.push(t);
   world.events.push({ type: 'tdPlace', id: t.id, kind, x: t.x, z: t.z });
 }
@@ -118,5 +120,5 @@ export function tdText(world) {
   if (!td || td.phase !== 'prep') return '';
   const k = KINDS[td.kind];
   const s = Math.ceil(td.t / 60);
-  return `Расставь ловушки ${s}с · J — ${TRAPS[k].title} (${TRAPS[k].price} К) · Q/E — другая · ${td.traps.length}/${td.max}`;
+  return `Ловушки: ${s}с · J — ${TRAPS[k].title} (${TRAPS[k].price} К) · Q/E — другая · L — готов · ${td.traps.length}/${td.max}`;
 }

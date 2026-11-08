@@ -2,6 +2,8 @@ import { stepTraps } from './traps.js';
 import { stepRace } from './race.js';
 import { stepTorch } from './torch.js';
 import { MINIS } from './minis.js';
+import { preEntry } from './entry.js';
+import { stepQteTrigger, preQte, stepQte } from './qte.js';
 import { preTd, stepTd } from './td.js';
 import { stepVotes, voteHit } from './votes.js';
 import { styleHit, stepStyle } from './style.js';
@@ -187,7 +189,19 @@ export class World {
       if (f.slot != null) f.cmd = this.inputs.get(f.slot) ?? 0;
     }
     // Minigames read the controls themselves
-    if (this.mini && !this.mini.done) MINIS[this.mini.type].pre?.(this);
+    if (this.entry) preEntry(this);
+    // A QTE stops the fight: only its buttons count
+    if (this.qte) {
+      preQte(this);
+      for (const f of this.fighters) {
+        f.px = f.x;
+        f.pz = f.z;
+        f.py = f.y;
+      }
+      stepQte(this);
+      return;
+    }
+    if (this.mini && !this.mini.done && !this.mini.standby) MINIS[this.mini.type].pre?.(this);
     if (this.td) preTd(this);
     if (!frozen) thinkAll(this);
     for (const f of this.fighters) this._latchInput(f, frozen);
@@ -221,10 +235,11 @@ export class World {
     stepTraps(this);
     stepRace(this);
     stepTorch(this);
-    if (this.mini && !this.mini.done) MINIS[this.mini.type].step(this);
+    if (this.mini && !this.mini.done && !this.mini.standby) MINIS[this.mini.type].step(this);
     stepTd(this);
     stepVotes(this);
     stepStyle(this);
+    stepQteTrigger(this);
 
     for (const f of this.fighters) {
       this._clamp(f);
@@ -1198,8 +1213,8 @@ export class World {
         if (Math.abs(d) < 320) f.x = w.x + (Math.sign(d) || -1) * 320;
       }
     }
-    // On the river raft everybody stays on the raft
-    const pb = f.team === 'player' && this.playerBounds ? this.playerBounds : this.raftBox && !FIGHTERS[f.kind].prop ? this.raftBox : b;
+    // On the raft / in the lift everybody stays inside
+    const pb = f.team === 'player' && this.playerBounds ? this.playerBounds : this.enemyBox && !FIGHTERS[f.kind].prop ? this.enemyBox : b;
     if (f.x < pb.xMin + 30) f.x = pb.xMin + 30;
     if (f.x > pb.xMax - 30) f.x = pb.xMax - 30;
     if (f.z < b.zMin) f.z = b.zMin;

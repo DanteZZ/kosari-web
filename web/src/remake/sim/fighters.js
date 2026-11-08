@@ -119,6 +119,18 @@ export const FIGHTERS = {
     moves: { light: 'e_jab' },
     ai: {},
   },
+  /** Where an arena's mode begins: a parked car, a raft, lift doors... (sim/entry.js). */
+  entry: {
+    team: 'prop',
+    prop: true,
+    keeper: true,
+    noGrab: true,
+    hp: 9999,
+    speedX: 0,
+    speedZ: 0,
+    jumpV: 0,
+    moves: {},
+  },
   /** Concert: 1Kla$ in the rap battle before the fight (sim/bench.js, rap). */
   mc: {
     team: 'prop',
@@ -496,7 +508,7 @@ Object.assign(FIGHTERS, {
     moves: { light: 'p_pot', heavy: 'm_lunge' },
   }),
   gigachad: brawlBoss({
-    title: 'Гигачад', hint: 'Сзади его не пробить — только в лицо. Отвернись, когда позирует!', bossAI: 'chad', frontOnly: true,
+    title: 'Гигачад', hint: 'Сзади его не пробить — только в лицо. Отвернись, когда позирует!', bossAI: 'chad', frontOnly: true, qte: { at: [0.55, 0.25], len: 5, dmg: 0.2 },
     hp: 760, armor: 40, poise: 110, speedX: 3.0, speedZ: 2.0,
     moves: { light: 'c_barrage', heavy: 'b_quake' },
   }),
