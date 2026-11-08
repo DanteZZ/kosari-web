@@ -10,7 +10,7 @@ import { BTN } from './input.js';
  * The driving player has `driving = true` and is moved here, not by World._update.
  */
 
-export const CAR_HW = 118;
+export const CAR_HW = 175;
 export const CAR_HZ = 14;
 const V_MIN = 9;
 const V_CRUISE = 15;
@@ -18,10 +18,10 @@ const V_MAX = 22;
 
 /** Obstacles: half sizes, speed (world px/tick), damage on a crash. */
 export const OBS = {
-  truck: { halfW: 250, halfZ: 20, vx: -8, dmg: 34 },
-  car: { halfW: 118, halfZ: 16, vx: -6, dmg: 22 },
-  slow: { halfW: 118, halfZ: 16, vx: 7, dmg: 14 },
-  moped: { halfW: 70, halfZ: 12, vx: 0, dmg: 10 },
+  truck: { halfW: 390, halfZ: 20, vx: -8, dmg: 34 },
+  car: { halfW: 178, halfZ: 16, vx: -6, dmg: 22 },
+  slow: { halfW: 178, halfZ: 16, vx: 7, dmg: 14 },
+  moped: { halfW: 100, halfZ: 12, vx: 0, dmg: 10 },
 };
 
 export function startRace(world, p, x0, x1) {
@@ -94,7 +94,7 @@ export function stepRace(world) {
     world.events.push({ type: 'racePunch', id: p.id });
     for (const o of r.obs) {
       if (o.dead || o.kind !== 'moped' || o.fall) continue;
-      if (Math.abs(o.x - p.x) < 190 && Math.abs(o.z - p.z) < 45) {
+      if (Math.abs(o.x - p.x) < 270 && Math.abs(o.z - p.z) < 45) {
         o.fall = 1;
         r.punches += 1;
         world._spillKosari(o.x, o.z, 4, 40);
@@ -106,7 +106,7 @@ export function stepRace(world) {
   // Traffic gets denser towards the end; Повар's pots near the shawarma
   const k = Math.min(1, (p.x - r.x0) / (r.x1 - r.x0));
   if (--r.spawnT <= 0) {
-    r.spawnT = Math.round(world.rng.range(44, 70) * (1 - k * 0.35));
+    r.spawnT = Math.round(world.rng.range(56, 86) * (1 - k * 0.35));
     const roll = world.rng.next();
     const kind = roll < 0.3 ? 'truck' : roll < 0.55 ? 'car' : roll < 0.72 ? 'slow' : 'moped';
     spawnObs(world, r, p, kind);
@@ -130,7 +130,7 @@ export function stepRace(world) {
     }
     if (o.kind === 'moped') {
       // Catch up, then match speed and swerve into the car
-      const dx = p.x - 150 - o.x;
+      const dx = p.x - 220 - o.x;
       o.vx = r.v + Math.max(-3, Math.min(8, dx * 0.05));
       o.z += Math.sign(p.z - o.z) * Math.min(1.4, Math.abs(p.z - o.z));
       if (o.ramT > 0) o.ramT -= 1;

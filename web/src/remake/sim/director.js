@@ -142,26 +142,39 @@ export class MapDirector {
     if (this.raft) {
       const r = this.raft;
       r.x += r.speed;
-      w.raftBox = { xMin: r.x, xMax: r.x + r.w };
-      w.enemyBox = w.raftBox;
-      w.playerBounds = { ...w.raftBox };
-      this.box = { left: r.x, right: r.x + r.w };
+      if (!r.docked) {
+        w.raftBox = { xMin: r.x, xMax: r.x + r.w };
+        w.enemyBox = w.raftBox;
+        w.playerBounds = { ...w.raftBox };
+        this.box = { left: r.x, right: r.x + r.w };
+      }
       // Everyone on board drifts with the raft
       for (const f of w.fighters) if (!f.dead && !FIGHTERS[f.kind]?.prop) f.x += r.speed;
       w.raftX = r.x;
+      if (r.docked) {
+        // Moored: walk off the raft along the pier — the next stretch starts on the bank
+        if (w.players().some((p) => p.x >= r.end + 260)) {
+          this.raft = null;
+          w.raftBox = null;
+          w.raftX = null;
+          this.landNext = true;
+          this._clear(a);
+        }
+        return;
+      }
       if (r.x + r.w >= r.end) {
-        // Landed: whoever is left jumps into the water
+        // The raft bumps into the pier: whoever is left jumps into the water
         for (const f of w.fighters) if (this.arenaIds.includes(f.id) && !f.dead) {
           f.dead = true;
           f.removed = true;
         }
-        this.raft = null;
-        w.raftBox = null;
+        this.queue = [];
+        r.speed = 0;
+        r.docked = true;
         w.enemyBox = null;
-        w.raftX = null;
-        this.landNext = true;
+        // The pier joins the raft: you may walk onto it
+        w.playerBounds = { xMin: r.x, xMax: r.end + 700 };
         w.events.push({ type: 'raftEnd' });
-        this._clear(a);
         return;
       }
       // The banks keep sending people until we land
@@ -331,6 +344,7 @@ export class MapDirector {
 
   /** One line for the HUD about the current goal. */
   goalText() {
+    if (this.raft?.docked) return 'Причалили — сходи на берег →';
     if (this.raft) {
       const r = this.raft;
       const a = this.arena;

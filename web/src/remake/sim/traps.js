@@ -20,7 +20,7 @@ const CAR = {
   knockdown: true,
   pierce: true,
   hitsAll: true,
-  halfW: 120,
+  halfW: 175,
   halfZ: 18,
   hitH: 110,
   muzzle: { x: 0, y: 0 },

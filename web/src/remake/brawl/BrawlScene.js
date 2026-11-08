@@ -57,7 +57,7 @@ const ORIG_PROJ = {
   spear: { key: 'item_spear', size: 230 },
   microphone: { key: 'item_microphone', size: 74, spin: 9 },
   // Roadside traffic (traps): the art faces left
-  car_lada: { key: 'item_car_lada', size: 280, faceLeft: true, ground: true },
+  car_lada: { key: 'item_car_lada', size: 430, faceLeft: true, ground: true },
 };
 
 /** Sizes for item art used as projectiles without an ORIG_PROJ entry. */
@@ -917,7 +917,9 @@ export class BrawlScene extends Phaser.Scene {
           this.banner('НА ПЛОТ!', 'Течение несёт · рыбаки прыгают на плот сверху', 2400, true);
           break;
         case 'raftEnd':
-          this.resultCard('БЕРЕГ!', ['Приплыли — прыгай на причал'], true);
+          this.resultCard('ПРИЧАЛИЛИ!', ['Сходи на причал →'], true);
+          // Let the camera follow onto the pier past the arena's end
+          if (this.lock) this.lock = { left: this.lock.left, right: this.lock.right + 1000 };
           break;
         // ---- Sigma pose-off / stream style / office lift + trading
         case 'poseStart':
@@ -1089,7 +1091,7 @@ export class BrawlScene extends Phaser.Scene {
           {
             const p = this.player;
             const car = this.add.image(p.x - 40, stage.groundY(p.z), 'item_car_lada').setOrigin(0.5, 1).setFlipX(true);
-            car.setScale(290 / car.width).setDepth(stage.depth(p.z) - 1);
+            car.setScale(440 / car.width).setDepth(stage.depth(p.z) - 1);
           }
           this.sound.play('cash', { volume: 0.5 });
           break;

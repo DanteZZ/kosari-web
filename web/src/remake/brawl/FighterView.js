@@ -191,7 +191,7 @@ export class FighterView {
   shade(on) {
     if (this.shaded === on) return;
     this.shaded = on;
-    if (on) for (const s of this.sprites) s.setTint(0x3c4458);
+    if (on) for (const s of this.sprites) s.setTint(0x8088a0);
     else this._baseTint();
   }
 

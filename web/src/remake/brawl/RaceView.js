@@ -4,10 +4,10 @@ import { enemyPartTextureKey } from '../game/enemies/parts.js';
 
 /** Art for the race (all drawn facing LEFT): [texture, width on screen]. */
 const ART = {
-  truck: ['item_truck', 560],
-  car: ['item_car_lada', 270],
-  slow: ['item_car_lada', 270],
-  moped: ['item_moped', 150],
+  truck: ['item_truck', 860],
+  car: ['item_car_lada', 430],
+  slow: ['item_car_lada', 430],
+  moped: ['item_moped', 230],
 };
 
 /**
@@ -35,12 +35,13 @@ export class RaceView {
   _makeCar() {
     const s = this.scene;
     const c = s.add.container(0, 0);
-    const shadow = s.add.ellipse(0, 4, 300, 40, 0x000000, 0.35);
-    const body = this._img('item_car_lada', 290).setFlipX(true);
+    // Same size as the parked Lada you got into
+    const shadow = s.add.ellipse(0, 6, 450, 56, 0x000000, 0.35);
+    const body = this._img('item_car_lada', 440).setFlipX(true);
     // Driver's head in the front window (the car faces right)
-    const head = s.add.image(38, -78, this.heroFace).setOrigin(0.5, 0.75);
-    head.setScale(46 / Math.max(head.width || 1, head.height || 1));
-    const arm = s.add.rectangle(70, -54, 0, 14, 0xd7a07a).setOrigin(0, 0.5);
+    const head = s.add.image(58, -117, this.heroFace).setOrigin(0.5, 0.75);
+    head.setScale(68 / Math.max(head.width || 1, head.height || 1));
+    const arm = s.add.rectangle(105, -81, 0, 20, 0xd7a07a).setOrigin(0, 0.5);
     c.add([shadow, head, body, arm]);
     c.head = head;
     c.body = body;
@@ -99,8 +100,8 @@ export class RaceView {
     this.car.setAngle(((p.z - p.pz) || 0) * 0.6);
     // Punch out of the window
     const pt = p.punchT || 0;
-    this.car.arm.width = pt > 0 ? Math.sin((pt / 16) * Math.PI) * 120 : 0;
-    this.car.arm.y = -54 + (pt > 0 ? 6 : 0);
+    this.car.arm.width = pt > 0 ? Math.sin((pt / 16) * Math.PI) * 170 : 0;
+    this.car.arm.y = -81 + (pt > 0 ? 8 : 0);
 
     // Obstacles
     const seen = new Set();
@@ -116,10 +117,10 @@ export class RaceView {
         const sh = s.add.ellipse(0, 4, w * 0.95, 34, 0x000000, 0.3);
         v.add([sh, img]);
         if (o.kind === 'moped') {
-          const head = s.add.image(-4, -112, enemyPartTextureKey('nikita', 'head')).setOrigin(0.5, 0.8);
-          head.setScale(54 / Math.max(head.width || 1, head.height || 1));
-          const torso = s.add.image(-10, -70, enemyPartTextureKey('nikita', 'torso')).setOrigin(0.5, 0.5);
-          torso.setScale(70 / Math.max(torso.width || 1, torso.height || 1));
+          const head = s.add.image(-6, -168, enemyPartTextureKey('nikita', 'head')).setOrigin(0.5, 0.8);
+          head.setScale(80 / Math.max(head.width || 1, head.height || 1));
+          const torso = s.add.image(-15, -105, enemyPartTextureKey('nikita', 'torso')).setOrigin(0.5, 0.5);
+          torso.setScale(105 / Math.max(torso.width || 1, torso.height || 1));
           v.addAt(torso, 1);
           v.add(head);
         }

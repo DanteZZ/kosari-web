@@ -78,8 +78,9 @@ export class SetView {
       this.water = this._tile('item_set_river_water', W, this.waterH, 0x2c5a6e);
       if (this.water.setTileScale) this.water.setTileScale(this.waterH / (this.water.texture.source[0].height || 1));
       if (s.textures.exists('item_set_river_pier')) {
-        this.pier = s.add.image(0, 0, 'item_set_river_pier').setOrigin(0, 1);
-        this.pier.setScale(420 / this.pier.height);
+        // The deck is the lane you walk on: posts go down into the water
+        this.pier = s.add.image(0, 0, 'item_set_river_pier').setOrigin(0, 0.3);
+        this.pier.setScale(560 / this.pier.height);
         this.parts.push(this.pier);
       }
     }
@@ -119,7 +120,7 @@ export class SetView {
       // The river flows: the texture drifts on its own besides following the camera
       if (this.water.tilePositionX != null) this.water.tilePositionX = (v.x + this.scene.time.now * 0.06) / this.water.tileScaleX;
       // The landing pier waits at the end of the stretch
-      if (this.pier && world.raftEndX) this.pier.setPosition(world.raftEndX - 60, roadBot + 10).setDepth(back);
+      if (this.pier && world.raftEndX) this.pier.setPosition(world.raftEndX - 60, stage.groundY(world.bounds.zMin) - 30).setDepth(back);
     }
   }
 }

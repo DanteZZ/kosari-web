@@ -15,8 +15,9 @@ const SEE_T = 45;
 /** Half-width of a statue's hiding spot: stand inside it and you are in its shadow. */
 export const HIDE_W = 70;
 
-/** Is (x, z) in a statue's shadow? Statues stand at the near edge of the lane:
- * you hide right below one — at its base, close to the camera. */
+/** Statues stand in the middle of the lane, the guards walk along the far
+ * side (above them on screen). Hide BELOW a statue — in front of it, so the
+ * statue is between you and the guards. */
 export function hiddenAt(m, x, z) {
   return z >= m.zHide && m.covers.some((c) => Math.abs(x - c.x) < HIDE_W);
 }
@@ -48,15 +49,17 @@ export function startStealth(world, b, cfg) {
     const x1 = x0 + span / n - 260;
     covers.push({ x: x0 - 90 });
     covers.push({ x: (x0 + x1) / 2 + 40 });
-    const z = world.rng.range(world.bounds.zMin + 40, world.bounds.zMax - 40);
-    const g = world.spawn('guard', x1, z, { facing: -1 });
+    // Guards keep to the far side of the hall
+    const g = world.spawn('guard', x1, world.bounds.zMin + 10, { facing: -1 });
     g.patrol = { x0, x1, dir: -1, wait: 0 };
     guards.push(g.id);
   }
   world.mini = {
     type: 'stealth',
     practiceX: practice ? start : null,
-    zHide: world.bounds.zMax - 42,
+    // Statues stand at the middle line; below it (closer to us) is their cover
+    statueZ: (world.bounds.zMin + world.bounds.zMax) / 2 - 10,
+    zHide: (world.bounds.zMin + world.bounds.zMax) / 2 + 22,
     guards,
     covers,
     exitX: b.right - 160,
