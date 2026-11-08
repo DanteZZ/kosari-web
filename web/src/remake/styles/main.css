@@ -1568,3 +1568,30 @@ body {
 /* Test ground list */
 .cx-poly { max-height: min(62vh, 640px); overflow-y: auto; padding-right: 6px; }
 .cx-poly .cx-rv { font-size: .78em; opacity: .75; text-align: right; max-width: 55%; }
+
+/* ---- Ending credits (ui/Ending.js) ---- */
+.cr { position: fixed; inset: 0; z-index: 60; background: #050308; overflow: hidden; color: #f2ede4;
+  font-family: 'Russo One', Impact, sans-serif; text-align: center; animation: cr-in .8s ease both; }
+.cr.out { animation: cr-out .5s ease both; }
+@keyframes cr-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cr-out { to { opacity: 0; } }
+.cr-scan { position: absolute; inset: 0; pointer-events: none; opacity: .18;
+  background: repeating-linear-gradient(0deg, rgba(255,255,255,.06) 0 1px, transparent 1px 3px); }
+.cr-roll { position: absolute; left: 50%; top: 100%; width: min(900px, 92vw); transform: translate(-50%, 0); }
+.cr-roll.go { animation: cr-roll 72s linear forwards; }
+@keyframes cr-roll { to { transform: translate(-50%, calc(-1 * var(--cr-dist, 4000px))); } }
+.cr-big { font-size: clamp(40px, 7vw, 86px); letter-spacing: .08em; color: #ffd23f; text-shadow: 0 0 24px rgba(255,210,63,.35); margin: 10px 0; }
+.cr-sub { font-size: clamp(16px, 2vw, 22px); letter-spacing: .4em; color: #9fd3e0; }
+.cr-head { font-size: clamp(14px, 1.6vw, 18px); letter-spacing: .35em; color: #ff5aa8; margin: 22px 0 14px; text-transform: uppercase; }
+.cr-role { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin: 8px 0; align-items: baseline; }
+.cr-name { text-align: right; font-size: clamp(18px, 2.2vw, 26px); }
+.cr-what { text-align: left; font-family: system-ui, sans-serif; font-size: clamp(14px, 1.6vw, 18px); color: #c8c0b4; }
+.cr-line { font-family: system-ui, sans-serif; font-size: clamp(15px, 1.8vw, 20px); margin: 10px 0; color: #e8e2d8; }
+.cr-small { font-family: system-ui, sans-serif; font-size: 14px; color: #8a8478; margin: 6px 0; font-style: italic; }
+.cr-gap { height: 70px; }
+.cr-hint { position: absolute; right: 24px; bottom: 18px; font-size: 14px; color: #8a8478; opacity: .6; transition: opacity .4s; }
+.cr-hint.on { opacity: 1; color: #ffd23f; }
+@media (max-width: 600px) {
+  .cr-role { grid-template-columns: 1fr; gap: 2px; }
+  .cr-name, .cr-what { text-align: center; }
+}

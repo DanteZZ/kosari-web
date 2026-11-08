@@ -288,7 +288,7 @@ export const museum = eraMap({
   id: 'museum',
   widths: [0, 0, 1200],
   extra: [null, null, {
-    mini: { type: 'stealth', guards: 3, practice: 900 },
+    mini: { type: 'stealth', guards: 3, practice: 1300 },
     entry: { auto: true, intro: [['hero', 'Ночной музей. Охрана с фонарями.'], ['hero', 'Красное — куда они смотрят. За статуей меня не видно — проверю на первых.']] },
   }],
   goals: [null, { type: 'chase' }, null],

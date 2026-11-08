@@ -17,6 +17,7 @@ import { SandboxDirector } from '../sim/sandbox.js';
 import { MapDirector } from '../sim/director.js';
 import { MAPS, DEFAULT_MAP } from '../maps/index.js';
 import { challengesFor } from '../maps/challenges.js';
+import { playEnding } from '../ui/Ending.js';
 import { saveBest } from '../ui/Menu.js';
 import { DT, METER_MAX } from '../sim/constants.js';
 import { MOVES } from '../sim/moves.js';
@@ -192,7 +193,8 @@ export class BrawlScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     kb.on('keydown-P', () => this.togglePause());
     kb.on('keydown-ENTER', () => {
-      if (this.finished) this.goNext(this.map?.route ? 0 : null);
+      if (this.finished && this.isFinale()) this.startEnding();
+      else if (this.finished) this.goNext(this.map?.route ? 0 : null);
       else this.togglePause();
     });
     // Fork in the road: 1 / 2 on the results screen
@@ -1841,6 +1843,20 @@ export class BrawlScene extends Phaser.Scene {
     }
   }
 
+  /** The last story map (1Kla$'s concert): its results lead to the ending. */
+  isFinale() {
+    return !!this.map && !this.map.hidden && !this.map.next && this.map.id === 'concert';
+  }
+
+  /** Afterword + credits, then back to the menu. */
+  startEnding() {
+    if (this.endingOn) return;
+    this.endingOn = true;
+    this.sound.stopAll();
+    this.scene.pause();
+    playEnding(document.getElementById('game-shell') || document.body, GameState.hero, () => this.onExit?.());
+  }
+
   /** Where the story goes after this map (a chosen side road, or the map's own next). */
   nextMapId() {
     if (!this.map) return null;
@@ -1895,9 +1911,11 @@ export class BrawlScene extends Phaser.Scene {
     const route = this.map?.route;
     const nextLine = route
       ? `Развилка: 1 — ${route.choose[0].label} · 2 — ${route.choose[1].label}`
-      : this.nextMapId()
-        ? 'Enter — дальше'
-        : 'Enter — ещё раз';
+      : this.isFinale()
+        ? 'Enter — эпилог'
+        : this.nextMapId()
+          ? 'Enter — дальше'
+          : 'Enter — ещё раз';
     const mm = Math.floor(secs / 60);
     const ss = String(secs % 60).padStart(2, '0');
     this.hud.results

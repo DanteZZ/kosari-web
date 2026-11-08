@@ -99,12 +99,13 @@ export class MinisView {
       m.covers.forEach((c, i) => {
         // A statue mid-lane: whoever stands in front of it (below) is out of the guards' sight
         const key = [`kit_museum_statue_${(i % 3) + 1}`, `item_statue_${(i % 3) + 1}`].find((k) => s.textures.exists(k));
-        const y = stage.groundY(m.statueZ);
+        // The pedestal stands on its shadow (the hiding spot is right in front of it)
+        const y = stage.groundY(m.zHide + 8);
         // The hiding spot: a patch on the floor right in front of (below) the statue
-        const shadow = s.add.ellipse(c.x, stage.groundY(m.zHide + 22), HIDE_W * 2.3, 54, 0x05060c, 0.5).setDepth(stage.depth(b.zMin) - 2);
+        const shadow = s.add.ellipse(c.x, stage.groundY(m.zHide + 12), HIDE_W * 2.6, 62, 0x05060c, 0.55).setDepth(stage.depth(b.zMin) - 2);
         const im = key ? s.add.image(c.x, y, key).setOrigin(0.5, 1) : s.add.rectangle(c.x, y, 120, 360, 0xd8d0c0).setOrigin(0.5, 1);
         im.setScale(key ? 400 / im.height : 1).setDepth(stage.depth(m.statueZ));
-        const tag = c.practice ? s.add.text(c.x, stage.groundY(b.zMax) + 40, '▲ спрячься перед статуей ▲', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '20px', color: '#9fd3e0', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(9000) : null;
+        const tag = c.practice ? s.add.text(c.x, stage.groundY(b.zMax) + 40, '▲ укрытие ▲', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '20px', color: '#9fd3e0', stroke: '#000', strokeThickness: 5 }).setOrigin(0.5, 1).setDepth(9000) : null;
         this.covers.push(shadow, im);
         if (tag) this.covers.push(tag);
         // Night museum: the statues stand in the dark

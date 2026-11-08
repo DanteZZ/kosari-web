@@ -2,6 +2,7 @@ import { el } from './dom.js';
 import { playSfx } from './audio.js';
 import { GameState, SaveLoad, volume, chooseHero, UPGRADES, upgradeLevel, buyUpgrade } from '../state/GameState.js';
 import { MAPS } from '../maps/index.js';
+import { playEnding } from './Ending.js';
 import { HEROES, HERO_IDS } from '../game/heroes.js';
 import { STORY, HERO_GOALS, storyText } from '../story.js';
 
@@ -442,6 +443,13 @@ export function renderMenu(root, { go }) {
         el('p', { html: '<small>ОРИГИНАЛ 2011</small><br><b>Trubakoff Industry</b><br>Евгений Терехов · Илья Трубаков' }),
         el('p', { html: '<small>ПОРТ КЛАССИКИ</small><br><b>DNTZ</b>' }),
         el('p', { html: '<small>REMAKE 2026</small><br><b>DNTZ</b>' }),
+        // After the finale: watch the ending again
+        P().done.includes('concert')
+          ? el('button', { className: 'cx-cta', text: 'Смотреть концовку', onclick: () => {
+            stopMenuMusic();
+            playEnding(document.body, GameState.hero, () => startMusic());
+          } })
+          : null,
       ]),
       foot(''),
     );
@@ -588,6 +596,8 @@ export function renderMenu(root, { go }) {
   };
 
   const onKey = (e) => {
+    // The ending (afterword / credits) plays over the menu: it has the keys
+    if (document.querySelector('.wl.cine, .cr')) return;
     if (stage === 'title') {
       if (!e.repeat) showMenu();
       return;
