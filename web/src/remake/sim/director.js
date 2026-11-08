@@ -1,5 +1,6 @@
 import { setTraps } from './traps.js';
 import { startRace } from './race.js';
+import { startTorch } from './torch.js';
 import { FIGHTERS } from './fighters.js';
 
 /**
@@ -97,6 +98,14 @@ export class MapDirector {
       this._spawn(a, q);
     }
 
+    if (this.waitTorch) {
+      if (w.torch?.done) {
+        w.torch = null;
+        this.waitTorch = false;
+        this._startWave(0);
+      }
+      return;
+    }
     if (a.race) {
       if (w.race?.done) {
         w.race = null;
@@ -205,6 +214,8 @@ export class MapDirector {
 
   /** One line for the HUD about the current goal. */
   goalText() {
+    const tc = this.world.torch;
+    if (tc && !tc.done) return `Найди пробки: ${tc.got}/${tc.need} · свети на Пахома!`;
     const r = this.world.race;
     if (r && !r.done) {
       const p = this.world.players().find((f) => f.driving);
@@ -244,6 +255,12 @@ export class MapDirector {
     this.arenaIds = [];
     w.events.push({ type: 'arenaStart', index: this.idx, boss: !!a.boss, left: b.left, right: b.right, race: !!a.race });
     setTraps(w, a.traps);
+    if (a.dark) {
+      // Basement in the dark: fuses first, then the waves
+      startTorch(w, b, a.dark);
+      this.waitTorch = true;
+      return;
+    }
     if (a.race) {
       // Highway race: no waves, drive to the end of the arena
       const p = w.players()[0];

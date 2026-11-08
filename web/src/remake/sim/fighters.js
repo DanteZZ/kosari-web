@@ -107,6 +107,19 @@ export const FIGHTERS = {
     jumpV: 0,
     moves: {},
   },
+  /** Dacha basement: Пахом's shadow — freezes in the flashlight beam, a hit banishes him. */
+  shade: {
+    team: 'enemy',
+    title: 'Тень Пахома',
+    hp: 999,
+    speedX: 3.7,
+    speedZ: 2.4,
+    jumpV: 0,
+    noGrab: true,
+    bossAI: 'shade',
+    moves: { light: 'e_jab' },
+    ai: {},
+  },
   /** Arena goal «догони»: runs off with a bag of косари. */
   thief: {
     team: 'enemy',

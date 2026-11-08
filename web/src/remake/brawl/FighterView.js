@@ -20,6 +20,8 @@ export const VARIANTS = {
   runner: { skin: 'nikita', scale: 0.9, tint: 0x86c8ff },
   /** Arena goal «догони»: a Nikita in black with a bag of косари. */
   thief: { skin: 'nikita', scale: 0.88, tint: 0x6a6a78 },
+  /** Dacha basement: Пахом's shadow. */
+  shade: { skin: 'pahom', scale: 1.05, tint: 0x5a6a50 },
   thrower: { skin: 'buiniy', scale: 0.95, tint: 0xb3c79a },
   blocker: { skin: 'nikita', scale: 1.12, tint: 0x7f93b8 },
   /** Original boss 1 uses the masked-hoodie rig. */
@@ -386,6 +388,12 @@ export class FighterView {
       const a = Math.min(1, f.removeT / 30);
       this.visual.setAlpha(a);
       this.shadow.setAlpha(0.3 * a);
+    } else if (f.kind === 'shade') {
+      // Пахом's shadow: only the beam shows him (the eyes glow in the dark)
+      const a = f.lit ? 1 : 0;
+      this.visual.setAlpha(this.visual.alpha + (a - this.visual.alpha) * 0.25);
+      this.shadow.setAlpha(0);
+      this.hpBar?.setVisible(false);
     } else if (f.iframes > 0 && (f.state === 'getup' || f.state === 'dash')) {
       this.visual.setAlpha(0.65 + 0.35 * Math.sin(f.st * 0.9));
     } else {

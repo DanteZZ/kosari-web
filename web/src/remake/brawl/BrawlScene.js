@@ -22,6 +22,7 @@ import { MOVES } from '../sim/moves.js';
 import { FighterView } from './FighterView.js';
 import { CrateView } from './CrateView.js';
 import { RaceView } from './RaceView.js';
+import { FUSE_T } from '../sim/torch.js';
 import { SpriteFighterView, SPRITE_KINDS } from './SpriteFighterView.js';
 import { ROAD_Y } from './stage.js';
 import { WEAPONS, WEAPON_SLOTS, SHOP, BUFFS } from '../sim/items.js';
@@ -575,7 +576,7 @@ export class BrawlScene extends Phaser.Scene {
       this.darkLayer.add(this.add.image(0, 0, 'fx_dark').setScale(1));
       // Solid black around the gradient so the whole screen is covered
       for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
-        this.darkLayer.add(this.add.rectangle(dx * 5512, dy * 5512, 10000, 10000, 0x000000, 0.96));
+        this.darkLayer.add(this.add.rectangle(dx * 5512, dy * 5512, 10000, 10000, 0x000000, 0.97).setData('d', [dx, dy]));
       }
       this.darkEyes = this.add.container(0, 0).setDepth(1401).setVisible(false);
       for (const dx of [-10, 10]) this.darkEyes.add(this.add.ellipse(dx, 0, 11, 6, 0xc6ff6a, 1));
@@ -585,14 +586,80 @@ export class BrawlScene extends Phaser.Scene {
     this.darkOn = on;
   }
 
+  /** Darkness with a flashlight beam cut out (dacha basement, sim/torch.js). */
+  torchTexture() {
+    if (this.textures.exists('fx_torch')) return 'fx_torch';
+    const W = 2400;
+    const H = 1200;
+    const cx = W / 2;
+    const cy = H / 2;
+    const t = this.textures.createCanvas('fx_torch', W, H);
+    const c = t.getContext();
+    c.fillStyle = 'rgba(0,0,0,0.97)';
+    c.fillRect(0, 0, W, H);
+    c.globalCompositeOperation = 'destination-out';
+    // Small glow around the hero
+    let g = c.createRadialGradient(cx, cy, 30, cx, cy, 210);
+    g.addColorStop(0, 'rgba(0,0,0,0.9)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, W, H);
+    // The beam: a soft cone to the right
+    c.save();
+    c.beginPath();
+    c.moveTo(cx + 20, cy - 30);
+    c.lineTo(cx + 760, cy - 300);
+    c.lineTo(cx + 820, cy + 60);
+    c.lineTo(cx + 760, cy + 420);
+    c.lineTo(cx + 20, cy + 60);
+    c.closePath();
+    c.clip();
+    g = c.createRadialGradient(cx, cy, 40, cx, cy, 820);
+    g.addColorStop(0, 'rgba(0,0,0,1)');
+    g.addColorStop(0.7, 'rgba(0,0,0,0.85)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    c.fillStyle = g;
+    c.fillRect(0, 0, W, H);
+    c.restore();
+    c.globalCompositeOperation = 'source-over';
+    // A warm tint inside the beam
+    c.fillStyle = 'rgba(255,230,160,0)';
+    t.refresh();
+    return 'fx_torch';
+  }
+
   updateDark() {
     if (!this.darkLayer || (!this.darkOn && this.darkLayer.alpha <= 0.01)) {
       this.darkEyes?.setVisible(false);
       return;
     }
     const pv = this.views.get(this.player.id);
-    this.darkLayer.setPosition(pv ? pv.visual.x : this.player.x, (pv ? pv.visual.y : stage.groundY(this.player.z)) - 120);
-    const boss = this.world.fighters.find((f) => f.kind === 'pahom' && !f.dead);
+    // Flashlight mode: swap the round vignette for the beam, turned the way the hero looks
+    const torch = !!this.world.torch && !this.world.torch.done;
+    // Unscrew progress rings over the fuses
+    if (!this.fuseGfx) this.fuseGfx = this.add.graphics().setDepth(1403);
+    this.fuseGfx.clear();
+    if (torch) {
+      for (const fz of this.world.torch.fuses) {
+        if (fz.got || !fz.prog) continue;
+        const y = stage.groundY(fz.z) - 30;
+        this.fuseGfx.lineStyle(6, 0xffe08a, 1).beginPath();
+        this.fuseGfx.arc(fz.x, y, 40, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * fz.prog) / FUSE_T).strokePath();
+      }
+    }
+    const img = this.darkLayer.list[0];
+    const key = torch ? this.torchTexture() : 'fx_dark';
+    if (img.texture.key !== key) {
+      img.setTexture(key);
+      // Solid black right up to the edges of the new picture
+      for (const r of this.darkLayer.list.slice(1)) {
+        const [dx, dy] = r.getData('d');
+        r.setPosition(dx * (img.width / 2 + 5000), dy * (img.height / 2 + 5000));
+      }
+    }
+    img.setFlipX(torch && this.player.facing < 0);
+    this.darkLayer.setPosition(pv ? pv.visual.x : this.player.x, (pv ? pv.visual.y : stage.groundY(this.player.z)) - (torch ? 150 : 120));
+    const boss = this.world.fighters.find((f) => (f.kind === 'pahom' || f.kind === 'shade') && !f.dead);
     const v = boss && this.views.get(boss.id);
     const head = v?.puppet?.nodes?.head?.sprite;
     this.darkEyes.setVisible(!!head && this.darkOn);
@@ -669,6 +736,40 @@ export class BrawlScene extends Phaser.Scene {
           if (ev.banner) this.banner(ev.banner, ev.boss ? null : `Волна ${ev.n}/${ev.total}`, 1300, ev.boss);
           else this.banner(`Волна ${ev.n}/${ev.total}`, null, 900);
           this.sound.play('beep', { volume: 0.25, rate: 0.7 });
+          break;
+        // ---- Dacha basement (flashlight)
+        case 'torchStart':
+          this.banner('СВЕТ ВЫРУБИЛИ', `Выкрути ${ev.fuses.length} пробки (постой рядом) · свети на Пахома — он замрёт`, 2400, true);
+          this.fuseViews = new Map();
+          for (const fz of ev.fuses) {
+            const key = this.textures.exists('item_fuse') ? 'item_fuse' : 'item_energy';
+            const im = this.add.image(fz.x, stage.groundY(fz.z) - 30, key).setDepth(1402);
+            im.setScale(54 / Math.max(im.width, im.height));
+            const glow = this.add.circle(fz.x, stage.groundY(fz.z) - 30, 42, 0xffe08a, 0.35).setDepth(1401);
+            this.tweens.add({ targets: [im, glow], alpha: { from: 1, to: 0.35 }, yoyo: true, repeat: -1, duration: 700 });
+            this.fuseViews.set(fz.id, [im, glow]);
+          }
+          break;
+        case 'fuseGot':
+          for (const o of this.fuseViews?.get(ev.id) || []) o.destroy();
+          this.popText(ev.x, stage.groundY(ev.z) - 140, `Пробка ${ev.got}/${ev.need}`, '#ffe08a', 26);
+          this.sound.play('cash', { volume: 0.4, rate: 1.3 });
+          break;
+        case 'torchDone':
+          this.banner('ДА БУДЕТ СВЕТ!', 'А теперь — гости', 1600);
+          this.cameras.main.flash(260, 255, 250, 220, false);
+          break;
+        case 'shadeLit':
+          this.sound.play('beep', { volume: 0.22, rate: 0.45 });
+          break;
+        case 'shadeScare':
+          this.cameras.main.flash(160, 120, 255, 120, false);
+          this.shake(320, 11);
+          this.sound.play('superudar', { volume: 0.5, rate: 0.6 });
+          this.popText(ev.x, stage.groundY(ev.z) - 300, 'АААА!', '#c6ff6a', 40);
+          break;
+        case 'puff':
+          this.puff(ev.x, ev.z);
           break;
         // ---- Highway race / roadside traps
         case 'raceStart':

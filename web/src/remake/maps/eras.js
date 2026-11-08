@@ -69,6 +69,8 @@ function eraMap(o) {
         ...GEOM[i],
         reward: [{ kind: 'heal', amount: 40 + i * 20 }],
         ...(o.goals?.[i] ? { goal: o.goals[i] } : {}),
+        // Arena extras: traps, the dark basement, minigames (sim/traps.js, torch.js, ...)
+        ...(o.extra?.[i] || {}),
         waves,
       })),
       o.boss
@@ -113,6 +115,7 @@ export const village = eraMap({
 
 export const dacha = eraMap({
   id: 'dacha',
+  extra: [null, null, { dark: { fuses: 3 } }],
   goals: [null, { type: 'chase' }, null],
   name: 'Дача',
   chapter: 'Глава 2 · Ранний ютуб',
@@ -138,6 +141,7 @@ export const dacha = eraMap({
 
 export const panelki = eraMap({
   id: 'panelki',
+  extra: [{ traps: [{ type: 'drop', tex: 'brick', every: [150, 260] }] }, null, { traps: [{ type: 'drop', tex: 'brick', every: [120, 220] }] }],
   goals: [null, { type: 'defend', hp: 280 }, null],
   name: 'Панельки',
   chapter: 'Глава 3 · Эпоха стримов',
@@ -196,6 +200,7 @@ export const pcClub = eraMap({
 
 export const gym = eraMap({
   id: 'gym',
+  extra: [null, { traps: [{ type: 'drop', tex: 'dumbbell', every: [160, 260] }] }, null],
   name: 'Качалка',
   chapter: 'Глава 4 · Пабликовая эпоха',
   next: 'museum',

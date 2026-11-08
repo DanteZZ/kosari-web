@@ -1,6 +1,7 @@
 import { BTN } from './input.js';
 import { FIGHTERS } from './fighters.js';
 import { MOVES } from './moves.js';
+import { shadeBrain } from './torch.js';
 
 /**
  * Original-game bosses. They write `cmd` bits like every other fighter
@@ -542,4 +543,4 @@ function thief(world, e, players) {
   e.cmd = steer(e, goal, gz, 10);
 }
 
-export const BOSS_AI = { borsch, povar, pahom, papich, maestro, chad, klas, thief };
+export const BOSS_AI = { borsch, povar, pahom, papich, maestro, chad, klas, thief, shade: shadeBrain };

@@ -1,5 +1,6 @@
 import { stepTraps } from './traps.js';
 import { stepRace } from './race.js';
+import { stepTorch } from './torch.js';
 import {
   GRAVITY,
   MAX_FALL,
@@ -210,6 +211,7 @@ export class World {
     this._hazards();
     stepTraps(this);
     stepRace(this);
+    stepTorch(this);
 
     for (const f of this.fighters) {
       this._clamp(f);
