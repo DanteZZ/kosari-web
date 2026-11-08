@@ -30,7 +30,7 @@ for (let t = 0; t < 60 * 60 * 15; t += 1) {
     if (foes.length) {
       const e = foes.reduce((a, b) => (Math.abs(a.x - p.x) < Math.abs(b.x - p.x) ? a : b));
       const dx = e.x - p.x;
-      if (Math.abs(dx) > 90) bits |= dx > 0 ? BTN.RIGHT : BTN.LEFT;
+      if (Math.abs(dx) > 90 || Math.sign(dx) !== p.facing) bits |= dx > 0 ? BTN.RIGHT : BTN.LEFT;
       if (Math.abs(e.z - p.z) > 12) bits |= e.z < p.z ? BTN.UP : BTN.DOWN;
       if (Math.abs(dx) < 140 && t % 8 === 0) bits |= BTN.LIGHT;
     } else bits |= BTN.RIGHT;

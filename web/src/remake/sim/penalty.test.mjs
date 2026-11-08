@@ -29,7 +29,7 @@ for (let t = 0; t < 60 * 60 * 20; t += 1) {
     if (foes.length) {
       const e = foes.find((f) => f.kind === 'thief') || foes.reduce((a, b) => (Math.abs(a.x - p.x) < Math.abs(b.x - p.x) ? a : b));
       const dx = e.x - p.x;
-      if (Math.abs(dx) > 90) bits |= dx > 0 ? BTN.RIGHT : BTN.LEFT;
+      if (Math.abs(dx) > 90 || Math.sign(dx) !== p.facing) bits |= dx > 0 ? BTN.RIGHT : BTN.LEFT;
       if (Math.abs(e.z - p.z) > 12) bits |= e.z < p.z ? BTN.UP : BTN.DOWN;
       if (Math.abs(dx) < 140 && t % 8 === 0) bits |= BTN.LIGHT;
     } else bits |= BTN.RIGHT;
@@ -45,4 +45,5 @@ for (let t = 0; t < 60 * 60 * 20; t += 1) {
   w.events.length = 0;
   if (d.status().state === 'done') break;
 }
+console.log(JSON.stringify(d.status()), Math.round(p.x), JSON.stringify(w.playerBounds), w.fighters.filter(f=>!f.dead).map(f=>f.kind+':'+Math.round(f.x)+':'+f.state+(f.waiting?'W':'')).join(' '));
 console.log(JSON.stringify(seen), 'end', JSON.stringify(res), 'state', d.status().state, 'money', p.money);

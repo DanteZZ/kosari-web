@@ -22,7 +22,7 @@ function run(map, label) {
       const prio = foes.find((f) => f.kind === 'thief') || foes.find((f) => FIGHTERS[f.kind].target);
       const e = prio || foes.reduce((a, b) => (Math.abs(a.x - p.x) < Math.abs(b.x - p.x) ? a : b));
       const dx = e.x - p.x;
-      if (Math.abs(dx) > 90) bits |= dx > 0 ? BTN.RIGHT : BTN.LEFT;
+      if (Math.abs(dx) > 90 || Math.sign(dx) !== p.facing) bits |= dx > 0 ? BTN.RIGHT : BTN.LEFT;
       if (Math.abs(e.z - p.z) > 12) bits |= e.z < p.z ? BTN.UP : BTN.DOWN;
       if (Math.abs(dx) < 140 && t % 8 === 0) bits |= BTN.LIGHT;
       if (Math.abs(dx) > 400 && t % 40 === 0) bits |= BTN.DASH;
