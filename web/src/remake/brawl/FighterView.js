@@ -24,6 +24,7 @@ export const VARIANTS = {
   guard: { skin: 'buiniy', scale: 1.02, tint: 0x5a6a90 },
   rival: { skin: 'ruki', scale: 1, tint: null },
   poser: { skin: 'gigachad', scale: 1.08, tint: null },
+  mc: { skin: 'klas', scale: 1.05, tint: null },
   /** Village penalties: Дед. */
   keeper: { skin: 'ded', scale: 0.98, tint: null },
   /** Dacha basement: Пахом's shadow. */
@@ -105,7 +106,9 @@ export class FighterView {
     // Thin dark outline so fighters read against the busy forest; a second,
     // coloured glow is the boss aura (1Kla$, the enlightened Маэстро, Гигачад's pose)
     try {
-      this.visual.postFX.addGlow(f.team === 'player' ? 0x101820 : 0x1a0f0f, 2.2, 0, false, 0.1, 5);
+      this.ally = f.team === 'ally';
+      // Summoned helpers glow green so you can tell them from the crowd
+      this.visual.postFX.addGlow(f.team === 'player' ? 0x101820 : f.team === 'ally' ? 0x36ff6a : 0x1a0f0f, f.team === 'ally' ? 4 : 2.2, 0, false, 0.1, 5);
       this.aura = true;
     } catch (_) {
       /* Canvas renderer: no FX */

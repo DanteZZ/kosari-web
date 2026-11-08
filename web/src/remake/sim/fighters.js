@@ -119,6 +119,18 @@ export const FIGHTERS = {
     moves: { light: 'e_jab' },
     ai: {},
   },
+  /** Concert: 1Kla$ in the rap battle before the fight (sim/bench.js, rap). */
+  mc: {
+    team: 'prop',
+    prop: true,
+    keeper: true,
+    noGrab: true,
+    hp: 9999,
+    speedX: 0,
+    speedZ: 0,
+    jumpV: 0,
+    moves: {},
+  },
   /** Sigma gym: Гигачад in the pose-off (sim/pose.js). */
   poser: {
     team: 'prop',

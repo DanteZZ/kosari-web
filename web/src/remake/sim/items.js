@@ -39,7 +39,31 @@ export const SHOP = [
   { id: 'ak', weapon: 3, title: 'АК-47', price: 20 },
   { id: 'rpg', weapon: 4, title: 'РПГ-7', price: 35 },
   { id: 'med', heal: 80, title: 'Аптечка', price: 6 },
+  // Helpers: memes beaten in earlier chapters (World.helpers, newest first)
+  { id: 'helper1', helperSlot: 0, title: 'Позвать на помощь', price: 15 },
+  { id: 'helper2', helperSlot: 1, title: 'Позвать на помощь', price: 12 },
 ];
+
+/** Which meme comes to help once his chapter is done (newest first). */
+export const HELPER_FROM = [
+  ['office', 'gitelman'],
+  ['stream_house', 'zubarev'],
+  ['river', 'reka'],
+  ['museum', 'vertuha'],
+  ['gym', 'ruki'],
+  ['pc_club', 'glad'],
+  ['panelki', 'mongol'],
+  ['village', 'ded'],
+];
+
+export function helpersFor(done) {
+  return HELPER_FROM.filter(([map]) => done.includes(map)).map(([, kind]) => kind);
+}
+
+export const HELPER_NAME = {
+  ded: 'Дед', mongol: 'Олег Монгол', glad: 'Глад Валакас', ruki: 'Руки базуки',
+  vertuha: 'Чувак с вертухой', reka: 'Идущий к реке', zubarev: 'Зубарев', gitelman: 'Гительман',
+};
 
 /** Косари knocked out of an enemy when it goes down: [min, max]. */
 export const KILL_LOOT = {

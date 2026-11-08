@@ -1,6 +1,6 @@
 import { el } from './dom.js';
 import { playSfx } from './audio.js';
-import { GameState, SaveLoad, volume, chooseHero } from '../state/GameState.js';
+import { GameState, SaveLoad, volume, chooseHero, UPGRADES, upgradeLevel, buyUpgrade } from '../state/GameState.js';
 import { MAPS } from '../maps/index.js';
 import { HEROES, HERO_IDS } from '../game/heroes.js';
 import { STORY, HERO_GOALS, storyText } from '../story.js';
@@ -121,7 +121,7 @@ export function renderMenu(root, { go }) {
 
   // ---------------------------------------------------------------- pages
   const TITLES = {
-    main: 'ГЛАВНОЕ', chapters: 'ГЛАВЫ', hero: 'ГЕРОЙ', gallery: 'ГАЛЕРЕЯ',
+    main: 'ГЛАВНОЕ', chapters: 'ГЛАВЫ', hero: 'ГЕРОЙ', gallery: 'ГАЛЕРЕЯ', upgrades: 'ПРОКАЧКА',
     settings: 'НАСТРОЙКИ', controls: 'УПРАВЛЕНИЕ', credits: 'СОЗДАТЕЛИ',
   };
 
@@ -134,6 +134,7 @@ export function renderMenu(root, { go }) {
       ...(anyProgress ? [] : []),
       { id: 'chapters', label: 'ГЛАВЫ', hint: 'Любая открытая глава' },
       { id: 'bossrush', label: 'БОССЫ', hint: 'Все семь боссов подряд' },
+      { id: 'upgrades', label: 'ПРОКАЧКА', hint: `Копилка: ${P().bank || 0} К` },
       { id: 'gallery', label: 'ГАЛЕРЕЯ', hint: 'Арты глав и портреты боссов' },
       { id: 'settings', label: 'НАСТРОЙКИ', hint: 'Звук, тряска, управление' },
       { id: 'controls', label: 'УПРАВЛЕНИЕ', hint: 'Клавиатура · геймпад · сенсор' },
@@ -165,6 +166,7 @@ export function renderMenu(root, { go }) {
     chapters: storyIds.length,
     hero: HERO_IDS.length,
     settings: settingsRows().length,
+    upgrades: Object.keys(UPGRADES).length,
     gallery: galleryItems().length,
   }[p.id] || 0);
 
@@ -196,7 +198,7 @@ export function renderMenu(root, { go }) {
     });
     page.innerHTML = '';
     page.className = `cx-page p-${p.id}${anim ? ' enter' : ''}`;
-    ({ main: renderMain, chapters: renderChapters, hero: renderHero, gallery: renderGallery, settings: renderSettings, controls: renderControls, credits: renderCredits })[p.id]();
+    ({ main: renderMain, chapters: renderChapters, hero: renderHero, gallery: renderGallery, settings: renderSettings, upgrades: renderUpgrades, controls: renderControls, credits: renderCredits })[p.id]();
   };
 
   const hover = (node, i) => {
@@ -253,6 +255,7 @@ export function renderMenu(root, { go }) {
       list.append(hover(el('div', { className: `cx-ch${i === p.sel ? ' on' : ''}${unlocked(cid) ? '' : ' locked'}${cid === nextChapter() ? ' next' : ''}` }, [
         el('span', { className: 'cx-chst', text: st }),
         el('span', { text: unlocked(cid) ? cm.name : '???' }),
+        el('span', { className: 'cx-chstars', text: done(cid) ? '★'.repeat((P().challenges?.[cid] || []).length).padEnd(3, '☆') : '' }),
       ]), i));
     });
     const hero = HEROES[GameState.hero] || HEROES.pocik;
@@ -341,6 +344,33 @@ export function renderMenu(root, { go }) {
       box.append(row);
     });
     page.append(box, foot('↑↓ — пункт · ← → — изменить · сохраняется сразу'));
+  }
+
+  function renderUpgrades() {
+    const p = cur();
+    const box = el('div', { className: 'cx-rows' });
+    box.append(el('div', { className: 'cx-bank', text: `Копилка: ${P().bank || 0} косарей · пополняется за пройденные главы` }));
+    Object.entries(UPGRADES).forEach(([id, u], i) => {
+      const lvl = upgradeLevel(id);
+      const price = u.prices[lvl];
+      const row = el('div', { className: `cx-row${i === p.sel ? ' on' : ''}` }, [
+        el('span', { className: 'cx-rl', text: `${u.title} — ${u.sub}` }),
+        el('i', { className: 'cx-rbar', style: `--v:${lvl / u.prices.length}` }),
+        el('span', { className: 'cx-rv', text: price == null ? 'МАКС' : `${price} К` }),
+      ]);
+      row.addEventListener('mouseenter', () => {
+        if (p.sel !== i) {
+          p.sel = i;
+          render();
+        }
+      });
+      row.addEventListener('click', () => {
+        p.sel = i;
+        activate();
+      });
+      box.append(row);
+    });
+    page.append(box, foot('↑↓ — что качать · Enter — купить уровень'));
   }
 
   function renderControls() {
@@ -465,6 +495,12 @@ export function renderMenu(root, { go }) {
       else if (it.id === 'bones') leave('bones');
       else if (it.id === 'anims') leave('anims');
       else push(it.id);
+    } else if (p.id === 'upgrades') {
+      const id = Object.keys(UPGRADES)[p.sel];
+      if (buyUpgrade(id)) {
+        playSfx('cash.wav', { volume: 0.5 * volume('sfx') });
+        render();
+      } else sfx(0.5);
     } else if (p.id === 'chapters') {
       const id = storyIds[p.sel];
       if (!unlocked(id)) return sfx(0.5);

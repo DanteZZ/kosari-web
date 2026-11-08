@@ -4,6 +4,8 @@ import { crateTexture } from './CrateView.js';
 import { TRAVEL } from '../sim/bench.js';
 import { VIEW as GUARD_VIEW } from '../sim/stealth.js';
 
+const NOTE_COL = { J: '#d0412f', K: '#2f6fd0', W: '#d0412f', A: '#2fa04a', S: '#2f6fd0', D: '#c08a1a' };
+
 /**
  * Gym bench press (note track on the HUD, barbells over both lifters),
  * museum stealth (crate stacks, guards' view cones, the exit) and the
@@ -42,7 +44,7 @@ export class MinisView {
       let o = T.notes.get(n);
       if (!o) {
         o = s.add
-          .text(0, 0, n.key, { fontFamily: 'Arial Black, Arial', fontSize: '30px', color: '#ffffff', backgroundColor: n.key === 'J' ? '#d0412f' : '#2f6fd0', padding: { x: 12, y: 4 } })
+          .text(0, 0, { W: '↑', A: '←', S: '↓', D: '→' }[n.key] || n.key, { fontFamily: 'Arial Black, Arial', fontSize: '30px', color: '#ffffff', backgroundColor: NOTE_COL[n.key] || '#444', padding: { x: 12, y: 4 } })
           .setOrigin(0.5)
           .setDepth(9001);
         s.tagUi(o);
@@ -60,6 +62,7 @@ export class MinisView {
     // Barbells over the lifters: yours rises with each good hit
     const p = world.players()[0];
     const r = world.fighters.find((f) => f.id === m.rival);
+    if (m.cfg.rap) return;
     this._bar('barP', p, 0.15 + (m.prog / 3) * 0.85);
     this._bar('barR', r, 0.5 + 0.5 * Math.sin((m.rivalT / 150) * Math.PI * 2));
   }

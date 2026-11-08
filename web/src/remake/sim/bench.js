@@ -11,23 +11,28 @@ import { BTN } from './input.js';
  */
 
 export const TRAVEL = 90;
+/** Which button each note letter wants. */
+export const KEY_BITS = { J: BTN.LIGHT, K: BTN.HEAVY, W: BTN.UP, A: BTN.LEFT, S: BTN.DOWN, D: BTN.RIGHT };
 const PERFECT = 7;
 const OK = 15;
 
 export function startBench(world, b, cfg) {
   const p = world.players()[0];
   const total = cfg.ticks || 1500;
+  const keys = cfg.keys || ['J', 'K'];
   const notes = [];
   // A beat every 30 ticks, with some doubles and rests
   let at = 120;
   while (at < total - 40) {
-    notes.push({ at, key: world.rng.chance(0.5) ? 'J' : 'K', hit: null });
+    notes.push({ at, key: keys[world.rng.int(0, keys.length - 1)], hit: null });
     at += world.rng.chance(0.2) ? 15 : world.rng.chance(0.15) ? 60 : 30;
   }
   const mx = b.left + (b.right - b.left) * 0.4;
-  const rival = world.spawn('rival', mx + 260, (world.bounds.zMin + world.bounds.zMax) / 2 - 30, { facing: -1 });
+  const rival = world.spawn(cfg.rival || 'rival', mx + 260, (world.bounds.zMin + world.bounds.zMax) / 2 - 30, { facing: -1 });
   world.mini = {
     type: 'bench',
+    cfg,
+    keys,
     t: 0,
     total,
     notes,
@@ -46,7 +51,7 @@ export function startBench(world, b, cfg) {
     p.z = p.pz = rival.z;
     p.facing = 1;
   }
-  world.events.push({ type: 'benchStart', ticks: total });
+  world.events.push({ type: 'benchStart', ticks: total, rap: !!cfg.rap });
 }
 
 export function preBench(world) {
@@ -103,8 +108,7 @@ export function stepBench(world) {
   p.x = p.px = m.x;
   const pr = m.pressed || 0;
   m.pressed = 0;
-  if (pr & BTN.LIGHT) judge(world, m, 'J');
-  if (pr & BTN.HEAVY) judge(world, m, 'K');
+  for (const k of m.keys) if (pr & KEY_BITS[k]) judge(world, m, k);
   // Notes that slid past the ring are misses
   for (const n of m.notes) {
     if (n.hit === null && n.at < m.t - OK) {
@@ -116,7 +120,7 @@ export function stepBench(world) {
   }
   // Руки lifts steadily — a rep every ~2.6 s
   if (--m.rivalT <= 0) {
-    m.rivalT = 150 + world.rng.int(-20, 20);
+    m.rivalT = (m.cfg.rivalEvery || 150) + world.rng.int(-20, 20);
     m.rivalReps += 1;
     world.events.push({ type: 'benchRep', who: 'rival', reps: m.rivalReps });
   }
@@ -129,16 +133,20 @@ export function stepBench(world) {
       r.dead = true;
       r.removed = true;
     }
-    if (win) {
+    if (m.cfg.bossHp) {
+      // Rap battle: the crowd decides how fresh 1Kla$ comes out
+      world.bossHpMul = win ? m.cfg.bossHp : 1.15;
+    } else if (win) {
       p.buffs = p.buffs || {};
       p.buffs.power = 3600;
       world._spillKosari(p.x + 80, p.z, 15, 80);
     }
-    world.events.push({ type: 'benchEnd', win, reps: m.reps, rival: m.rivalReps });
+    world.events.push({ type: 'benchEnd', win, reps: m.reps, rival: m.rivalReps, rap: !!m.cfg.rap });
   }
 }
 
 export function benchText(m) {
   const s = Math.max(0, Math.ceil((m.total - m.t) / 60));
+  if (m.cfg.rap) return `Рэп-баттл · Ты ${m.reps} : ${m.rivalReps} 1Kla$ · ${s}с · WASD в бит`;
   return `Жим на спор · Ты ${m.reps} : ${m.rivalReps} Руки базуки · ${s}с · J/K в такт`;
 }

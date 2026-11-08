@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GameState, SaveLoad, volume, markStarted, markDone, isTouchDevice } from '../state/GameState.js';
+import { GameState, SaveLoad, volume, markStarted, markDone, isTouchDevice, bankRun, chooseRoute } from '../state/GameState.js';
 import { readPad, pressKey } from './gamepad.js';
 import { TouchControls } from '../ui/TouchControls.js';
 import { VIEW_W, VIEW_H } from '../game/constants.js';
@@ -16,6 +16,7 @@ import { World } from '../sim/World.js';
 import { SandboxDirector } from '../sim/sandbox.js';
 import { MapDirector } from '../sim/director.js';
 import { MAPS, DEFAULT_MAP } from '../maps/index.js';
+import { challengesFor } from '../maps/challenges.js';
 import { saveBest } from '../ui/Menu.js';
 import { DT, METER_MAX } from '../sim/constants.js';
 import { MOVES } from '../sim/moves.js';
@@ -28,7 +29,7 @@ import { MinisView } from './MinisView.js';
 import { FUSE_T } from '../sim/torch.js';
 import { SpriteFighterView, SPRITE_KINDS } from './SpriteFighterView.js';
 import { ROAD_Y } from './stage.js';
-import { WEAPONS, WEAPON_SLOTS, SHOP, BUFFS } from '../sim/items.js';
+import { WEAPONS, WEAPON_SLOTS, SHOP, BUFFS, helpersFor, HELPER_NAME } from '../sim/items.js';
 import { WEAPON_DEFS } from '../game/player/weapons.js';
 import { KeyboardInput } from './keyboard.js';
 import { stage, LANE_DEPTH } from './stage.js';
@@ -104,6 +105,16 @@ export class BrawlScene extends Phaser.Scene {
     const start = this.map?.start || { x: 420, z: LANE_DEPTH * 0.55 };
     this.player = this.world.spawn('player', start.x, Math.min(LANE_DEPTH, start.z), { slot: 0 });
     applyHero(this.player, GameState.hero);
+    // Permanent upgrades from the menu
+    const up = GameState.progress.upgrades || {};
+    if (!this.map?.hidden) {
+      this.player.maxHp += 60 * (up.hp || 0);
+      this.player.hp = this.player.maxHp;
+      this.player.dmgMul = (this.player.dmgMul || 1) * (1 + 0.12 * (up.dmg || 0));
+      this.player.speedMul = (this.player.speedMul || 1) * (1 + 0.06 * (up.speed || 0));
+    }
+    // Memes beaten in earlier chapters can be called in from the shop
+    this.world.helpers = helpersFor(GameState.progress.done || []);
     this.director = this.map ? new MapDirector(this.world, this.map) : new SandboxDirector(this.world);
     this.lock = null;
     this.finished = false;
@@ -164,13 +175,12 @@ export class BrawlScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     kb.on('keydown-P', () => this.togglePause());
     kb.on('keydown-ENTER', () => {
-      if (this.finished) {
-        // Next map goes through the loading screen: its kit pieces must be loaded first
-        this.sound.stopAll();
-        this.scene.start('Preload', { next: 'Brawl', map: this.map?.next || this.map?.id, onExit: this.onExit });
-      }
+      if (this.finished) this.goNext(this.map?.route ? 0 : null);
       else this.togglePause();
     });
+    // Fork in the road: 1 / 2 on the results screen
+    kb.on('keydown-ONE', () => this.finished && this.map?.route && this.goNext(0));
+    kb.on('keydown-TWO', () => this.finished && this.map?.route && this.goNext(1));
     kb.on('keydown-ESC', () => {
       if (this.shopOpen) {
         this.toggleShop(false);
@@ -300,7 +310,7 @@ export class BrawlScene extends Phaser.Scene {
       alive.add(f.id);
       let v = this.views.get(f.id);
       if (!v) {
-        const pool = this.viewPool.get(f.kind);
+        const pool = f.team === 'ally' ? null : this.viewPool.get(f.kind);
         if (pool?.length) {
           v = pool.pop();
           v.reset(f);
@@ -320,7 +330,7 @@ export class BrawlScene extends Phaser.Scene {
     for (const [id, v] of this.views) {
       if (!alive.has(id)) {
         // Keep puppets around for the next wave instead of rebuilding them
-        if (v.park && v.kind && v.kind !== 'player') {
+        if (v.park && v.kind && v.kind !== 'player' && !v.ally) {
           v.park();
           if (!this.viewPool.has(v.kind)) this.viewPool.set(v.kind, []);
           this.viewPool.get(v.kind).push(v);
@@ -778,7 +788,8 @@ export class BrawlScene extends Phaser.Scene {
           break;
         // ---- Gym bench press / museum stealth / river raft
         case 'benchStart':
-          this.banner('ЖИМ НА СПОР', 'Руки базуки против тебя · J и K в такт с нотами', 2400, true);
+          if (ev.rap) this.banner('РЭП-БАТТЛ', '1Kla$ против тебя · WASD в бит · толпа решит, каким он выйдет', 2600, true);
+          else this.banner('ЖИМ НА СПОР', 'Руки базуки против тебя · J и K в такт с нотами', 2400, true);
           break;
         case 'benchHit':
           if (ev.grade === 'perfect') this.sound.play('punch', { volume: 0.25, rate: 1.5 });
@@ -786,12 +797,13 @@ export class BrawlScene extends Phaser.Scene {
           break;
         case 'benchRep':
           if (ev.who === 'you') {
-            this.popText(this.player.x, stage.groundY(this.player.z) - 360, `Раз! ${ev.reps}`, '#7dff7a', 28);
+            this.popText(this.player.x, stage.groundY(this.player.z) - 360, this.world.mini?.cfg?.rap ? `Панч! ${ev.reps}` : `Раз! ${ev.reps}`, '#7dff7a', 28);
             this.sound.play('cash', { volume: 0.3, rate: 1.6 });
           }
           break;
         case 'benchEnd':
-          this.banner(ev.win ? 'ПЕРЕЖАЛ!' : 'РУКИ СИЛЬНЕЕ', `${ev.reps} : ${ev.rival}${ev.win ? ' · протеин на всю карту' : ''}`, 2000, !ev.win);
+          if (ev.rap) this.banner(ev.win ? 'ТОЛПА ЗА ТЕБЯ!' : 'ТОЛПА ЗА 1KLA$', `${ev.reps} : ${ev.rival} · ${ev.win ? 'он выходит на бой осипшим' : 'он заряжен'}`, 2200, !ev.win);
+          else this.banner(ev.win ? 'ПЕРЕЖАЛ!' : 'РУКИ СИЛЬНЕЕ', `${ev.reps} : ${ev.rival}${ev.win ? ' · протеин на всю карту' : ''}`, 2000, !ev.win);
           break;
         case 'stealthStart':
           this.banner('ТИХО…', 'Проберись мимо охраны за ящиками · красное — их взгляд', 2400, true);
@@ -1061,6 +1073,13 @@ export class BrawlScene extends Phaser.Scene {
         case 'buy':
           this.sound.play('cash', { volume: 0.5 });
           this.popText(this.player.x, stage.groundY(this.player.z) - 240, 'Куплено!', '#ffd23f', 22);
+          break;
+        case 'helperCome':
+          this.banner(`${HELPER_NAME[ev.kind] || 'Помощник'} на твоей стороне!`, '25 секунд', 1500);
+          this.sound.play('superudar', { volume: 0.4, rate: 1.2 });
+          break;
+        case 'helperGone':
+          this.popText(this.player.x, stage.groundY(this.player.z) - 260, `${HELPER_NAME[ev.kind] || 'Помощник'} ушёл`, '#9fd3e0', 20);
           break;
         case 'cantBuy':
           this.sound.play('no_bulet', { volume: 0.35 });
@@ -1549,19 +1568,29 @@ export class BrawlScene extends Phaser.Scene {
     const bg = this.add.rectangle(0, 0, W, H, 0x101015, 0.92).setOrigin(0).setStrokeStyle(2, 0xf0c040);
     const title = this.add.text(14, 12, 'ЗАКУПКА', { ...font, fontSize: '20px', color: '#f0c040' });
     this.shopMoney = this.add.text(W - 14, 15, '', { ...font, fontSize: '15px' }).setOrigin(1, 0);
-    const hint = this.add.text(14, H - 22, '1–5 купить · B / Esc закрыть · бой идёт', { fontFamily: 'sans-serif', fontSize: '11px', color: '#9a9a9a' });
+    const hint = this.add.text(14, H - 22, '1–7 купить · B / Esc закрыть · бой идёт', { fontFamily: 'sans-serif', fontSize: '11px', color: '#9a9a9a' });
     this.shop.add([bg, title, this.shopMoney, hint]);
     this.shopRows = SHOP.map((item, i) => {
       const y = 48 + i * rowH;
       const box = this.add.rectangle(8, y, W - 16, rowH - 6, 0x24242c).setOrigin(0).setStrokeStyle(1, 0x444450);
       const num = this.add.text(18, y + 19, String(i + 1), { ...font, fontSize: '16px', color: '#f0c040' }).setOrigin(0, 0.5);
+      const helper = item.helperSlot != null ? this.world.helpers?.[item.helperSlot] : null;
       const icon = item.weapon && this.textures.exists(WEAPON_DEFS[item.weapon]?.key)
         ? this.add.image(64, y + 19, WEAPON_DEFS[item.weapon].key)
-        : this.add.image(64, y + 19, this.textures.exists('1up_0') ? '1up_0' : '__DEFAULT');
+        : helper && this.textures.exists(enemyPartTextureKey(VARIANTS[helper]?.skin || helper, 'head'))
+          ? this.add.image(64, y + 19, enemyPartTextureKey(VARIANTS[helper]?.skin || helper, 'head'))
+          : this.add.image(64, y + 19, this.textures.exists('1up_0') ? '1up_0' : '__DEFAULT');
       const big = Math.max(icon.width, icon.height) || 1;
       icon.setScale((item.weapon ? 54 : 30) / big);
-      const name = this.add.text(100, y + 8, item.title, { ...font, fontSize: '14px' });
-      const sub = this.add.text(100, y + 25, item.weapon ? `+${WEAPONS[item.weapon].pack} патронов` : `+${item.heal} HP`, {
+      if (item.helperSlot != null && !helper) icon.setAlpha(0.25);
+      const title = item.helperSlot != null ? (helper ? `Позвать: ${HELPER_NAME[helper]}` : 'Помощник ???') : item.title;
+      const name = this.add.text(100, y + 8, title, { ...font, fontSize: '14px' });
+      const subText = item.weapon
+        ? `+${WEAPONS[item.weapon].pack} патронов`
+        : item.helperSlot != null
+          ? helper ? 'дерётся за тебя 25 секунд' : 'пройди главы дальше — откроется'
+          : `+${item.heal} HP`;
+      const sub = this.add.text(100, y + 25, subText, {
         fontFamily: 'sans-serif',
         fontSize: '11px',
         color: '#a0a0a0',
@@ -1661,6 +1690,27 @@ export class BrawlScene extends Phaser.Scene {
     }
   }
 
+  /** Where the story goes after this map (a chosen side road, or the map's own next). */
+  nextMapId() {
+    if (!this.map) return null;
+    return GameState.progress.routeNext?.[this.map.id] || this.map.next || null;
+  }
+
+  /** Results screen -> the next map (route: pick one of the two roads). */
+  goNext(pick) {
+    let id = this.nextMapId() || this.map?.id;
+    const r = this.map?.route;
+    if (r && pick != null) {
+      const opt = r.choose[pick];
+      chooseRoute(opt.id, r.then, r.choose[1 - pick]?.id);
+      markDone(this.map.id, opt.id);
+      id = opt.id;
+    }
+    // Next map goes through the loading screen: its kit pieces must be loaded first
+    this.sound.stopAll();
+    this.scene.start('Preload', { next: 'Brawl', map: id, onExit: this.onExit });
+  }
+
   showResults() {
     if (this.finished) return;
     this.finished = true;
@@ -1677,15 +1727,30 @@ export class BrawlScene extends Phaser.Scene {
       if (this.map.hidden) {
         for (const k of bossKinds) if (!GameState.progress.bosses.includes(k)) GameState.progress.bosses.push(k);
         SaveLoad.save();
-      } else markDone(this.map.id, this.map.next, bossKinds);
+      } else markDone(this.map.id, this.nextMapId(), bossKinds);
     }
+    // Challenges and the bank (косари carried out of the map buy upgrades in the menu)
+    let chLines = '';
+    if (this.map && !this.map.hidden && this.map.id !== 'sandbox') {
+      const run = { secs, damageTaken: st.damageTaken, shots: st.shots || 0 };
+      const chs = challengesFor(this.map);
+      const met = chs.filter((c) => c.ok(run)).map((c) => c.id);
+      bankRun(this.map.id, this.player.money, met);
+      chLines = `\n${chs.map((c) => `${met.includes(c.id) ? '★' : '☆'} ${c.text}`).join('\n')}\nВ копилку: +${this.player.money} К (всего ${GameState.progress.bank})\n`;
+    }
+    const route = this.map?.route;
+    const nextLine = route
+      ? `Развилка: 1 — ${route.choose[0].label} · 2 — ${route.choose[1].label}`
+      : this.nextMapId()
+        ? 'Enter — дальше'
+        : 'Enter — ещё раз';
     const mm = Math.floor(secs / 60);
     const ss = String(secs % 60).padStart(2, '0');
     this.hud.results
       .setText(
         `${this.map?.name || 'Карта'} пройдена!\n\n` +
           `Время: ${mm}:${ss}\nУложено: ${this.world.kills}\nМакс. комбо: ${st.maxCombo}\nПолучено урона: ${st.damageTaken}\n\n` +
-          `Оценка: ${grade}\n\n${this.map?.next ? 'Enter — дальше' : 'Enter — ещё раз'} · Esc — меню`,
+          `Оценка: ${grade}\n${chLines}\n${nextLine} · Esc — меню`,
       )
       .setVisible(true)
       .setAlpha(0);

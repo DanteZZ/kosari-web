@@ -31,6 +31,8 @@ import { thinkAll } from './ai.js';
 const FREE = new Set(['idle', 'walk']);
 /** States that cannot be hit. */
 const UNHITTABLE = new Set(['down', 'getup', 'dead']);
+/** Same side: players and their summoned helpers (team 'ally') never hit each other. */
+const allied = (a, b) => a === b || (a === 'player' && b === 'ally') || (a === 'ally' && b === 'player');
 /** States an enemy can be grabbed from. */
 const GRABBABLE = new Set(['idle', 'walk', 'hitstun']);
 
@@ -60,7 +62,7 @@ export class World {
     this.playerBounds = null;
     /** Items on the road (heal etc.). */
     this.pickups = [];
-    this.stats = { maxCombo: 0, damageTaken: 0, kosari: 0 };
+    this.stats = { maxCombo: 0, damageTaken: 0, kosari: 0, shots: 0 };
     /** Bullets / rockets in flight. */
     this.projectiles = [];
     /** Loot crates dropping from the sky: [min, max] ticks between drops, or null. */
@@ -229,6 +231,16 @@ export class World {
       if (f.comboT > 0 && --f.comboT === 0) f.combo = 0;
     }
 
+    // Summoned helpers leave after a while
+    for (const f of this.fighters) {
+      if (f.team !== 'ally' || f.dead || f.allyT == null) continue;
+      if (--f.allyT <= 0) {
+        f.dead = true;
+        f.removed = true;
+        this.events.push({ type: 'puff', x: f.x, z: f.z });
+        this.events.push({ type: 'helperGone', kind: f.kind });
+      }
+    }
     if (this.fighters.some((f) => f.removed)) {
       this.fighters = this.fighters.filter((f) => !f.removed);
     }
@@ -700,7 +712,7 @@ export class World {
       if (att.mt <= m.startup || att.mt > m.startup + m.active) continue;
 
       for (const tgt of this.fighters) {
-        if (tgt === att || tgt.team === att.team) continue;
+        if (tgt === att || allied(tgt.team, att.team)) continue;
         if (UNHITTABLE.has(tgt.state) || tgt.dead) continue;
         if (att.hitIds.includes(tgt.id)) continue;
         // Knees only land on the enemy you hold; held enemies are shielded from others
@@ -960,7 +972,7 @@ export class World {
 
   _grabTarget(f, ax) {
     for (const e of this.fighters) {
-      if (e.team === f.team || e.dead || e.heldBy || e.y > 0 || FIGHTERS[e.kind].noGrab) continue;
+      if (allied(e.team, f.team) || e.dead || e.heldBy || e.y > 0 || FIGHTERS[e.kind].noGrab) continue;
       if (!GRABBABLE.has(e.state)) continue;
       if (Math.abs(e.z - f.z) > 18) continue;
       const front = (e.x - f.x) * ax;
@@ -1312,6 +1324,22 @@ export class World {
   _buy(f, idx) {
     const item = SHOP[idx];
     if (!item || f.team !== 'player') return;
+    if (item.helperSlot != null) {
+      // A meme you beat in an earlier chapter comes to help for a while
+      const kind = this.helpers?.[item.helperSlot];
+      if (!kind || f.money < item.price || this.fighters.some((g) => g.team === 'ally' && !g.dead)) {
+        this.events.push({ type: 'cantBuy', id: f.id, item: item.id });
+        return;
+      }
+      f.money -= item.price;
+      const h = this.spawn(kind, f.x - f.facing * 140, f.z, { facing: f.facing });
+      h.team = 'ally';
+      h.allyT = 1500;
+      this.events.push({ type: 'puff', x: h.x, z: h.z });
+      this.events.push({ type: 'helperCome', kind, id: h.id });
+      this.events.push({ type: 'buy', id: f.id, item: item.id, weapon: 0 });
+      return;
+    }
     if (f.money < item.price) {
       this.events.push({ type: 'cantBuy', id: f.id, item: item.id });
       return;
@@ -1335,6 +1363,7 @@ export class World {
     }
     f.weapons[f.weapon] -= 1;
     f.fireCd = w.cd;
+    this.stats.shots += 1;
     const n = w.pellets || 1;
     for (let i = 0; i < n; i += 1) {
       const dz = n > 1 ? ((i / (n - 1)) - 0.5) * w.spreadZ : 0;
@@ -1444,7 +1473,7 @@ export class World {
 
   _projHits(pr, t) {
     if (t.dead || UNHITTABLE.has(t.state) || t.iframes > 0 || t.state === 'grabbed') return false;
-    if (pr.hitsAll ? t.id === pr.owner : t.team === pr.team) return false;
+    if (pr.hitsAll ? t.id === pr.owner : allied(t.team, pr.team)) return false;
     if (pr.hit.includes(t.id)) return false;
     const sp = pr.spec;
     if (Math.abs(t.x - pr.x) > (sp.halfW ?? 30) + Math.abs(pr.vx) * 0.5 || Math.abs(t.z - pr.z) > (sp.halfZ ?? 24)) return false;
@@ -1557,7 +1586,7 @@ export class World {
     this.events.push({ type: 'explode', kind: pr.spec.kind, x: pr.x, z: pr.z, y: pr.y });
     for (const t of this.fighters) {
       if (t.dead || UNHITTABLE.has(t.state)) continue;
-      if (pr.hitsAll ? t.id === pr.owner : t.team === pr.team) continue;
+      if (pr.hitsAll ? t.id === pr.owner : allied(t.team, pr.team)) continue;
       if (Math.abs(t.x - pr.x) > e.radius || Math.abs(t.z - pr.z) > e.depth) continue;
       this._applyHit(owner, t, { dmg: e.dmg, kb: e.kb, launch: e.launch, hitstop: 7, heavy: true, special: false }, {
         x: pr.x,
@@ -1760,7 +1789,7 @@ export class World {
     if (pdef.keeper) return;
     if (pdef.objective) {
       // Only enemies (and hazards) wreck the kiosk
-      if (att && att.team === 'player') return;
+      if (att && (att.team === 'player' || att.team === 'ally')) return;
       c.hp = Math.max(0, c.hp - (m.dmg || 0));
       c.animSeq += 1;
       this.events.push({ type: 'objHit', id: c.id, hp: c.hp, maxHp: c.maxHp });

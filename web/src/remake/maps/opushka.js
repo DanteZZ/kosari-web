@@ -19,6 +19,14 @@ export default {
   name: 'Опушка',
   chapter: 'Глава 1 · 2011',
   next: 'village',
+  /** Fork in the road: the village (penalties) or the dacha (the dark basement); both lead to the panelki. */
+  route: {
+    then: 'panelki',
+    choose: [
+      { id: 'village', label: 'Деревня — пенальти с Дедом' },
+      { id: 'dacha', label: 'Дача — Пахом в темноте' },
+    ],
+  },
   /** Forest → highway → shawarma kiosk (brawl/world/ThemeWorld.js). */
   world: [{ theme: 'forest', to: joinBefore(1) }, { theme: 'highway', to: joinBefore(3) + SHIFT }, { theme: 'shawarma' }],
   length: lengthFor(4) + SHIFT,

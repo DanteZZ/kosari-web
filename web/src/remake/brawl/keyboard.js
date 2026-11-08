@@ -18,7 +18,7 @@ export const P1_KEYS = {
   [BTN.WNEXT]: [K.E],
 };
 
-const DIGITS = [K.ONE, K.TWO, K.THREE, K.FOUR, K.FIVE];
+const DIGITS = [K.ONE, K.TWO, K.THREE, K.FOUR, K.FIVE, K.SIX, K.SEVEN];
 
 /**
  * Keyboard → input bits for one player slot.

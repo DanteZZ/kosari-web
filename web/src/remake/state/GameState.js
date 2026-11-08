@@ -29,6 +29,14 @@ export const GameState = {
     last: null,
     /** Bosses beaten (gallery portraits). */
     bosses: [],
+    /** Косари carried out of finished maps — spent on upgrades in the menu. */
+    bank: 0,
+    /** Upgrade levels (0–3): see UPGRADES. */
+    upgrades: { hp: 0, dmg: 0, speed: 0 },
+    /** Branching route: map id → the map that follows it on the chosen path. */
+    routeNext: {},
+    /** Challenges met, by map id. */
+    challenges: {},
   },
 };
 
@@ -61,7 +69,7 @@ export const SaveLoad = {
   },
   /** Start the story over (settings and hero stay). */
   reset() {
-    GameState.progress = { done: [], unlocked: ['forest'], last: null, bosses: [] };
+    GameState.progress = { done: [], unlocked: ['forest'], last: null, bosses: [], bank: 0, upgrades: { hp: 0, dmg: 0, speed: 0 }, routeNext: {}, challenges: {} };
     SaveLoad.save();
   },
 };
@@ -93,6 +101,51 @@ export function markDone(mapId, nextId, bossKinds = []) {
   if (nextId && !p.unlocked.includes(nextId)) p.unlocked.push(nextId);
   for (const b of bossKinds) if (!p.bosses.includes(b)) p.bosses.push(b);
   p.last = nextId || mapId;
+  SaveLoad.save();
+}
+
+/** Permanent upgrades bought with banked косари (menu → Прокачка). */
+export const UPGRADES = {
+  hp: { title: 'Здоровье', sub: '+60 к максимуму', prices: [20, 45, 80] },
+  dmg: { title: 'Сила', sub: '+12% урона', prices: [25, 55, 95] },
+  speed: { title: 'Скорость', sub: '+6% к бегу', prices: [15, 35, 60] },
+};
+
+export function upgradeLevel(id) {
+  return GameState.progress.upgrades?.[id] || 0;
+}
+
+/** Buy the next level of an upgrade. Returns true on success. */
+export function buyUpgrade(id) {
+  const p = GameState.progress;
+  p.upgrades = p.upgrades || { hp: 0, dmg: 0, speed: 0 };
+  const lvl = p.upgrades[id] || 0;
+  const price = UPGRADES[id].prices[lvl];
+  if (price == null || (p.bank || 0) < price) return false;
+  p.bank -= price;
+  p.upgrades[id] = lvl + 1;
+  SaveLoad.save();
+  return true;
+}
+
+/** A finished map's косари go to the bank; challenges met are remembered. */
+export function bankRun(mapId, money, challenges = []) {
+  const p = GameState.progress;
+  p.bank = (p.bank || 0) + Math.max(0, money | 0);
+  p.challenges = p.challenges || {};
+  const had = new Set(p.challenges[mapId] || []);
+  for (const c of challenges) had.add(c);
+  p.challenges[mapId] = [...had];
+  SaveLoad.save();
+}
+
+/** Branching route: remember where the chosen side road leads afterwards. */
+export function chooseRoute(pick, then, other) {
+  const p = GameState.progress;
+  p.routeNext = p.routeNext || {};
+  p.routeNext[pick] = then;
+  // The other road stays open for later (from the chapter list)
+  if (other && !p.unlocked.includes(other)) p.unlocked.push(other);
   SaveLoad.save();
 }
 

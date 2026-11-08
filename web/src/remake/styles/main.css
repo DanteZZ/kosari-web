@@ -1560,3 +1560,7 @@ body {
 
 .cx-keys td:first-child { width: auto; }
 .cx-keys { font-size: 12px; }
+
+/* Upgrades page / challenge stars */
+.cx-bank { margin: 0 0 14px; color: #ffd23f; font-weight: 700; letter-spacing: .04em; }
+.cx-chstars { margin-left: auto; color: #ffd23f; font-size: .85em; letter-spacing: .1em; opacity: .9; }

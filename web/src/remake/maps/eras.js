@@ -76,6 +76,7 @@ function eraMap(o) {
     airships: o.airships ?? false,
     kosariRain: o.kosariRain,
     style: !!o.style,
+    route: o.route,
     debuts: o.debuts || [],
     arenas: [
       ...o.arenas.map((waves, i) => ({
@@ -216,6 +217,14 @@ export const pcClub = eraMap({
 
 export const gym = eraMap({
   id: 'gym',
+  // Fork: the museum (stealth) or the river (raft); both lead to the sigma gym
+  route: {
+    then: 'sigma_gym',
+    choose: [
+      { id: 'museum', label: 'Музей — мимо охраны за ящиками' },
+      { id: 'river', label: 'Река — сплав на плоту' },
+    ],
+  },
   extra: [null, { traps: [{ type: 'drop', tex: 'dumbbell', every: [160, 260] }] }, { mini: { type: 'bench', ticks: 1500 } }],
   name: 'Качалка',
   chapter: 'Глава 4 · Пабликовая эпоха',
@@ -389,6 +398,7 @@ export const office = eraMap({
 
 export const concert = eraMap({
   id: 'concert',
+  finaleMini: { type: 'bench', rap: true, rival: 'mc', keys: ['W', 'A', 'S', 'D'], ticks: 1800, rivalEvery: 130, bossHp: 0.8 },
   name: 'Концерт',
   chapter: 'Финал',
   next: null,

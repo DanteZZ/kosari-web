@@ -20,7 +20,13 @@ const DOWNED = new Set(['airhit', 'down', 'getup']);
 export function thinkAll(world) {
   const players = world.players();
   // Arena goal «защити»: the kiosk is a target too
-  const targets = players.concat(world.fighters.filter((f) => !f.dead && FIGHTERS[f.kind].objective));
+  // Summoned helpers are fair game for the crowd
+  const allies = world.fighters.filter((f) => !f.dead && f.team === 'ally');
+  const targets = players.concat(world.fighters.filter((f) => !f.dead && FIGHTERS[f.kind].objective), allies);
+  // ...and the helpers go for the crowd
+  const foes = world.fighters.filter((f) => !f.dead && f.team === 'enemy' && !f.waiting && !FIGHTERS[f.kind].prop);
+  const foeEngaged = new Map(foes.map((f) => [f.id, 0]));
+  const foeSides = new Map(foes.map((f) => [f.id, { '-1': 0, '1': 0 }]));
   const engaged = new Map(targets.map((p) => [p.id, 0]));
   /** Per target: how many enemies hold the left (-1) / right (+1) side. */
   const sides = new Map(targets.map((p) => [p.id, { '-1': 0, '1': 0 }]));
@@ -58,6 +64,16 @@ export function thinkAll(world) {
       e.cmd = 0;
       const t = players[0];
       e.faceX = t ? t.x : null;
+      continue;
+    }
+    if (e.team === 'ally') {
+      if (foes.length) think(world, e, foes, foeEngaged, foeSides);
+      else {
+        // Nobody to fight: tag along behind the hero
+        const p = players[0];
+        e.cmd = 0;
+        if (p && Math.abs(p.x - e.x) > 220) e.cmd = p.x > e.x ? BTN.RIGHT : BTN.LEFT;
+      }
       continue;
     }
     const boss = FIGHTERS[e.kind].bossAI;
