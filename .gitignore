@@ -28,3 +28,6 @@ web/sources/
 web/phrases/
 # Voice samples and test narrations
 voice_test/
+
+# Music candidates to listen to (only approved tracks go into the game)
+music_preview/

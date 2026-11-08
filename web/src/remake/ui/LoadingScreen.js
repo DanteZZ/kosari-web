@@ -21,6 +21,22 @@ const DEFAULT_STORY = {
 let node = null;
 /** Narrator voice-over playing on the current loading screen. */
 let voice = null;
+/** Quiet music bed under the narration. */
+let bed = null;
+
+function playBed(slot) {
+  stopBed();
+  if (!slot || volume('music') <= 0) return;
+  bed = new Audio(`assets/music/${slot}.mp3`);
+  bed.loop = true;
+  bed.volume = 0.22 * volume('music');
+  bed.play().catch(() => {});
+}
+
+function stopBed() {
+  bed?.pause();
+  bed = null;
+}
 
 /** Play the narration clips one after another (missing files are skipped). */
 function playVoice(urls, onClip = null) {
@@ -56,6 +72,7 @@ function stopVoice() {
 export function showLoading(parent, { story, interactive = true } = {}) {
   hideLoading();
   const s = { ...DEFAULT_STORY, ...(story || {}) };
+  playBed(s.music === undefined ? 'ui_loading' : s.music);
 
   const bar = el('i', { className: 'wl-bar-fill' });
   const prompt = el('div', { className: 'wl-prompt', text: 'Нажмите любую клавишу, чтобы продолжить' });
@@ -168,6 +185,7 @@ export function showLoading(parent, { story, interactive = true } = {}) {
 
 export function hideLoading() {
   stopVoice();
+  stopBed();
   node?.remove();
   node = null;
 }

@@ -3,6 +3,7 @@ import { showLoading, hideLoading } from './LoadingScreen.js';
 import { volume } from '../state/GameState.js';
 import { HEROES } from '../game/heroes.js';
 import { storyText, storyVoice } from '../story.js';
+import MUSIC_CREDITS from '../music.credits.json';
 
 /**
  * The ending, in two parts:
@@ -54,6 +55,24 @@ const CREDITS = [
   ['role', 'Вор', 'бегал от всех'],
   ['role', 'Продавщица ларька', 'выдала грабли. Ларёк цел'],
   ['gap'],
+  ['head', 'Мешапы боссов и мемов'],
+  ['line', 'MEMEZGANG — «Рашн фестиваль на Гроув-стрит»'],
+  ['line', 'ZeeMan — «Ебашилово в саду»'],
+  ['line', '«Робо-карнавал» — «Ну, погоди!» & Пахом'],
+  ['line', 'даня — «Без фонка»'],
+  ['line', 'ymo — «Когда выпал автомат!!!»'],
+  ['line', 'JACKPHONK'],
+  ['line', 'tranzipone — «Включите мужику с завода фонк из альта»'],
+  ['line', '1.Kla$ — «DOOMины дети»'],
+  ['line', 'VØJ × ATSMXN × 1.Kla$ — «1.Kla$ ушёл в разнос» (mashup by .xanax)'],
+  ['line', 'YURIST feat. Тамбовский дед — «Футбольный мячик»'],
+  ['line', 'Геннадий Горин — «Футбол» (grindcore mashup)'],
+  ['line', 'dastovsd ft. Glad Valakas — «PAROL DEATH»'],
+  ['gap'],
+  ['head', 'Музыка'],
+  ...MUSIC_CREDITS.map((m) => ['role', m.title, 'Kevin MacLeod (incompetech.com)']),
+  ['small', 'Licensed under Creative Commons: By Attribution 4.0 — creativecommons.org/licenses/by/4.0'],
+  ['gap'],
   ['head', 'Благодарности'],
   ['line', 'Бесконечному интернету — за всех, кто в нём остался навсегда'],
   ['line', 'Энергетикам — за ночи, которые не кончались'],
@@ -94,7 +113,7 @@ export function showCredits(parent, onDone) {
   node = el('div', { className: 'cr' }, [el('div', { className: 'cr-scan' }), roll, hint]);
   parent.append(node);
   try {
-    music = new Audio('assets/sounds/credits.mp3');
+    music = new Audio('assets/music/ui_credits.mp3');
     music.volume = 0.5 * volume('music');
     music.loop = true;
     music.play().catch(() => {});
@@ -139,6 +158,7 @@ export function playEnding(parent, heroId, onDone) {
       voice: storyVoice('ending', hero),
       face: HERO_FACE[hero],
       tip: null,
+      music: 'ui_ending',
     },
   });
   ld.progress(1);

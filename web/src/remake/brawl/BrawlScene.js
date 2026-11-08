@@ -28,6 +28,7 @@ import { PenaltyView } from './PenaltyView.js';
 import { ModesView } from './ModesView.js';
 import { MinisView } from './MinisView.js';
 import { SetView } from './SetView.js';
+import { MusicDirector } from './Music.js';
 import { FUSE_T } from '../sim/torch.js';
 import { SpriteFighterView, SPRITE_KINDS } from './SpriteFighterView.js';
 import { ROAD_Y } from './stage.js';
@@ -185,10 +186,9 @@ export class BrawlScene extends Phaser.Scene {
       });
     }
 
-    if (volume('music') > 0) {
-      this.sound.stopAll();
-      this.sound.play('game', { loop: true, volume: 0.4 });
-    }
+    // Music by situation (brawl/Music.js), streamed from assets/music
+    this.sound.stopAll();
+    this.music = new MusicDirector(this.map);
 
     const kb = this.input.keyboard;
     kb.on('keydown-P', () => this.togglePause());
@@ -223,6 +223,7 @@ export class BrawlScene extends Phaser.Scene {
       this.game.events.off('remake-resize', this._onResize);
       this.sound.stopByKey('game');
       this.sound.stopByKey('boss');
+      this.music?.stop();
       this.sound.stopByKey('dirigabb_sound');
       this.touch?.destroy();
       this.touch = null;
@@ -293,6 +294,7 @@ export class BrawlScene extends Phaser.Scene {
     // Enter / Space advance cutscene dialogue instead
     if (this.player.dead || this.finished || this.cine?.active) return;
     this.paused = !this.paused;
+    this.music?.setPaused(this.paused);
     this.game.events.emit('remake-pause', this.paused);
   }
 
@@ -314,6 +316,7 @@ export class BrawlScene extends Phaser.Scene {
       steps += 1;
     }
     if (steps >= MAX_STEPS) this.acc = 0;
+    this.music?.update(this.world, this.director instanceof MapDirector ? this.director : null);
     if (steps > 0) {
       this.keys.consumed();
       this.touch?.consumed();
@@ -817,6 +820,7 @@ export class BrawlScene extends Phaser.Scene {
     const evs = this.world.events;
     if (!evs.length) return;
     for (const ev of evs) {
+      this.music?.onEvent(ev);
       switch (ev.type) {
         case 'swing': {
           if (ev.sfx) this.sound.play(ev.sfx, { volume: 0.32 });
@@ -845,10 +849,6 @@ export class BrawlScene extends Phaser.Scene {
         case 'arenaStart':
           this.lock = { left: ev.left, right: ev.right };
           this.shake(120, 3);
-          if (ev.boss) {
-            this.sound.stopByKey('game');
-            if (GameState.musicPlay) this.sound.play('boss', { loop: true, volume: 0.45 });
-          }
           break;
         case 'wave':
           if (ev.banner) this.banner(ev.banner, ev.boss ? null : `Волна ${ev.n}/${ev.total}`, 1300, ev.boss);
@@ -1853,6 +1853,7 @@ export class BrawlScene extends Phaser.Scene {
     if (this.endingOn) return;
     this.endingOn = true;
     this.sound.stopAll();
+    this.music?.stop();
     this.scene.pause();
     playEnding(document.getElementById('game-shell') || document.body, GameState.hero, () => this.onExit?.());
   }
@@ -1929,7 +1930,7 @@ export class BrawlScene extends Phaser.Scene {
     this.tweens.add({ targets: this.hud.results, alpha: 1, duration: 400 });
     this.sound.stopByKey('game');
     this.sound.stopByKey('boss');
-    if (GameState.musicPlay) this.sound.play('credits', { volume: 0.4 });
+    this.music?.sting('ui_results');
   }
 
   popText(x, y, text, color, size = 20) {

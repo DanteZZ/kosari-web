@@ -43,7 +43,7 @@ export function readBest() {
 }
 
 function startMusic() {
-  if (volume('music') > 0 && !menuMusic) menuMusic = playSfx('menu1.mp3', { volume: 0.45 * volume('music'), loop: true });
+  if (volume('music') > 0 && !menuMusic) menuMusic = playSfx('../music/ui_menu.mp3', { volume: 0.45 * volume('music'), loop: true });
 }
 
 export function stopMenuMusic() {
