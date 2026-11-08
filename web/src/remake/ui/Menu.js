@@ -86,7 +86,7 @@ export function renderMenu(root, { go }) {
     el('div', { className: 'mm-embers' }, Array.from({ length: 24 }, (_, i) => el('i', { style: `--i:${i}` }))),
     el('div', { className: 'mm-content cx-title' }, [logo, press]),
     el('div', { className: 'cx-shell' }, [el('img', { className: 'cx-logo-sm', src: 'assets/sprites/logo/0_alpha.png', alt: '' }), crumbs, page]),
-    el('div', { className: 'mm-foot', html: 'TM AND © 2011 TRUBAKOFF INDUSTRY CO., LTD · REMAKE 2026' }),
+    el('div', { className: 'mm-foot', html: 'ORIGINAL © 2011 TRUBAKOFF INDUSTRY · REMAKE &amp; PORT © 2026 DNTZ' }),
     el('div', { className: 'mm-scan' }),
     flash,
   ]);
@@ -368,8 +368,9 @@ export function renderMenu(root, { go }) {
   function renderCredits() {
     page.append(
       el('div', { className: 'cx-credits' }, [
-        el('p', { html: '<small>ОРИГИНАЛ 2011</small><br><b>Евгений Терехов</b><br><b>Илья Трубаков</b>' }),
-        el('p', { html: '<small>REMAKE 2026</small><br><b>Trubakoff Industry</b>' }),
+        el('p', { html: '<small>ОРИГИНАЛ 2011</small><br><b>Trubakoff Industry</b><br>Евгений Терехов · Илья Трубаков' }),
+        el('p', { html: '<small>ПОРТ КЛАССИКИ</small><br><b>DNTZ</b>' }),
+        el('p', { html: '<small>REMAKE 2026</small><br><b>DNTZ</b>' }),
       ]),
       foot(''),
     );

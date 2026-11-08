@@ -663,7 +663,7 @@ export class BrawlScene extends Phaser.Scene {
         case 'wave':
           if (ev.banner) this.banner(ev.banner, ev.boss ? null : `Волна ${ev.n}/${ev.total}`, 1300, ev.boss);
           else this.banner(`Волна ${ev.n}/${ev.total}`, null, 900);
-          this.sound.play('warning', { volume: 0.25 });
+          this.sound.play('beep', { volume: 0.25, rate: 0.7 });
           break;
         case 'arenaClear':
           this.lock = null;
@@ -755,7 +755,7 @@ export class BrawlScene extends Phaser.Scene {
           break;
         case 'crateIncoming':
           // (was the airship's sound — crates fall on every map)
-          this.sound.play('warning', { volume: 0.15, rate: 1.3 });
+          this.sound.play('beep', { volume: 0.15, rate: 0.7 });
           break;
         case 'crateLand':
           this.shake(140, 5);
@@ -785,7 +785,7 @@ export class BrawlScene extends Phaser.Scene {
         case 'bossCue':
           this.banner(ev.text, ev.sub || null, 1500, true);
           this.shake(220, 6);
-          this.sound.play('warning', { volume: 0.3 });
+          this.sound.play('beep', { volume: 0.3, rate: 0.7 });
           break;
         case 'blink':
           this.puff(ev.x0, ev.z);
@@ -842,7 +842,7 @@ export class BrawlScene extends Phaser.Scene {
           this.sound.play('haha2', { volume: 0.5 });
           break;
         case 'forkRain':
-          this.sound.play('warning', { volume: 0.3 });
+          this.sound.play('beep', { volume: 0.3, rate: 0.7 });
           break;
         case 'bossReturn':
           this.banner(`${FIGHTERS[this.world.fighters.find((x) => x.id === ev.id)?.kind]?.title || 'Босс'} вернулся!`, `Фаза ${ev.phase}/3`, 1300, true);
@@ -859,7 +859,7 @@ export class BrawlScene extends Phaser.Scene {
           this.sound.stopByKey('dirigabb_sound');
           break;
         case 'anvilIncoming':
-          this.sound.play('warning', { volume: 0.15, rate: 1.4 });
+          this.sound.play('beep', { volume: 0.15, rate: 0.7 });
           break;
         case 'anvilLand':
           this.shake(200, 8);
