@@ -33,17 +33,21 @@ export const GameState = {
     bank: 0,
     /** Upgrade levels (0–3): see UPGRADES. */
     upgrades: { hp: 0, dmg: 0, speed: 0 },
-    /** Branching route: map id → the map that follows it on the chosen path. */
-    routeNext: {},
     /** Challenges met, by map id. */
     challenges: {},
+    /** Story choices: flags the scenes set (story/scenes.js), the journal, the finale. */
+    story: { flags: {}, log: [], finale: null },
   },
 };
 
 const SAVE_KEY = 'kosari_remake_settings_v1';
 
+/** «Театр» keeps the real story aside: its choices live in memory only. */
+let heldStory = null;
+
 export const SaveLoad = {
   save() {
+    if (heldStory) return;
     try {
       localStorage.setItem(
         SAVE_KEY,
@@ -62,6 +66,10 @@ export const SaveLoad = {
       if (typeof data.hero === 'string') GameState.hero = GameState.savedHero = data.hero;
       if (data.settings) Object.assign(GameState.settings, data.settings);
       if (data.progress) Object.assign(GameState.progress, data.progress);
+      const st = GameState.progress.story;
+      GameState.progress.story = { flags: { ...(st?.flags || {}) }, log: [...(st?.log || [])], finale: st?.finale || null };
+      // The story is one road now: forks from older saves are forgotten
+      delete GameState.progress.routeNext;
       return true;
     } catch (_) {
       return false;
@@ -69,7 +77,7 @@ export const SaveLoad = {
   },
   /** Start the story over (settings and hero stay). */
   reset() {
-    GameState.progress = { done: [], unlocked: ['forest'], last: null, bosses: [], bank: 0, upgrades: { hp: 0, dmg: 0, speed: 0 }, routeNext: {}, challenges: {} };
+    GameState.progress = { done: [], unlocked: ['forest'], last: null, bosses: [], bank: 0, upgrades: { hp: 0, dmg: 0, speed: 0 }, challenges: {}, story: { flags: {}, log: [], finale: null } };
     SaveLoad.save();
   },
 };
@@ -139,13 +147,47 @@ export function bankRun(mapId, money, challenges = []) {
   SaveLoad.save();
 }
 
-/** Branching route: remember where the chosen side road leads afterwards. */
-export function chooseRoute(pick, then, other) {
+/** Story flags set by the scenes' choices (persist for the whole story). */
+export function storyFlag(name) {
+  return !!GameState.progress.story?.flags?.[name];
+}
+
+export function setStoryFlag(name, on = true) {
   const p = GameState.progress;
-  p.routeNext = p.routeNext || {};
-  p.routeNext[pick] = then;
-  // The other road stays open for later (from the chapter list)
-  if (other && !p.unlocked.includes(other)) p.unlocked.push(other);
+  p.story = p.story || { flags: {}, log: [], finale: null };
+  p.story.flags[name] = on;
+  SaveLoad.save();
+}
+
+/** The journal (menu → ДНЕВНИК): what the hero decided, chapter by chapter. One entry per map and line. */
+export function logStory(mapId, text) {
+  if (!text) return;
+  const p = GameState.progress;
+  p.story = p.story || { flags: {}, log: [], finale: null };
+  p.story.log = p.story.log.filter((e) => !(e.map === mapId && e.text === text));
+  p.story.log.push({ map: mapId || '', text });
+  SaveLoad.save();
+}
+
+/** «Театр» starts (fresh = from its first map): the saved story is set aside, saving stops. */
+export function beginTheatreStory(fresh) {
+  const p = GameState.progress;
+  if (!heldStory) heldStory = { story: p.story, progress: JSON.stringify(p) };
+  if (fresh) p.story = { flags: {}, log: [], finale: null };
+}
+
+/** «Театр» is over: the real progress comes back. */
+export function endTheatreStory() {
+  if (!heldStory) return;
+  GameState.progress = JSON.parse(heldStory.progress);
+  GameState.progress.story = heldStory.story;
+  heldStory = null;
+}
+
+export function setFinale(id) {
+  const p = GameState.progress;
+  p.story = p.story || { flags: {}, log: [], finale: null };
+  p.story.finale = id;
   SaveLoad.save();
 }
 

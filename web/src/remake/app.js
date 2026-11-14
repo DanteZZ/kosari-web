@@ -36,7 +36,7 @@ export function createApp() {
     if (screen === 'brawl') {
       stopMenuMusic();
       setGameVisible(true);
-      startBrawl({ parent: gameStage, onExit: () => go('menu'), map: opts.map, arena: opts.arena });
+      startBrawl({ parent: gameStage, onExit: () => go('menu'), map: opts.map, arena: opts.arena, theatre: opts.theatre });
       return;
     }
     if (screen === 'bones' || screen === 'bones-nikita') {

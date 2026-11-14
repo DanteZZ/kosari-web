@@ -636,7 +636,9 @@ export class BonePuppet {
       const rest = this.restAngles[bone] || 0;
       const target = rest + (pose[bone] ?? 0);
       const rate = runUnderPunch && !LEG_BONES.has(bone) ? snapPunch : snap;
-      node.angle = Phaser.Math.Linear(node.angle, target, k(rate));
+      // Shortest way round: Phaser keeps angles in −180..180, so a target past
+      // ±180 (rest + a big raise) was never reached and the bone spun forever
+      node.angle += Phaser.Math.Angle.ShortestBetween(node.angle, target) * k(rate);
     }
   }
 }

@@ -145,7 +145,7 @@ export function renderMenu(root, { go }) {
 
   // ---------------------------------------------------------------- pages
   const TITLES = {
-    main: 'ГЛАВНОЕ', chapters: 'ГЛАВЫ', hero: 'ГЕРОЙ', gallery: 'ГАЛЕРЕЯ', upgrades: 'ПРОКАЧКА', polygon: 'ПОЛИГОН',
+    main: 'ГЛАВНОЕ', chapters: 'ГЛАВЫ', journal: 'ДНЕВНИК', hero: 'ГЕРОЙ', gallery: 'ГАЛЕРЕЯ', upgrades: 'ПРОКАЧКА', polygon: 'ПОЛИГОН',
     settings: 'НАСТРОЙКИ', controls: 'УПРАВЛЕНИЕ', credits: 'СОЗДАТЕЛИ',
   };
 
@@ -157,6 +157,7 @@ export function renderMenu(root, { go }) {
       { id: 'new', label: 'НОВАЯ ИГРА', hint: 'Выбери героя — и в лес' },
       ...(anyProgress ? [] : []),
       { id: 'chapters', label: 'ГЛАВЫ', hint: 'Любая открытая глава' },
+      { id: 'journal', label: 'ДНЕВНИК', hint: 'Твои решения и их последствия' },
       { id: 'bossrush', label: 'БОССЫ', hint: 'Все семь боссов подряд' },
       { id: 'upgrades', label: 'ПРОКАЧКА', hint: `Копилка: ${P().bank || 0} К` },
       { id: 'polygon', label: 'ПОЛИГОН', hint: 'Тест новых механик' },
@@ -224,7 +225,7 @@ export function renderMenu(root, { go }) {
     });
     page.innerHTML = '';
     page.className = `cx-page p-${p.id}${anim ? ' enter' : ''}`;
-    ({ main: renderMain, chapters: renderChapters, hero: renderHero, gallery: renderGallery, settings: renderSettings, upgrades: renderUpgrades, polygon: renderPolygon, controls: renderControls, credits: renderCredits })[p.id]();
+    ({ main: renderMain, chapters: renderChapters, hero: renderHero, gallery: renderGallery, settings: renderSettings, upgrades: renderUpgrades, polygon: renderPolygon, controls: renderControls, credits: renderCredits, journal: renderJournal })[p.id]();
   };
 
   const hover = (node, i) => {
@@ -435,6 +436,32 @@ export function renderMenu(root, { go }) {
       ]),
       foot(''),
     );
+  }
+
+  /** The story so far: what the hero decided, chapter by chapter (state: progress.story). */
+  function renderJournal() {
+    const st = P().story || { flags: {}, log: [] };
+    const box = el('div', { className: 'cx-journal' });
+    const byMap = new Map();
+    for (const e of st.log || []) {
+      if (!byMap.has(e.map)) byMap.set(e.map, []);
+      byMap.get(e.map).push(e.text);
+    }
+    const FINALE = { fame: 'Подписал контракт — новая звезда.', free: 'Разбил камеру. Шоу закрыто.', share: 'Отдал сцену 1Kla$.' };
+    let any = false;
+    for (const id of storyIds) {
+      const lines = byMap.get(id);
+      if (!lines?.length) continue;
+      any = true;
+      box.append(el('div', { className: 'cx-jr' }, [
+        el('div', { className: 'cx-jr-map', text: `${MAPS[id].chapter || ''} · ${MAPS[id].name}` }),
+        ...lines.map((t) => el('div', { className: 'cx-jr-line', text: t })),
+      ]));
+    }
+    if (st.flags?.producer_known) box.append(el('div', { className: 'cx-jr cx-jr-prod' }, [el('div', { className: 'cx-jr-map', text: 'Тайна' }), el('div', { className: 'cx-jr-line', text: 'Сосед, тамада, приписки на карте и организатор — один человек: @prodakshn.' })]));
+    if (st.finale) box.append(el('div', { className: 'cx-jr cx-jr-end' }, [el('div', { className: 'cx-jr-map', text: 'Финал' }), el('div', { className: 'cx-jr-line', text: FINALE[st.finale] || '' })]));
+    if (!any && !st.finale) box.append(el('div', { className: 'cx-jr-empty', text: 'Пока пусто. Решения, которые ты примешь в разговорах с мемами, появятся здесь.' }));
+    page.append(box, foot(''));
   }
 
   function renderCredits() {

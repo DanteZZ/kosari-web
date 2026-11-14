@@ -547,6 +547,48 @@ export class MapDirector {
     w.events.push({ type: 'spawn', id: f.id, kind: q.kind, from: q.from, elite: q.elite > 1 });
   }
 
+  /**
+   * A meeting ended without a fight (story choices, brawl/Talk.js): `mode`
+   * 'peace' — he walks away; 'ally' — he fights on the players' side for the
+   * rest of the map. A boss who walks away ends his arena: his crowd leaves too.
+   */
+  release(id, mode) {
+    const w = this.world;
+    const f = w.fighters.find((x) => x.id === id);
+    if (!f || f.dead) return;
+    this.waveIds = this.waveIds.filter((x) => x !== id);
+    this.arenaIds = this.arenaIds.filter((x) => x !== id);
+    f.waiting = false;
+    f.metWait = false;
+    if (mode === 'ally') {
+      f.team = 'ally';
+      f.allyT = null;
+      f.hp = f.maxHp;
+      w.events.push({ type: 'allyJoin', id, kind: f.kind });
+      return;
+    }
+    const gone = (e) => {
+      e.dead = true;
+      e.removed = true;
+      w.events.push({ type: 'puff', x: e.x, z: e.z });
+    };
+    gone(f);
+    const a = this.arena;
+    if (a?.boss && FIGHTERS[f.kind]?.boss && this.state === 'locked') {
+      for (const eid of this.arenaIds) {
+        const e = w.fighters.find((x) => x.id === eid);
+        if (e && !e.dead) gone(e);
+      }
+      this.queue = [];
+      this.arenaIds = [];
+      this.waveIds = [];
+      this.wave = a.waves.length - 1;
+      this.goal = null;
+      w.events.push({ type: 'peaceful', kind: f.kind });
+      this._clear(a);
+    }
+  }
+
   _clear(a) {
     const w = this.world;
     w.events.push({ type: 'arenaClear', index: this.idx, boss: !!a.boss });

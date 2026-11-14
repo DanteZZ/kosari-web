@@ -80,10 +80,10 @@ export function startAnimEditor({ parent, onExit }) {
 }
 
 /** Milestone-1 core: fixed-tick sim on a lane with depth (uncapped render). */
-export function startBrawl({ parent, onExit, map, arena }) {
+export function startBrawl({ parent, onExit, map, arena, theatre }) {
   stopGame();
   game = makeGame(parent);
-  game.scene.add('Preload', PreloadScene, true, { onExit, next: 'Brawl', map, arena });
+  game.scene.add('Preload', PreloadScene, true, { onExit, next: 'Brawl', map, arena, theatre });
   game.scene.add('Brawl', BrawlScene, false);
   game.events.on('remake-pause', (paused) => {
     document.getElementById('pause-overlay')?.classList.toggle('hidden', !paused);

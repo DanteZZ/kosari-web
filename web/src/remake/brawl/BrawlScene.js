@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { GameState, SaveLoad, volume, markStarted, markDone, isTouchDevice, bankRun, chooseRoute } from '../state/GameState.js';
+import { GameState, SaveLoad, volume, markStarted, markDone, isTouchDevice, bankRun, storyFlag, setFinale, beginTheatreStory, endTheatreStory } from '../state/GameState.js';
 import { readPad, pressKey } from './gamepad.js';
 import { TouchControls } from '../ui/TouchControls.js';
 import { VIEW_W, VIEW_H } from '../game/constants.js';
@@ -8,6 +8,9 @@ import { ThemeWorld } from './world/ThemeWorld.js';
 import { getHero } from '../game/heroes.js';
 import { Cinema } from './Cinema.js';
 import { INTRO, BOSSES, HERO_VOICE } from './dialogue.js';
+import { runTalk } from './Talk.js';
+import { INTROS, MEET, DEFEAT, SPECIAL, FRIENDS, CROWD, OUTROS } from '../story/scenes.js';
+import { THEATRE, OUTCOME_TITLE } from '../story/theatre.js';
 import { Voices, voiceOf, hasBlips } from './Voices.js';
 import { VARIANTS } from './FighterView.js';
 import { enemyPartTextureKey } from '../game/enemies/parts.js';
@@ -88,6 +91,17 @@ export class BrawlScene extends Phaser.Scene {
 
   init(data) {
     this.onExit = data?.onExit;
+    // «Театр»: all the story scenes in a row, no fights (story/theatre.js); choices are not saved
+    this.theatre = Number.isInteger(data?.theatre) ? data.theatre : null;
+    if (this.theatre != null) {
+      beginTheatreStory(this.theatre === 0);
+      const exit = data?.onExit?.__theatre ? data.onExit : () => {
+        endTheatreStory();
+        data?.onExit?.();
+      };
+      exit.__theatre = true;
+      this.onExit = exit;
+    }
     // Test ground: start at a given arena; nothing is saved
     this.testArena = Number.isInteger(data?.arena) ? data.arena : null;
     const params = new URLSearchParams(window.location.search);
@@ -170,12 +184,14 @@ export class BrawlScene extends Phaser.Scene {
     const rawPlay = this.sound.play.bind(this.sound);
     this.sound.play = (key, cfg = {}) => rawPlay(key, { ...cfg, volume: (cfg.volume ?? 1) * volume(MUSIC.has(key) ? 'music' : 'sfx') });
     // Story progress: this map is where «Продолжить» goes now
-    if (this.map && !this.map.hidden && this.map.id !== 'sandbox' && this.testArena == null) markStarted(this.map.id);
+    if (this.map && !this.map.hidden && this.map.id !== 'sandbox' && this.testArena == null && this.theatre == null) markStarted(this.map.id);
 
     this.fx = this.add.group();
     this.buildHud();
     this.cine = new Cinema(this);
     this.introduced = new Set();
+    /** Cutscene body language: fighter id → { name, t0, dx } (brawl/gestures.js). */
+    this.gestures = new Map();
     this.voices = new Voices(this);
     this.voices.volume = 0.95 * volume('voice');
     // Phones / tablets: on-screen joystick; a tap on the open screen = Enter
@@ -193,13 +209,9 @@ export class BrawlScene extends Phaser.Scene {
     const kb = this.input.keyboard;
     kb.on('keydown-P', () => this.togglePause());
     kb.on('keydown-ENTER', () => {
-      if (this.finished && this.isFinale()) this.startEnding();
-      else if (this.finished) this.goNext(this.map?.route ? 0 : null);
-      else this.togglePause();
+      // The map's end is a cutscene that moves on by itself (playOutro)
+      if (!this.finished) this.togglePause();
     });
-    // Fork in the road: 1 / 2 on the results screen
-    kb.on('keydown-ONE', () => this.finished && this.map?.route && this.goNext(0));
-    kb.on('keydown-TWO', () => this.finished && this.map?.route && this.goNext(1));
     kb.on('keydown-ESC', () => {
       if (this.shopOpen) {
         this.toggleShop(false);
@@ -230,7 +242,8 @@ export class BrawlScene extends Phaser.Scene {
       this.touch?.destroy();
       this.touch = null;
     });
-    if (this.map) this.playIntro();
+    if (this.map && this.theatre != null) this.runTheatre();
+    else if (this.map) this.playIntro();
     else this.banner('Песочница', 'Иди вперёд →', 1800);
 
     window.__brawl = this;
@@ -313,7 +326,7 @@ export class BrawlScene extends Phaser.Scene {
       this.world.setInput(0, this.cine?.active ? 0 : this.keys.read() | readPad() | (this.touch?.read() || 0));
       this.world.viewW = VIEW_W / this.baseZoom;
       this.world.step();
-      this.director.step();
+      if (this.theatre == null) this.director.step();
       this.acc -= DT;
       steps += 1;
     }
@@ -487,23 +500,26 @@ export class BrawlScene extends Phaser.Scene {
   speakerOf(who) {
     if (who === 'hero') return this.heroSpeaker();
     if (who === 'seller') return { name: 'Продавщица', face: null, color: '#ffb0c8' };
+    // The voice from the booth: a name only once the hero has found him out
+    if (who === 'producer') return { name: storyFlag('producer_known') ? 'Продюсер · @prodakshn' : '???', face: null, color: '#ff5a7a', pitch: 210, wave: 'sine' };
     return this.bossSpeaker(who);
   }
 
   /** The hero used an entry (or the arena opened one by itself): play its lines, then the mode begins. */
   playEntry() {
     const a = this.map?.arenas?.[this.director.idx];
-    const lines = a?.entry?.intro || [];
+    const intro = a?.entry?.intro;
+    const def = typeof intro === 'string' ? SPECIAL[intro] : intro?.length ? intro : null;
     const go = () => {
       if (this.world.entry) this.world.entry.go = true;
     };
-    if (!lines.length) return go();
+    if (!def) return go();
     this.cine
       .play(async (c) => {
         const f = this.focusOf(this.player);
         const ex = this.world.entry?.x ?? this.player.x;
         await c.camTo((f.x + ex) / 2, f.y, 1.25, 550);
-        for (const [who, text] of lines) await c.say(this.speakerOf(who), text);
+        await runTalk(this, c, def);
         c.hideBox();
       })
       .then(go);
@@ -564,25 +580,211 @@ export class BrawlScene extends Phaser.Scene {
     return { x: f.x, y: stage.groundY(f.z) - 150 };
   }
 
-  /** Map start: bars, a slow glide from ahead of the hero back to him, one line. */
+  /** Map start: bars, a slow glide from ahead of the hero back to him, the chapter's opening scene. */
   playIntro() {
-    const lines = INTRO[this.map.id];
     const p = this.player;
+    const def = INTROS[this.map.id];
     this.cine.play(async (c) => {
       const f = this.focusOf(p);
       c.camSnap(f.x + 520, f.y - 40, 1.05);
       await c.wait(150);
       this.banner(this.map.name, this.map.chapter || '', 2200);
       await c.camTo(f.x + 60, f.y, 1.22, 1700);
-      for (const text of lines || []) await c.say(this.heroSpeaker(), text);
+      if (def && !this.map.hidden) await runTalk(this, c, { start: def });
+      else for (const text of INTRO[this.map.id] || []) await c.say(this.heroSpeaker(), text);
       c.hideBox();
+      if (this.map.id === 'concert' && this.testArena == null) await this.concertFriends(c);
       await c.camTo(f.x, f.y + 40, BASE_ZOOM, 300);
     });
   }
 
-  /** Boss walks in, the world freezes, name card, then the exchange of lines. */
+  // ------------------------------------------------------------------ story scenes
+
+  /** Body language for a fighter during a cutscene (brawl/gestures.js); 'idle' / null clears it. */
+  setGesture(id, name) {
+    if (!name || name === 'idle') {
+      this.gestures.delete(id);
+      return;
+    }
+    const g = this.gestures.get(id);
+    if (g && g.name === name) return;
+    this.gestures.set(id, { name, t0: this.time.now, dx: 0 });
+  }
+
+  clearGestures() {
+    this.gestures.clear();
+  }
+
+  /** Scripted step forward: walk `dx` px over `ms`, then the sim fighter really stands there. */
+  async walkStep(f, dx, ms) {
+    const dir = f.facing || 1;
+    const g = { name: 'walk', t0: this.time.now, dx: 0 };
+    this.gestures.set(f.id, g);
+    await new Promise((r) => this.tweens.add({ targets: g, dx: dx * dir, duration: ms, ease: 'Sine.InOut', onComplete: r }));
+    f.x = f.px = f.x + dx * dir;
+    this.gestures.set(f.id, { name: 'rest', t0: this.time.now, dx: 0 });
+  }
+
+  /** The talk decided: fight (maybe angry / shaken), walk away, or join the hero. */
+  applyMeet(id, kind, out) {
+    const f = this.world.fighters.find((x) => x.id === id);
+    if (!f) return;
+    const end = out?.end || 'fight';
+    if (end === 'peace' || end === 'ally') {
+      this.director.release?.(id, end);
+      if (!this.director.release) f.waiting = false;
+      return;
+    }
+    const y = stage.groundY(f.z) - 380;
+    if (end === 'angry') {
+      f.maxHp = Math.round(f.maxHp * 1.3);
+      f.hp = f.maxHp;
+      f.dmgMul = (f.dmgMul || 1) * 1.15;
+      this.popText(f.x, y, 'В ЯРОСТИ', '#ff5a4a', 30);
+    } else if (end === 'weak') {
+      f.hp = Math.max(1, Math.round(f.hp * 0.7));
+      this.popText(f.x, y, 'РАССЛАБИЛСЯ', '#7dffa0', 30);
+    }
+    f.waiting = false;
+  }
+
+  /** Gym: Руки was out-lifted after a respectful talk — he concedes instead of fighting. */
+  rukiConcedes() {
+    const f = this.world.fighters.find((x) => x.kind === 'ruki' && !x.dead && x.team === 'enemy');
+    if (!f) return;
+    f.waiting = true;
+    this.cine.play(
+      async (c) => {
+        c.setFreeze(true);
+        await runTalk(this, c, SPECIAL.ruki_concede, { cast: { ruki: f.id } });
+        c.hideBox();
+        this.director.release?.(f.id, 'peace');
+      },
+      { freeze: false },
+    );
+  }
+
+  /** Concert: memes the hero spared or befriended come to help; spared bosses cheer from the crowd. */
+  async concertFriends(c) {
+    const has = (e) => e.flags.some((fl) => storyFlag(fl));
+    const friends = FRIENDS.filter(has).slice(0, 3);
+    const crowd = CROWD.filter(has);
+    if (!friends.length && !crowd.length) return;
+    const p = this.player;
+    const b = this.world.bounds;
+    const came = friends.map((fr, i) => {
+      const z = Math.min(b.zMax - 10, Math.max(b.zMin + 10, p.z + (i % 2 ? 45 : -45)));
+      const f = this.world.spawn(fr.kind, Math.max(90, p.x - 200 - i * 120), z, { facing: 1 });
+      f.team = 'ally';
+      f.allyT = null;
+      this.puff(f.x, f.z);
+      return [fr, f];
+    });
+    await c.wait(400);
+    for (const [fr, f] of came) {
+      await c.camTo(f.x, this.focusOf(f).y, 1.3, 380);
+      this.setGesture(f.id, 'cheer');
+      await c.say(this.bossSpeaker(fr.kind), fr.line);
+    }
+    for (const cr of crowd) {
+      const sp = this.bossSpeaker(cr.kind);
+      await c.say({ ...sp, name: `${sp.name} · из зала` }, cr.line);
+    }
+    await c.camTo(p.x, this.focusOf(p).y, 1.3, 380);
+    await runTalk(this, c, SPECIAL.concert_friends);
+    if (crowd.length) {
+      const bonus = 20 * crowd.length;
+      p.maxHp += bonus;
+      p.hp = p.maxHp;
+      this.resultCard('ЗАЛ ЗА ТЕБЯ', [`+${bonus} к здоровью`, `Пощажённых в зале: ${crowd.length}`], true);
+    }
+  }
+
+  // ------------------------------------------------------------------ «Театр»
+
+  /** ?theatre: this map's story scenes one after another (story/theatre.js), then the next map. */
+  runTheatre() {
+    const entry = THEATRE[this.theatre];
+    const w = this.world;
+    // A quiet stage: nothing falls from the sky, nobody comes in waves
+    w.crateEvery = w.kosariRain = w.anvilEvery = w.airshipEvery = null;
+    const p = this.player;
+    p.money = Math.max(p.money || 0, 200);
+    this.cine.play(async (c) => {
+      c.setFreeze(true);
+      const f0 = this.focusOf(p);
+      c.camSnap(f0.x + 400, f0.y - 40, 1.05);
+      this.banner(this.map.name, `Театр · ${this.theatre + 1} из ${THEATRE.length} · ${this.map.chapter || ''}`, 2400);
+      await c.camTo(f0.x + 60, f0.y, 1.22, 1500);
+      let actor = null;
+      for (const st of entry?.steps || []) {
+        if (st.if?.startsWith('flag:') && !storyFlag(st.if.slice(5))) continue;
+        if (st.intro) {
+          await runTalk(this, c, { start: INTROS[this.map.id] || [] });
+          c.hideBox();
+          continue;
+        }
+        if (st.friends) {
+          await this.concertFriends(c);
+          c.hideBox();
+          continue;
+        }
+        const kind = st.meet || st.defeat || st.cast;
+        if (!actor || actor.kind !== kind || actor.dead) {
+          if (actor) this.theatreLeave(actor);
+          actor = w.spawn(kind, p.x + 430, p.z, { facing: -1 });
+          actor.waiting = true;
+          actor.hoverY = null;
+          actor.y = actor.py = 0;
+          actor.away = false;
+          await c.camTo((p.x + actor.x) / 2, f0.y, 1.12, 700);
+        }
+        if (st.meet) await c.title(FIGHTERS[kind]?.title || '', this.map.chapter || '', 1100);
+        else if (st.defeat) this.banner('После боя', FIGHTERS[kind]?.title || '', 1300);
+        const def = st.meet ? MEET[kind] : st.defeat ? (kind === 'klas' ? SPECIAL.finale : DEFEAT[kind]) : SPECIAL[st.special];
+        const out = await runTalk(this, c, def, { cast: { [kind]: actor.id } });
+        if (['fame', 'free', 'share'].includes(out.end)) setFinale(out.end);
+        c.hideBox();
+        c.dim(false);
+        this.clearGestures();
+        const [title, good] = OUTCOME_TITLE[out.end] || OUTCOME_TITLE.fight;
+        this.resultCard(title, [FIGHTERS[kind]?.title || ''], good);
+        await c.wait(1600);
+        if (out.end === 'peace') {
+          this.theatreLeave(actor);
+          actor = null;
+        }
+      }
+      await c.wait(400);
+    }).then(() => {
+      const next = this.theatre + 1;
+      if (next >= THEATRE.length) {
+        this.banner('Конец', 'Все сцены показаны · Esc — меню', 4000);
+        endTheatreStory();
+        return;
+      }
+      this.sound.stopAll();
+      this.scene.start('Preload', { next: 'Brawl', map: THEATRE[next].map, theatre: next, onExit: this.onExit });
+    });
+  }
+
+  /** A theatre actor walks off (puff of smoke). */
+  theatreLeave(f) {
+    if (!f || f.dead) return;
+    f.dead = true;
+    f.removed = true;
+    this.puff(f.x, f.z);
+  }
+
+  /**
+   * Boss / debuting meme: he waits in the arena, the world freezes, name card,
+   * then the talk (story/scenes.js MEET) — the hero's answers decide whether
+   * it comes to a fight at all.
+   */
   playBossArrival(id, kind) {
     const data = BOSSES[kind];
+    // Boss rush keeps the short exchange: no talking your way out of it there
+    const talk = !this.map?.hidden && MEET[kind];
     this.cine.play(
       async (c) => {
         const boss = () => this.world.fighters.find((x) => x.id === id) || null;
@@ -598,25 +800,35 @@ export class BrawlScene extends Phaser.Scene {
         const vb = b && voiceOf(b);
         if (vb && !this.voices.say(vb, 'intro', { force: true })) this.voices.say(vb, 'spawn', { force: true });
         await c.title(FIGHTERS[kind]?.title || '', this.map?.chapter || '', 1300);
-        for (const [who, text] of data?.arrive || []) {
-          const f = who === 'boss' ? boss() : this.player;
-          if (f) await c.camTo(f.x, this.focusOf(f).y, 1.4, 260);
-          await c.say(who === 'boss' ? this.bossSpeaker(kind) : this.heroSpeaker(), text);
+        let out = { end: 'fight' };
+        if (talk) out = await runTalk(this, c, talk, { cast: { [kind]: id } });
+        else {
+          for (const [who, text] of data?.arrive || []) {
+            const f = who === 'boss' ? boss() : this.player;
+            if (f) await c.camTo(f.x, this.focusOf(f).y, 1.4, 260);
+            await c.say(who === 'boss' ? this.bossSpeaker(kind) : this.heroSpeaker(), text);
+          }
         }
         c.hideBox();
-        c.flash(0xffffff, 300, 0.5);
-        this.sound.play('superudar', { volume: 0.4 });
-        const bb = boss();
-        if (bb) bb.waiting = false;
+        this.applyMeet(id, kind, out);
+        if (out.end !== 'peace' && out.end !== 'ally') {
+          c.flash(0xffffff, 300, 0.5);
+          this.sound.play('superudar', { volume: 0.4 });
+        } else this.sound.play('cash', { volume: 0.5, rate: 0.8 });
       },
       { freeze: false },
     );
   }
 
-  /** Killing blow: stop-frame, white flash, snap zoom, slow fall, last words. */
+  /**
+   * Killing blow: stop-frame, white flash, snap zoom, slow fall — then the
+   * story: spare him or take his money (story/scenes.js DEFEAT); after 1Kla$,
+   * the producer and the last choice of the story.
+   */
   playFinisher(ev) {
     const kind = this.world.fighters.find((f) => f.id === ev.id)?.kind;
     const data = kind ? BOSSES[kind] : null;
+    const story = !this.map?.hidden && this.testArena == null;
     this.cine.play(
       async (c) => {
         const y = stage.groundY(ev.z) - 150;
@@ -629,8 +841,13 @@ export class BrawlScene extends Phaser.Scene {
         c.setFreeze(false);
         this.shake(700, 16);
         await c.camTo(ev.x, y + 30, 1.3, 1500);
-        if (data?.defeat?.length) {
-          c.setFreeze(true);
+        c.setFreeze(true);
+        if (story && kind === 'klas') {
+          const out = await runTalk(this, c, SPECIAL.finale, { cast: { klas: ev.id } });
+          if (['fame', 'free', 'share'].includes(out.end)) setFinale(out.end);
+        } else if (story && DEFEAT[kind]) {
+          await runTalk(this, c, DEFEAT[kind], { cast: { [kind]: ev.id } });
+        } else if (data?.defeat?.length) {
           for (const [who, text] of data.defeat) {
             if (who === 'hero') await c.camTo(this.player.x, this.focusOf(this.player).y, 1.35, 300);
             await c.say(who === 'boss' ? this.bossSpeaker(kind) : this.heroSpeaker(), text);
@@ -902,6 +1119,12 @@ export class BrawlScene extends Phaser.Scene {
           break;
         case 'benchEnd':
           this.focusOff();
+          // Out-lifted Руки after treating him with respect: he concedes
+          if (ev.win && !ev.rap && storyFlag('ruki_respect')) {
+            const rk = this.world.fighters.find((x) => x.kind === 'ruki' && !x.dead && x.team === 'enemy');
+            if (rk) rk.waiting = true;
+            this.time.delayedCall(1800, () => this.rukiConcedes());
+          }
           if (ev.rap) this.resultCard(ev.win ? 'ТОЛПА ЗА ТЕБЯ!' : 'ТОЛПА ЗА 1KLA$', [`Панчи ${ev.reps} : ${ev.rival}`, ev.win ? 'Он выходит на бой осипшим' : 'Он заряжен — держись'], ev.win);
           else this.resultCard(ev.win ? 'ПЕРЕЖАЛ!' : 'РУКИ СИЛЬНЕЕ', [`Повторы ${ev.reps} : ${ev.rival}`, ev.win ? 'Протеин на всю карту' : 'А теперь он злой'], ev.win);
           break;
@@ -1139,6 +1362,20 @@ export class BrawlScene extends Phaser.Scene {
         case 'thiefEscaped':
           this.resultCard('ВОР УБЕЖАЛ', ['−20 косарей'], false);
           break;
+        case 'allyJoin': {
+          // Rebuild his view: allies glow green
+          const v = this.views.get(ev.id);
+          if (v) {
+            v.destroy();
+            this.views.delete(ev.id);
+          }
+          this.resultCard('НА ТВОЕЙ СТОРОНЕ', [FIGHTERS[ev.kind]?.title || '', 'дерётся за тебя до конца карты'], true);
+          break;
+        }
+        case 'peaceful':
+          this.peaceful = true;
+          this.resultCard('ДОГОВОРИЛИСЬ', [FIGHTERS[ev.kind]?.title || '', 'обошлось без драки'], true);
+          break;
         case 'arenaClear':
           if (this.inLift) {
             this.inLift = false;
@@ -1166,7 +1403,8 @@ export class BrawlScene extends Phaser.Scene {
           break;
         }
         case 'mapComplete':
-          this.time.delayedCall(1400, () => this.cine.after(() => this.showResults()));
+          // A boss who walked away gets his «ДОГОВОРИЛИСЬ» card read first
+          this.time.delayedCall(this.peaceful ? 3200 : 1400, () => this.cine.after(() => this.showResults()));
           break;
         case 'pickup':
           if (ev.kind === 'kosar') {
@@ -1863,21 +2101,12 @@ export class BrawlScene extends Phaser.Scene {
   /** Where the story goes after this map (a chosen side road, or the map's own next). */
   nextMapId() {
     if (!this.map) return null;
-    return GameState.progress.routeNext?.[this.map.id] || this.map.next || null;
+    return this.map.next || null;
   }
 
-  /** Results screen -> the next map (route: pick one of the two roads). */
-  goNext(pick) {
-    let id = this.nextMapId() || this.map?.id;
-    const r = this.map?.route;
-    if (r && pick != null) {
-      const opt = r.choose[pick];
-      if (this.testArena == null) {
-        chooseRoute(opt.id, r.then, r.choose[1 - pick]?.id);
-        markDone(this.map.id, opt.id);
-      }
-      id = opt.id;
-    }
+  /** Results screen -> the next map. */
+  goNext() {
+    const id = this.nextMapId() || this.map?.id;
     // Next map goes through the loading screen: its kit pieces must be loaded first
     this.sound.stopAll();
     this.scene.start('Preload', { next: 'Brawl', map: id, onExit: this.onExit });
@@ -1903,36 +2132,76 @@ export class BrawlScene extends Phaser.Scene {
       } else markDone(this.map.id, this.nextMapId(), bossKinds);
     }
     // Challenges and the bank (косари carried out of the map buy upgrades in the menu)
-    let chLines = '';
+    let stars = '';
     if (this.map && !this.map.hidden && this.map.id !== 'sandbox') {
       const run = { secs, damageTaken: st.damageTaken, shots: st.shots || 0 };
       const chs = challengesFor(this.map);
       const met = chs.filter((c) => c.ok(run)).map((c) => c.id);
       if (!test) bankRun(this.map.id, this.player.money, met);
-      chLines = `\n${chs.map((c) => `${met.includes(c.id) ? '★' : '☆'} ${c.text}`).join('\n')}\nВ копилку: +${this.player.money} К (всего ${GameState.progress.bank})\n`;
+      stars = chs.map((c) => (met.includes(c.id) ? '★' : '☆')).join('');
     }
-    const route = this.map?.route;
-    const nextLine = route
-      ? `Развилка: 1 — ${route.choose[0].label} · 2 — ${route.choose[1].label}`
-      : this.isFinale()
-        ? 'Enter — эпилог'
-        : this.nextMapId()
-          ? 'Enter — дальше'
-          : 'Enter — ещё раз';
     const mm = Math.floor(secs / 60);
     const ss = String(secs % 60).padStart(2, '0');
-    this.hud.results
-      .setText(
-        `${this.map?.name || 'Карта'} пройдена!\n\n` +
-          `Время: ${mm}:${ss}\nУложено: ${this.world.kills}\nМакс. комбо: ${st.maxCombo}\nПолучено урона: ${st.damageTaken}\n\n` +
-          `Оценка: ${grade}\n${chLines}\n${nextLine} · Esc — меню`,
-      )
-      .setVisible(true)
-      .setAlpha(0);
-    this.tweens.add({ targets: this.hud.results, alpha: 1, duration: 400 });
+    const sub = [`Оценка ${grade}`, `${mm}:${ss}`, stars, this.player.money ? `+${this.player.money} К в копилку` : ''].filter(Boolean).join('  ·  ');
     this.sound.stopByKey('game');
     this.sound.stopByKey('boss');
+    this.playOutro(sub);
+  }
+
+  /**
+   * The map's end, told as a cutscene (no results window): the camera settles
+   * on the hero, he says where the road goes next (story/scenes.js OUTROS), the
+   * chapter line with the grade shows, and he walks off the right edge of the
+   * screen — his allies after him. Then the next map, or the ending.
+   */
+  playOutro(sub) {
+    const p = this.player;
     this.music?.sting('ui_results');
+    this.cine
+      .play(async (c) => {
+        c.setFreeze(true);
+        p.facing = 1;
+        const f = this.focusOf(p);
+        const zoom = 1.18;
+        // The hero low in the frame: the chapter line shows above his head
+        await c.camTo(f.x + 120, f.y - 110, zoom, 800);
+        const lines = !this.map?.hidden && OUTROS[this.map?.id];
+        if (lines) {
+          await runTalk(this, c, { start: lines });
+          c.hideBox();
+        }
+        this.banner(`${this.map?.name || 'Карта'} — пройдено`, sub, 3600);
+        // Off the right edge of the (now still) frame
+        const edge = f.x + 120 + VIEW_W / (2 * zoom) + 220;
+        const walkers = [p, ...this.world.fighters.filter((x) => x.team === 'ally' && !x.dead)];
+        const speed = 330;
+        const walks = walkers.map((w, k) => {
+          // Out of any attack / jump: gestures drive a fighter standing on the ground
+          w.facing = 1;
+          w.state = 'idle';
+          w.move = null;
+          w.y = w.py = 0;
+          const dist = Math.max(200, edge - w.x + k * 90);
+          const g = { name: 'walk', t0: this.time.now, dx: 0 };
+          return new Promise((r) => {
+            this.time.delayedCall(250 + k * 280, () => {
+              this.gestures.set(w.id, g);
+              this.tweens.add({ targets: g, dx: dist, duration: (dist / speed) * 1000, ease: 'Sine.In', onComplete: r });
+            });
+          });
+        });
+        await Promise.race([Promise.all(walks), c.wait(6000)]);
+        await new Promise((r) => this.tweens.add({ targets: c.dimRect, fillAlpha: 1, duration: 600, onComplete: r }));
+        await c.wait(250);
+      })
+      .then(() => {
+        if (this.isFinale()) this.startEnding();
+        else if (this.nextMapId()) this.goNext();
+        else {
+          stopAllMusic();
+          this.onExit?.();
+        }
+      });
   }
 
   popText(x, y, text, color, size = 20) {

@@ -76,7 +76,6 @@ function eraMap(o) {
     airships: o.airships ?? false,
     kosariRain: o.kosariRain,
     style: !!o.style,
-    route: o.route,
     debuts: o.debuts || [],
     arenas: [
       ...o.arenas.map((waves, i) => ({
@@ -129,12 +128,8 @@ export const village = eraMap({
     at: 760,
     reach: 120,
     prompt: 'J — к мячу',
-    intro: [
-      ['ded', 'Внучок! Без пенальти отсюда не уйдёшь.'],
-      ['ded', 'Три удара твоих, три моих. Я — на воротах.'],
-      ['hero', 'А если выиграю?'],
-      ['ded', 'Косари твои. Проиграешь — позову своих.'],
-    ],
+    // Story scene (story/scenes.js SPECIAL): Дед talks differently if he plays for you
+    intro: 'penalty_ded',
   },
   finale: [
     { banner: 'Дед «я футбольный мячик»', spawns: [el('ded')] },
@@ -249,14 +244,6 @@ export const pcClub = eraMap({
 
 export const gym = eraMap({
   id: 'gym',
-  // Fork: the museum (stealth) or the river (raft); both lead to the sigma gym
-  route: {
-    then: 'sigma_gym',
-    choose: [
-      { id: 'museum', label: 'Музей — мимо охраны за ящиками' },
-      { id: 'river', label: 'Река — сплав на плоту' },
-    ],
-  },
   extra: [{ mini: { type: 'bench', ticks: 1500, afterMeet: 'ruki' } }, { traps: [{ type: 'drop', tex: 'dumbbell', every: [160, 260] }] }, null],
   name: 'Качалка',
   chapter: 'Глава 4 · Пабликовая эпоха',

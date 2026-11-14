@@ -9,6 +9,7 @@ import { stage } from './stage.js';
 import { CLIP_IMPACT } from './clips.js';
 import { getHero } from '../game/heroes.js';
 import { FIGHTERS } from '../sim/fighters.js';
+import { gesturePose } from './gestures.js';
 
 const SQUASH_MS = 130;
 
@@ -193,6 +194,19 @@ export class FighterView {
     this.shaded = on;
     if (on) for (const s of this.sprites) s.setTint(0x8088a0);
     else this._baseTint();
+  }
+
+  /**
+   * Cutscene gesture (BrawlScene.setGesture): drives the puppet while the
+   * fighter stands; `dx` shifts him for a scripted step. True when it applied.
+   */
+  _gesture(f, dt) {
+    const g = this.scene.gestures?.get(f.id);
+    if (!g || f.dead || f.y > 2 || (f.state !== 'idle' && f.state !== 'walk')) return false;
+    const t = (this.scene.time.now - g.t0) / 1000;
+    this.puppet.drive(Math.max(dt, 1 / 120), gesturePose(g.name, t), { snap: g.name === 'walk' ? 0.6 : 0.2 });
+    if (g.dx) this.visual.x += Math.round(g.dx);
+    return true;
   }
 
   /** Pooling: hide while unused. */
@@ -389,6 +403,8 @@ export class FighterView {
         this.mount.setPosition(0, this.hipsH);
         this.spin.setAngle(this.leanRot);
         this.visual.y += Math.sin(this.hoverT * 1.8) * 7;
+      } else if (this._gesture(f, dt)) {
+        /* cutscene body language */
       } else this.puppet.tick(dt, {
         moving: f.state === 'walk' || f.state === 'dash',
         airborne: f.y > 2 && f.state !== 'airhit',

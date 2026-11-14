@@ -1601,3 +1601,14 @@ body {
 .cx-hero-big img,
 .cx-phero img,
 .cx-tab img { scale: -1 1; }
+
+/* Journal (menu → ДНЕВНИК) */
+.cx-journal { max-height: 62vh; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; padding-right: 8px; }
+.cx-jr { border-left: 3px solid var(--neo); padding: 6px 0 6px 16px; }
+.cx-jr-map { color: var(--neo); font-size: 12px; letter-spacing: 0.18em; text-transform: uppercase; margin-bottom: 4px; }
+.cx-jr-line { font-size: 18px; line-height: 1.45; }
+.cx-jr-prod { border-color: #ff5a7a; }
+.cx-jr-prod .cx-jr-map { color: #ff5a7a; }
+.cx-jr-end { border-color: #ffd23f; }
+.cx-jr-end .cx-jr-map { color: #ffd23f; }
+.cx-jr-empty { opacity: 0.7; font-size: 18px; }

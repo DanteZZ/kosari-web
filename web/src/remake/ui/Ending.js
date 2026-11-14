@@ -1,6 +1,7 @@
 import { el } from './dom.js';
 import { showLoading, hideLoading } from './LoadingScreen.js';
-import { volume } from '../state/GameState.js';
+import { volume, GameState } from '../state/GameState.js';
+import { FINALE_EPILOGUE } from '../story/scenes.js';
 import { HEROES } from '../game/heroes.js';
 import { storyText, storyVoice } from '../story.js';
 import MUSIC_CREDITS from '../music.credits.json';
@@ -162,11 +163,34 @@ export function playEnding(parent, heroId, onDone) {
     },
   });
   ld.progress(1);
+  // The last choice of the story (the stage, after 1Kla$) gets its own page
+  const finale = FINALE_EPILOGUE[GameState.progress.story?.finale];
+  const TITLE = { fame: 'Слава', free: 'Свобода', share: 'Милосердие' };
+  const epilogue = () => {
+    if (!finale) return showCredits(parent, onDone);
+    const ep = showLoading(parent, {
+      story: {
+        bg: `assets/loading/scenes/concert.jpg`,
+        chapter: 'Эпилог',
+        title: TITLE[GameState.progress.story.finale],
+        goal: 'Что стало с «Путём косаря»',
+        text: finale,
+        face: HERO_FACE[hero],
+        tip: null,
+      },
+    });
+    ep.progress(1);
+    setTimeout(() => ep.done(() => {
+      hideLoading();
+      showCredits(parent, onDone);
+    }), 2500);
+  };
   // Let the narrator start before «press any key» shows up
   setTimeout(() => {
     ld.done(() => {
       hideLoading();
-      showCredits(parent, onDone);
+      // The afterword screen removes itself a moment later: open the next page after that
+      setTimeout(epilogue, 480);
     });
   }, 5000);
 }
