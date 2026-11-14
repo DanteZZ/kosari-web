@@ -157,6 +157,7 @@ export function renderMenu(root, { go }) {
       { id: 'new', label: 'НОВАЯ ИГРА', hint: 'Выбери героя — и в лес' },
       ...(anyProgress ? [] : []),
       { id: 'chapters', label: 'ГЛАВЫ', hint: 'Любая открытая глава' },
+      { id: 'online', label: 'ОНЛАЙН', hint: 'Кооператив с друзьями · до 4 игроков' },
       { id: 'journal', label: 'ДНЕВНИК', hint: 'Твои решения и их последствия' },
       { id: 'bossrush', label: 'БОССЫ', hint: 'Все семь боссов подряд' },
       { id: 'upgrades', label: 'ПРОКАЧКА', hint: `Копилка: ${P().bank || 0} К` },
@@ -568,6 +569,10 @@ export function renderMenu(root, { go }) {
       else if (it.id === 'chapters') push('chapters');
       else if (it.id === 'bossrush') push('hero', { mode: 'bossrush' });
       else if (it.id === 'sandbox') leave('brawl', { map: 'sandbox' });
+      else if (it.id === 'online') {
+        cleanup();
+        go('online');
+      }
       else if (it.id === 'bones') leave('bones');
       else if (it.id === 'anims') leave('anims');
       else push(it.id);
@@ -622,9 +627,30 @@ export function renderMenu(root, { go }) {
     render(true);
   };
 
+  // Konami code (↑↑↓↓←→←→ B A): every chapter opens
+  const KONAMI = ['ArrowUp', 'ArrowUp', 'ArrowDown', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'ArrowLeft', 'ArrowRight', 'KeyB', 'KeyA'];
+  let konami = 0;
+  const cheat = (code) => {
+    konami = code === KONAMI[konami] ? konami + 1 : code === KONAMI[0] ? 1 : 0;
+    if (konami < KONAMI.length) return;
+    konami = 0;
+    const p = P();
+    for (const id of storyIds) if (!p.unlocked.includes(id)) p.unlocked.push(id);
+    SaveLoad.save();
+    flash.classList.remove('on');
+    void flash.offsetWidth;
+    flash.classList.add('on');
+    playSfx('superudar.WAV', { volume: 0.45 * volume('sfx') });
+    const note = el('div', { className: 'cx-cheat', text: 'КОД ПРИНЯТ · ВСЕ ГЛАВЫ ОТКРЫТЫ' });
+    screen.append(note);
+    setTimeout(() => note.remove(), 2600);
+    render();
+  };
+
   const onKey = (e) => {
     // The ending (afterword / credits) plays over the menu: it has the keys
     if (document.querySelector('.wl.cine, .cr')) return;
+    if (!e.repeat) cheat(e.code);
     if (stage === 'title') {
       if (!e.repeat) showMenu();
       return;

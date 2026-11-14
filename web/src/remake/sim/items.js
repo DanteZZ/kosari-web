@@ -95,4 +95,6 @@ export const BUFFS = {
   speed: { ticks: 600, mul: 1.35, title: 'Энергетик — скорость!' },
   power: { ticks: 600, mul: 1.5, title: 'Протеин — сила!' },
   shield: { ticks: 300, mul: 1, title: 'Очки сигмы — неуязвимость!' },
+  /** Chat's dirty trick (sim/votes.js): heavy feet. */
+  slow: { ticks: 420, mul: 0.6, title: 'Чат подставил — ноги ватные!' },
 };

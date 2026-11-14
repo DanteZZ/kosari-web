@@ -60,6 +60,8 @@ export class World {
     /** Fire-and-forget notifications for sound/FX: the view drains this. */
     this.events = [];
     this.kills = 0;
+    /** «Стенка на стенку»: players hit each other. */
+    this.pvp = false;
     /** Locked area for players (arena); enemies only respect `bounds`. */
     this.playerBounds = null;
     /** Items on the road (heal etc.). */
@@ -171,6 +173,48 @@ export class World {
     this.inputs.set(slot, bits | 0);
   }
 
+  /**
+   * Same side? Players and their helpers never hit each other — except in
+   * «Стенка на стенку» (world.pvp), where every player fights the others.
+   */
+  _friends(t, team, ownerId) {
+    if (!allied(t.team, team)) return false;
+    if (this.pvp && t.team === 'player' && team === 'player' && t.id !== ownerId) return false;
+    return true;
+  }
+
+  /** Back on his feet (co-op revive, the next round of «Стенка на стенку»). */
+  revive(f, hpK = 1) {
+    f.dead = false;
+    f.removed = false;
+    f.hp = Math.max(1, Math.round(f.maxHp * hpK));
+    f.state = 'idle';
+    f.st = 0;
+    f.vx = f.vy = f.vz = 0;
+    f.y = f.py = 0;
+    f.iframes = 90;
+    f.heldBy = null;
+    f.reviveT = 0;
+    f.thrown = false;
+    this.events.push({ type: 'revive', id: f.id, x: f.x, z: f.z });
+  }
+
+  /**
+   * Co-op: a fallen player gets up when a friend stands next to him for two
+   * seconds (not in «Стенка на стенку», not alone).
+   */
+  _coopRevive() {
+    if (this.pvp) return;
+    const all = this.fighters.filter((f) => f.kind === 'player' && !f.removed);
+    if (all.length < 2) return;
+    for (const f of all) {
+      if (!f.dead || f.driving) continue;
+      const helper = all.find((o) => !o.dead && o !== f && Math.abs(o.x - f.x) < 110 && Math.abs(o.z - f.z) < 45 && (o.state === 'idle' || o.state === 'walk'));
+      f.reviveT = helper ? (f.reviveT || 0) + 1 : Math.max(0, (f.reviveT || 0) - 2);
+      if (f.reviveT >= 120) this.revive(f, 0.4);
+    }
+  }
+
   players() {
     return this.fighters.filter((f) => f.team === 'player' && !f.dead);
   }
@@ -245,6 +289,8 @@ export class World {
       this._clamp(f);
       if (f.comboT > 0 && --f.comboT === 0) f.combo = 0;
     }
+
+    this._coopRevive();
 
     // Summoned helpers leave after a while
     for (const f of this.fighters) {
@@ -727,7 +773,7 @@ export class World {
       if (att.mt <= m.startup || att.mt > m.startup + m.active) continue;
 
       for (const tgt of this.fighters) {
-        if (tgt === att || allied(tgt.team, att.team)) continue;
+        if (tgt === att || this._friends(tgt, att.team, att.id)) continue;
         if (UNHITTABLE.has(tgt.state) || tgt.dead) continue;
         if (att.hitIds.includes(tgt.id)) continue;
         // Knees only land on the enemy you hold; held enemies are shielded from others
@@ -859,7 +905,7 @@ export class World {
     }
 
     const dmg = Math.max(1, Math.round((m.dmg || 0) * (att.dmgMul || 1) * (this.dmgAll || 1)));
-    if (att.team === 'player' && this.votes) voteHit(this);
+    if (att.team === 'player' && this.votes) voteHit(this, att);
     if (this.style) styleHit(this, att, tgt, att.move, tgt.hp - dmg <= 0);
     // Hits shove three times harder than the move tables say
     m = { ...m, dmg, kb: (m.kb || 0) * KB_MUL };
@@ -987,7 +1033,7 @@ export class World {
 
   _grabTarget(f, ax) {
     for (const e of this.fighters) {
-      if (allied(e.team, f.team) || e.dead || e.heldBy || e.y > 0 || FIGHTERS[e.kind].noGrab) continue;
+      if (this._friends(e, f.team, f.id) || e.dead || e.heldBy || e.y > 0 || FIGHTERS[e.kind].noGrab) continue;
       if (!GRABBABLE.has(e.state)) continue;
       if (Math.abs(e.z - f.z) > 18) continue;
       const front = (e.x - f.x) * ax;
@@ -1297,7 +1343,7 @@ export class World {
         if (p.buffs[k] > 0) p.buffs[k] -= 1;
         if (p.buffs[k] <= 0) delete p.buffs[k];
       }
-      p.speedMul = p.speedBase * (p.buffs.speed ? BUFFS.speed.mul : 1);
+      p.speedMul = p.speedBase * (p.buffs.speed ? BUFFS.speed.mul : 1) * (p.buffs.slow ? BUFFS.slow.mul : 1);
       p.dmgMul = p.dmgBase * (p.buffs.power ? BUFFS.power.mul : 1);
       if (p.buffs.shield) p.iframes = Math.max(p.iframes, 2);
     }
@@ -1488,7 +1534,7 @@ export class World {
 
   _projHits(pr, t) {
     if (t.dead || UNHITTABLE.has(t.state) || t.iframes > 0 || t.state === 'grabbed') return false;
-    if (pr.hitsAll ? t.id === pr.owner : allied(t.team, pr.team)) return false;
+    if (pr.hitsAll ? t.id === pr.owner : this._friends(t, pr.team, pr.owner)) return false;
     if (pr.hit.includes(t.id)) return false;
     const sp = pr.spec;
     if (Math.abs(t.x - pr.x) > (sp.halfW ?? 30) + Math.abs(pr.vx) * 0.5 || Math.abs(t.z - pr.z) > (sp.halfZ ?? 24)) return false;
@@ -1601,7 +1647,7 @@ export class World {
     this.events.push({ type: 'explode', kind: pr.spec.kind, x: pr.x, z: pr.z, y: pr.y });
     for (const t of this.fighters) {
       if (t.dead || UNHITTABLE.has(t.state)) continue;
-      if (pr.hitsAll ? t.id === pr.owner : allied(t.team, pr.team)) continue;
+      if (pr.hitsAll ? t.id === pr.owner : this._friends(t, pr.team, pr.owner)) continue;
       if (Math.abs(t.x - pr.x) > e.radius || Math.abs(t.z - pr.z) > e.depth) continue;
       this._applyHit(owner, t, { dmg: e.dmg, kb: e.kb, launch: e.launch, hitstop: 7, heavy: true, special: false }, {
         x: pr.x,

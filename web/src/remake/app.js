@@ -1,6 +1,7 @@
 import { clear } from './ui/dom.js';
 import { renderSplash } from './ui/Splash.js';
 import { renderMenu, stopMenuMusic } from './ui/Menu.js';
+import { renderLobby } from './ui/Lobby.js';
 import { startBoneEditor, startAnimEditor, startBrawl, stopGame } from './game/createGame.js';
 
 export function createApp() {
@@ -33,10 +34,16 @@ export function createApp() {
       cleanup = renderMenu(uiRoot, { go }) || null;
       return;
     }
+    if (screen === 'online') {
+      // Sessions with friends (ui/Lobby.js): the menu music keeps playing
+      cleanup = renderLobby(uiRoot, { go, join: opts.join }) || null;
+      return;
+    }
     if (screen === 'brawl') {
       stopMenuMusic();
       setGameVisible(true);
-      startBrawl({ parent: gameStage, onExit: () => go('menu'), map: opts.map, arena: opts.arena, theatre: opts.theatre });
+      // Online games end in the lobby, not the menu
+      startBrawl({ parent: gameStage, onExit: () => go(opts.net ? 'online' : 'menu'), map: opts.map, arena: opts.arena, theatre: opts.theatre, net: opts.net });
       return;
     }
     if (screen === 'bones' || screen === 'bones-nikita') {

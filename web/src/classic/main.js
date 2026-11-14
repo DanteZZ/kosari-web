@@ -98,6 +98,11 @@ async function boot() {
     base: BASE,
     ui,
     onEnd: () => {
+      // Inside the remake's arcade cabinet: «Выход» gets the player up from it
+      if (window.parent !== window) {
+        window.parent.postMessage({ type: 'kosari-classic-exit' }, window.location.origin);
+        return;
+      }
       window.location.href = import.meta.env.BASE_URL;
     },
   });

@@ -1,6 +1,22 @@
 import { stage } from './stage.js';
 import { TRAPS } from '../sim/td.js';
 import { VIEW_W } from '../game/constants.js';
+import { MODS, PERSONAL } from '../sim/votes.js';
+import { getHero } from '../game/heroes.js';
+
+/** A streamer's name on screen: his nickname online, else his hero. */
+export function streamerName(world, id) {
+  const f = world.fighters.find((x) => x.id === id);
+  return f ? f.netName || getHero(f.hero).label : '???';
+}
+
+/** Poll option text: «Гравитация Луны» or «Вася: РПГ в руки». */
+export function optionTitle(world, o) {
+  if (!o) return '';
+  if (typeof o === 'string') return MODS[o]?.title || o;
+  if (o.target != null) return (PERSONAL[o.id]?.title || o.id).replace('{name}', streamerName(world, o.target));
+  return MODS[o.id]?.title || o.id;
+}
 
 const TRAP_ART = { rake: ['item_rake', 190], petard: ['item_petard', 120], glue: ['item_glue_puddle', 220] };
 const TRAP_COLOR = { rake: 0x9a6532, petard: 0xd83a2a, glue: 0xe8c43a };
@@ -103,32 +119,29 @@ export class ModesView {
       for (const o of this.poll.list) s.tagUi(o);
     }
     const P = this.poll;
-    P.setPosition(VIEW_W - 350, 190);
+    // Left of the weapon column; under the stream's style meter when there is one
+    P.setPosition(VIEW_W - 530, world.style ? 228 : 128);
     P.g.clear();
     if (v.poll) {
       const total = v.poll.counts.reduce((a, b) => a + b, 0) || 1;
       P.bg.setSize(330, 150);
       P.title.setText(`ЧАТ РЕШАЕТ · ${Math.ceil(v.poll.t / 60)}с`);
-      v.poll.options.forEach((id, i) => {
+      v.poll.options.forEach((o, i) => {
         const k = v.poll.counts[i] / total;
+        const bad = o?.target != null && PERSONAL[o.id] && !PERSONAL[o.id].good;
         P.g.fillStyle(0x2a2440, 1).fillRect(12, 38 + i * 34, 306, 26);
-        P.g.fillStyle(0x9147ff, 0.85).fillRect(12, 38 + i * 34, 306 * k, 26);
-        P.lines[i].setText(`${i + 1}. ${MOD_TITLES[id] || id}  ${Math.round(k * 100)}%`).setVisible(true);
+        P.g.fillStyle(bad ? 0xff3b6b : o?.target != null ? 0x2bd47a : 0x9147ff, 0.85).fillRect(12, 38 + i * 34, 306 * k, 26);
+        P.lines[i].setText(`${i + 1}. ${optionTitle(world, o)}  ${Math.round(k * 100)}%`).setVisible(true);
+        const tx = P.lines[i];
+        if (tx.width > 300) tx.setScale(300 / tx.width, 1);
+        else tx.setScale(1);
       });
     } else {
       P.bg.setSize(330, 44);
-      P.title.setText(`ЧАТ: ${MOD_TITLES[v.active.id]} · ${Math.ceil(v.active.t / 60)}с`);
+      P.title.setText(`ЧАТ: ${optionTitle(world, v.active)} · ${Math.ceil(v.active.t / 60)}с`);
+      if (P.title.width > 310) P.title.setScale(310 / P.title.width, 1);
+      else P.title.setScale(1);
       for (const l of P.lines) l.setVisible(false);
     }
   }
 }
-
-const MOD_TITLES = {
-  moon: 'Гравитация Луны',
-  double: 'Двойной урон всем',
-  money: 'Дождь из косарей',
-  swarm: 'Позвать ещё зрителей',
-  heal: 'Задонатить аптечку',
-  lazy: 'Враги — сонные',
-  fast: 'Все на энергетиках',
-};

@@ -1,0 +1,17 @@
+{
+  "name": "kosari-net",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Kosari Remake online sessions: rooms, invite codes, passwords, 4 seats; relays the host's game to the guests",
+  "type": "module",
+  "main": "index.mjs",
+  "scripts": {
+    "start": "node index.mjs"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}

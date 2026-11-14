@@ -285,17 +285,20 @@ export class MinisView {
   _style(st) {
     const s = this.scene;
     const S = this._hud('styleHud', () => {
-      const c = s.add.container(VIEW_W - 350, 190).setDepth(9000);
+      const c = s.add.container(VIEW_W - 530, 128).setDepth(9000);
       c.g = s.add.graphics();
       c.rank = s.add.text(290, 14, 'D', { fontFamily: 'Arial Black, Arial', fontSize: '48px', color: '#ffffff', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5, 0);
       c.view = s.add.text(14, 10, '', { fontFamily: 'Arial Black, Arial', fontSize: '18px', color: '#ff5a6a' });
       c.add([c.g, c.view, c.rank]);
       return c;
     });
+    // Left of the weapon column (top right, BrawlScene.updateWeaponHud)
+    S.setPosition(VIEW_W - 530, 128);
     const COL = { D: '#9a9a9a', C: '#7dc8ff', B: '#7dff7a', A: '#ffd23f', S: '#ff8a2a', SSS: '#ff3b6b' };
     S.g.clear().fillStyle(0x12060a, 0.82).fillRoundedRect(0, 0, 340, 84, 12).lineStyle(2, 0xff3b6b, 0.9).strokeRoundedRect(0, 0, 340, 84, 12);
     S.g.fillStyle(0x331018, 1).fillRect(14, 48, 236, 16).fillStyle(Number.parseInt(COL[st.rank].slice(1), 16), 1).fillRect(14, 48, 236 * (st.meter / 100), 16);
-    S.view.setText(`● LIVE  ${Math.round(st.viewers).toLocaleString('ru-RU')} зрителей`);
+    // Viewers and LIVE are in the stream chat (brawl/StreamChat.js); here — the style
+    S.view.setText('СТИЛЬ ЭФИРА');
     S.rank.setText(st.rank).setColor(COL[st.rank]);
   }
 

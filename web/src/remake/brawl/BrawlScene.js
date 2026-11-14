@@ -11,6 +11,10 @@ import { INTRO, BOSSES, HERO_VOICE } from './dialogue.js';
 import { runTalk } from './Talk.js';
 import { INTROS, MEET, DEFEAT, SPECIAL, FRIENDS, CROWD, OUTROS } from '../story/scenes.js';
 import { THEATRE, OUTCOME_TITLE } from '../story/theatre.js';
+import { NetHost, NetGuest } from '../net/NetGame.js';
+import { ArcadeEgg } from './Arcade.js';
+import { StreamChat } from './StreamChat.js';
+import { Session } from '../net/Session.js';
 import { Voices, voiceOf, hasBlips } from './Voices.js';
 import { VARIANTS } from './FighterView.js';
 import { enemyPartTextureKey } from '../game/enemies/parts.js';
@@ -23,12 +27,13 @@ import { challengesFor } from '../maps/challenges.js';
 import { playEnding } from '../ui/Ending.js';
 import { saveBest } from '../ui/Menu.js';
 import { DT, METER_MAX } from '../sim/constants.js';
+import { BTN } from '../sim/input.js';
 import { MOVES } from '../sim/moves.js';
 import { FighterView } from './FighterView.js';
 import { CrateView } from './CrateView.js';
 import { RaceView } from './RaceView.js';
 import { PenaltyView } from './PenaltyView.js';
-import { ModesView } from './ModesView.js';
+import { ModesView, optionTitle } from './ModesView.js';
 import { MinisView } from './MinisView.js';
 import { SetView } from './SetView.js';
 import { MusicDirector, stopAllMusic } from './Music.js';
@@ -102,6 +107,17 @@ export class BrawlScene extends Phaser.Scene {
       exit.__theatre = true;
       this.onExit = exit;
     }
+    // Online (net/NetGame.js): the host runs the fight, guests mirror it
+    this.netMode = data?.net && Session.room ? (Session.isHost ? 'host' : 'guest') : null;
+    if (this.netMode) {
+      const exit = data.onExit;
+      // The host leaving the map ends the game for everybody: back to the lobby
+      this.onExit = () => {
+        if (this.netMode === 'host') Session.send({ t: 'lobby' });
+        exit?.();
+      };
+      this.onExit.raw = exit;
+    }
     // Test ground: start at a given arena; nothing is saved
     this.testArena = Number.isInteger(data?.arena) ? data.arena : null;
     const params = new URLSearchParams(window.location.search);
@@ -135,6 +151,10 @@ export class BrawlScene extends Phaser.Scene {
       this.player.dmgMul = (this.player.dmgMul || 1) * (1 + 0.12 * (up.dmg || 0));
       this.player.speedMul = (this.player.speedMul || 1) * (1 + 0.06 * (up.speed || 0));
     }
+    if (this.netMode === 'host') {
+      this.net = new NetHost(this);
+      this.net.spawnGuests({ x: this.player.x, z: this.player.z }, LANE_DEPTH, applyHero);
+    } else if (this.netMode === 'guest') this.net = new NetGuest(this);
     // Memes beaten in earlier chapters can be called in from the shop
     this.world.helpers = helpersFor(GameState.progress.done || []);
     this.director = this.map ? new MapDirector(this.world, this.map) : new SandboxDirector(this.world);
@@ -184,7 +204,7 @@ export class BrawlScene extends Phaser.Scene {
     const rawPlay = this.sound.play.bind(this.sound);
     this.sound.play = (key, cfg = {}) => rawPlay(key, { ...cfg, volume: (cfg.volume ?? 1) * volume(MUSIC.has(key) ? 'music' : 'sfx') });
     // Story progress: this map is where «Продолжить» goes now
-    if (this.map && !this.map.hidden && this.map.id !== 'sandbox' && this.testArena == null && this.theatre == null) markStarted(this.map.id);
+    if (this.map && !this.map.hidden && this.map.id !== 'sandbox' && this.testArena == null && this.theatre == null && this.netMode !== 'guest') markStarted(this.map.id);
 
     this.fx = this.add.group();
     this.buildHud();
@@ -220,10 +240,18 @@ export class BrawlScene extends Phaser.Scene {
       this.sound.stopAll();
       // The map's music is streamed outside Phaser: silence it before the menu starts its own
       stopAllMusic();
+      // A guest leaving gives up his seat; the host's exit ends the game (onExit)
+      if (this.netMode === 'guest') Session.leave();
       this.onExit?.();
     });
     kb.on('keydown-B', () => this.toggleShop());
     kb.on('keydown-R', () => {
+      if (this.netMode === 'guest') return;
+      if (this.netMode === 'host') {
+        // Online: again only when nobody is left standing, and everybody restarts
+        if (this.world.players().every((p) => p.dead)) this.goNext(this.map?.id);
+        return;
+      }
       if (this.player.dead) this.scene.restart();
     });
 
@@ -241,10 +269,15 @@ export class BrawlScene extends Phaser.Scene {
       this.sound.stopByKey('dirigabb_sound');
       this.touch?.destroy();
       this.touch = null;
+      this.net?.destroy();
+      this.net = null;
     });
+    // Computer club easter egg: the original game in an arcade cabinet
+    this.arcade = ArcadeEgg.create(this);
     if (this.map && this.theatre != null) this.runTheatre();
-    else if (this.map) this.playIntro();
-    else this.banner('Песочница', 'Иди вперёд →', 1800);
+    // A guest sees the host's intro through the mirrored cutscene
+    else if (this.map && this.netMode !== 'guest') this.playIntro();
+    else if (!this.map) this.banner('Песочница', 'Иди вперёд →', 1800);
 
     window.__brawl = this;
   }
@@ -300,6 +333,32 @@ export class BrawlScene extends Phaser.Scene {
     this.forest?.setBaseY(this.baseY, VIEW_W, VIEW_H);
   }
 
+  /** Online guest: send the buttons, take the host's world, follow his lead. */
+  guestFrame() {
+    const bits = this.cine?.active ? 0 : this.keys.read() | readPad() | (this.touch?.read() || 0);
+    if (this.net.sendInput(bits)) {
+      this.keys.consumed();
+      this.touch?.consumed();
+    }
+    const got = this.net.apply();
+    for (const ev of got.events) this.world.events.push(ev);
+    for (const [name, args] of got.fx) if (typeof this[name] === 'function') this[name](...args);
+    for (const c of this.net.takeCtls()) {
+      if (c.k === 'goto') {
+        this.sound.stopAll();
+        this.scene.start('Preload', { next: 'Brawl', map: c.map, onExit: this.onExit?.raw || this.onExit, net: true });
+        return;
+      }
+      if (c.k === 'ending') this.startEnding();
+      if (c.k === 'leave') {
+        this.sound.stopAll();
+        stopAllMusic();
+        this.onExit?.();
+        return;
+      }
+    }
+  }
+
   /** Short zoom-in punch on big impacts. */
   punch(amount) {
     this.zoom = Math.max(this.zoom, this.baseZoom + amount);
@@ -307,7 +366,7 @@ export class BrawlScene extends Phaser.Scene {
 
   togglePause() {
     // Enter / Space advance cutscene dialogue instead
-    if (this.player.dead || this.finished || this.cine?.active) return;
+    if (this.player.dead || this.finished || this.cine?.active || this.netMode === 'guest') return;
     this.paused = !this.paused;
     this.music?.setPaused(this.paused);
     this.game.events.emit('remake-pause', this.paused);
@@ -319,11 +378,15 @@ export class BrawlScene extends Phaser.Scene {
     if (this.paused) return;
 
     // ---- Fixed-tick simulation (cutscenes can freeze it and take the controls)
-    if (this.cine?.freeze) this.acc = 0;
+    if (this.cine?.freeze || this.netMode === 'guest') this.acc = 0;
     else this.acc += frameMs / 1000;
     let steps = 0;
+    if (this.netMode === 'guest') this.guestFrame();
     while (this.acc >= DT && steps < MAX_STEPS) {
-      this.world.setInput(0, this.cine?.active ? 0 : this.keys.read() | readPad() | (this.touch?.read() || 0));
+      // At the arcade cabinet J means «play», not a punch
+      const held = this.keys.read() | readPad() | (this.touch?.read() || 0);
+      this.world.setInput(0, this.cine?.active ? 0 : this.arcade?.near ? held & ~BTN.LIGHT : held);
+      this.net?.beforeTick?.();
       this.world.viewW = VIEW_W / this.baseZoom;
       this.world.step();
       if (this.theatre == null) this.director.step();
@@ -336,7 +399,7 @@ export class BrawlScene extends Phaser.Scene {
       this.keys.consumed();
       this.touch?.consumed();
     }
-    const alpha = this.acc / DT;
+    const alpha = this.netMode === 'guest' ? this.net.alpha() : this.acc / DT;
     const frozen = this.world.hitstop > 0;
 
     this.drainEvents();
@@ -393,6 +456,10 @@ export class BrawlScene extends Phaser.Scene {
     }
     this.renderAirships(alpha);
 
+    this.arcade?.update();
+    // The stream's live chat (Papich's stream house, «Суперстрим»)
+    if (this.world.style && !this.streamChat) this.streamChat = new StreamChat(this);
+    this.streamChat?.update(frameMs / 1000);
     this.updateCamera(frameMs / 1000, alpha);
     this.updateHud();
     this.updateDark();
@@ -405,6 +472,7 @@ export class BrawlScene extends Phaser.Scene {
       this.verseText.setVisible(!!boss && !boss.dead).setPosition(VIEW_W / 2, 92).setText(`Трек кончится через ${Math.floor(left / 60)}:${String(left % 60).padStart(2, '0')}`);
       if (!boss || boss.dead) this.verseEnd = 0;
     }
+    if (this.netMode === 'host') this.net.send();
     // Perfect-dodge slow motion tint
     const slowA = this.world.slowmo > 0 ? Math.min(0.16, this.world.slowmo / 60) : 0;
     this.slowOverlay.setAlpha(this.slowOverlay.alpha + (slowA - this.slowOverlay.alpha) * 0.2);
@@ -543,6 +611,7 @@ export class BrawlScene extends Phaser.Scene {
 
   /** A minigame's result: a framed card in the middle of the screen. */
   resultCard(title, rows = [], good = true) {
+    if (this.netMode === 'host' && !this._draining) this.net.effect('resultCard', [title, rows, good]);
     this.cardUi?.destroy();
     const W = 620;
     const H = 150 + rows.length * 38;
@@ -1028,6 +1097,7 @@ export class BrawlScene extends Phaser.Scene {
   }
 
   shake(ms, amp) {
+    if (this.netMode === 'host' && !this._draining) this.net.effect('shake', [ms, amp]);
     if (!GameState.settings.shake) return;
     if (this.shakeT > 0 && this.shakeAmp > amp) return;
     this.shakeT = ms;
@@ -1038,8 +1108,12 @@ export class BrawlScene extends Phaser.Scene {
   drainEvents() {
     const evs = this.world.events;
     if (!evs.length) return;
+    if (this.netMode === 'host') this.net.collect(evs);
+    // Effects started from here reach the guests through the events themselves
+    this._draining = true;
     for (const ev of evs) {
       this.music?.onEvent(ev);
+      this.streamChat?.onEvent(ev);
       switch (ev.type) {
         case 'swing': {
           if (ev.sfx) this.sound.play(ev.sfx, { volume: 0.32 });
@@ -1099,7 +1173,7 @@ export class BrawlScene extends Phaser.Scene {
           this.sound.play('beep', { volume: 0.3, rate: 1.6 });
           break;
         case 'voteWin':
-          this.banner('ЧАТ РЕШИЛ', ev.title, 1600);
+          this.banner('ЧАТ РЕШИЛ', optionTitle(this.world, { id: ev.id, target: ev.target }), 1800, ev.good === false && ev.target === this.player?.id);
           this.sound.play('cash', { volume: 0.35, rate: 1.4 });
           break;
         // ---- Gym bench press / museum stealth / river raft
@@ -1120,7 +1194,7 @@ export class BrawlScene extends Phaser.Scene {
         case 'benchEnd':
           this.focusOff();
           // Out-lifted Руки after treating him with respect: he concedes
-          if (ev.win && !ev.rap && storyFlag('ruki_respect')) {
+          if (ev.win && !ev.rap && storyFlag('ruki_respect') && this.netMode !== 'guest') {
             const rk = this.world.fighters.find((x) => x.kind === 'ruki' && !x.dead && x.team === 'enemy');
             if (rk) rk.waiting = true;
             this.time.delayedCall(1800, () => this.rukiConcedes());
@@ -1256,7 +1330,7 @@ export class BrawlScene extends Phaser.Scene {
         // ---- Entries (sit in the car, walk up to the ball...) and results
         case 'entryUse':
           if (!ev.auto) this.sound.play('DE_reload', { volume: 0.35, rate: 0.9 });
-          this.playEntry();
+          if (this.netMode !== 'guest') this.playEntry();
           break;
         case 'rapTurn': {
           const f = this.world.fighters.find((x) => x.id === ev.id);
@@ -1294,11 +1368,12 @@ export class BrawlScene extends Phaser.Scene {
           break;
         // ---- Highway race / roadside traps
         case 'raceStart':
-          this.banner('В ТАЧКУ!', 'W/S — полоса · D — газ · A — тормоз · J — в морду', 2200, true);
+          this.banner(ev.n > 1 ? 'ГОНКА!' : 'В ТАЧКУ!', ev.n > 1 ? `${ev.n} машины · первый на финише победил · D — газ, J — в морду` : 'W/S — полоса · D — газ · A — тормоз · J — в морду', 2400, true);
           this.sound.play('superudar', { volume: 0.35, rate: 1.4 });
           break;
         case 'raceCrash':
-          this.shake(260, 9);
+          // Online: only your own crash shakes your screen
+          if (ev.id == null || ev.id === this.player?.id) this.shake(260, 9);
           this.sound.play('hit', { volume: 0.7, rate: 0.6 });
           this.popText(ev.x, stage.groundY(ev.z) - 160, `−${ev.dmg}`, '#ff5a4a', 30);
           break;
@@ -1313,14 +1388,28 @@ export class BrawlScene extends Phaser.Scene {
           this.sound.play('punch', { volume: 0.4, rate: 0.7 });
           this.shake(80, 3);
           break;
-        case 'raceEnd':
-          this.resultCard('ПРИЕХАЛИ!', [`Аварий: ${ev.crashes}`, `Бонус: ${ev.bonus} косарей`], ev.crashes < 3);
-          {
-            const p = this.player;
-            const car = this.add.image(p.x - 40, stage.groundY(p.z), 'item_car_lada').setOrigin(0.5, 1).setFlipX(true);
-            car.setScale(440 / car.width).setDepth(stage.depth(p.z) - 1);
+        case 'raceFinish': {
+          // Each car parks at the finish
+          const f = this.world.fighters.find((x) => x.id === ev.id);
+          if (f) {
+            const car = this.add.image(f.x - 40, stage.groundY(f.z), 'item_car_lada').setOrigin(0.5, 1).setFlipX(true);
+            car.setScale(440 / car.width).setDepth(stage.depth(f.z) - 1);
           }
-          this.sound.play('cash', { volume: 0.5 });
+          const multi = this.world.race && Object.keys(this.world.race.cars || {}).length > 1;
+          if (ev.id === this.player?.id) {
+            this.resultCard(multi ? `${ev.place}-Е МЕСТО` : 'ПРИЕХАЛИ!', [`Аварий: ${ev.crashes}`, `Бонус: ${ev.bonus} косарей`], multi ? ev.place === 1 : ev.crashes < 3);
+            this.sound.play('cash', { volume: 0.5 });
+          } else if (multi && ev.place === 1 && f) this.banner(`${f.netName || getHero(f.hero).label} — ПЕРВЫЙ`, 'догоняй!', 1600, true);
+          break;
+        }
+        case 'raceEnd':
+          if (ev.multi && ev.results?.length) {
+            const names = ev.results.map((id, i) => {
+              const f = this.world.fighters.find((x) => x.id === id);
+              return `${i + 1}. ${f ? f.netName || getHero(f.hero).label : '—'}`;
+            });
+            this.time.delayedCall(2800, () => this.resultCard('ИТОГИ ГОНКИ', names, true));
+          }
           break;
         case 'laneWarn':
           if (!this.raceView) this.raceView = new RaceView(this, this.heroSpeaker().face);
@@ -1372,6 +1461,35 @@ export class BrawlScene extends Phaser.Scene {
           this.resultCard('НА ТВОЕЙ СТОРОНЕ', [FIGHTERS[ev.kind]?.title || '', 'дерётся за тебя до конца карты'], true);
           break;
         }
+        case 'revive': {
+          const f = this.world.fighters.find((x) => x.id === ev.id);
+          if (f) this.popText(f.x, stage.groundY(f.z) - 300, this.world.pvp ? '' : 'ПОДНЯЛСЯ!', '#7dffa0', 30);
+          break;
+        }
+        case 'pvpRound': {
+          const f = this.world.fighters.find((x) => x.id === ev.id);
+          const who = f ? f.netName || getHero(f.hero).label : 'Ничья';
+          const score = Object.entries(ev.score || {}).map(([id, n]) => {
+            const g = this.world.fighters.find((x) => x.id === Number(id));
+            return `${g ? g.netName || getHero(g.hero).label : '?'} ${n}`;
+          }).join(' · ');
+          this.banner(f ? `РАУНД ЗА: ${who}` : 'НИЧЬЯ', `${score} · до ${ev.need} побед`, 2600, !f || f.id !== this.player?.id);
+          break;
+        }
+        case 'pvpRoundStart':
+          this.banner(`РАУНД ${ev.round}`, 'бой!', 1300, true);
+          this.sound.play('superudar', { volume: 0.4, rate: 1.3 });
+          break;
+        case 'pvpStart':
+          this.banner('СТЕНКА НА СТЕНКУ', 'последний на ногах — победил', 2200, true);
+          break;
+        case 'pvpWin': {
+          const wf = this.world.fighters.find((x) => x.id === ev.id);
+          const who = wf ? wf.netName || getHero(wf.hero).label : 'Никто';
+          this.banner(`${who} — ПОБЕДИЛ`, 'Стенка на стенку', 3200);
+          this.sound.play('superudar', { volume: 0.6 });
+          break;
+        }
         case 'peaceful':
           this.peaceful = true;
           this.resultCard('ДОГОВОРИЛИСЬ', [FIGHTERS[ev.kind]?.title || '', 'обошлось без драки'], true);
@@ -1399,10 +1517,12 @@ export class BrawlScene extends Phaser.Scene {
           }
           this.sound.stopByKey('boss');
           this.voices.say(voiceOf(this.world.fighters.find((x) => x.id === ev.id)), 'death', { force: true });
-          this.playFinisher(ev);
+          if (this.netMode !== 'guest') this.playFinisher(ev);
           break;
         }
         case 'mapComplete':
+          // The guests follow the host to the next map (ctl 'goto')
+          if (this.netMode === 'guest') break;
           // A boss who walked away gets his «ДОГОВОРИЛИСЬ» card read first
           this.time.delayedCall(this.peaceful ? 3200 : 1400, () => this.cine.after(() => this.showResults()));
           break;
@@ -1438,7 +1558,7 @@ export class BrawlScene extends Phaser.Scene {
           // Bosses, and meme enemies on the map where they debut, get a meeting scene
           if ((FIGHTERS[ev.kind]?.boss || this.map?.debuts?.includes(ev.kind)) && !this.introduced.has(ev.kind)) {
             this.introduced.add(ev.kind);
-            this.playBossArrival(ev.id, ev.kind);
+            if (this.netMode !== 'guest') this.playBossArrival(ev.id, ev.kind);
           } else {
             // No scene for him: don't keep him standing
             const wf = this.world.fighters.find((x) => x.id === ev.id);
@@ -1657,6 +1777,7 @@ export class BrawlScene extends Phaser.Scene {
       }
     }
     evs.length = 0;
+    this._draining = false;
   }
 
   /** Voice of the one who got hit. */
@@ -2032,6 +2153,7 @@ export class BrawlScene extends Phaser.Scene {
 
   /** Big centred banner (screen space). */
   banner(title, sub, ms = 1200, danger = false) {
+    if (this.netMode === 'host' && !this._draining) this.net.effect('banner', [title, sub, ms, danger]);
     const b = this.hud.banner;
     const s = this.hud.bannerSub;
     this.tweens.killTweensOf([b, s]);
@@ -2092,6 +2214,7 @@ export class BrawlScene extends Phaser.Scene {
   startEnding() {
     if (this.endingOn) return;
     this.endingOn = true;
+    if (this.netMode === 'host') this.net.ctl({ k: 'ending' });
     this.sound.stopAll();
     this.music?.stop();
     this.scene.pause();
@@ -2105,11 +2228,13 @@ export class BrawlScene extends Phaser.Scene {
   }
 
   /** Results screen -> the next map. */
-  goNext() {
-    const id = this.nextMapId() || this.map?.id;
+  goNext(mapId) {
+    const id = mapId || this.nextMapId() || this.map?.id;
+    // Online: the guests go too
+    if (this.netMode === 'host') this.net.ctl({ k: 'goto', map: id });
     // Next map goes through the loading screen: its kit pieces must be loaded first
     this.sound.stopAll();
-    this.scene.start('Preload', { next: 'Brawl', map: id, onExit: this.onExit });
+    this.scene.start('Preload', { next: 'Brawl', map: id, onExit: this.onExit?.raw || this.onExit, net: !!this.netMode });
   }
 
   showResults() {
@@ -2173,7 +2298,8 @@ export class BrawlScene extends Phaser.Scene {
         this.banner(`${this.map?.name || 'Карта'} — пройдено`, sub, 3600);
         // Off the right edge of the (now still) frame
         const edge = f.x + 120 + VIEW_W / (2 * zoom) + 220;
-        const walkers = [p, ...this.world.fighters.filter((x) => x.team === 'ally' && !x.dead)];
+        // Whoever is still standing leaves (after a lost duel the hero stays down)
+        const walkers = [p, ...this.world.fighters.filter((x) => x.team === 'ally')].filter((x) => !x.dead);
         const speed = 330;
         const walks = walkers.map((w, k) => {
           // Out of any attack / jump: gestures drive a fighter standing on the ground
@@ -2205,6 +2331,7 @@ export class BrawlScene extends Phaser.Scene {
   }
 
   popText(x, y, text, color, size = 20) {
+    if (this.netMode === 'host' && !this._draining) this.net.effect('popText', [x, y, text, color, size]);
     const t = this.add
       .text(x, y, text, {
         fontFamily: 'Russo One, Impact, sans-serif',
@@ -2397,7 +2524,7 @@ export class BrawlScene extends Phaser.Scene {
 
     // Map progress
     if (this.director instanceof MapDirector) {
-      const s = this.director.status();
+      const s = this.director.status(this.player?.id);
       if (s.state === 'locked' && s.goal) h.status.setText(`Арена ${s.arena}/${s.arenas} · ${s.goal}`);
       else if (s.state === 'locked') h.status.setText(`${s.boss ? 'Босс' : `Арена ${s.arena}/${s.arenas}`} · Волна ${s.wave}/${s.waves} · Врагов: ${s.left}`);
       else if (s.state === 'travel') h.status.setText(`${this.map.name} · Арена ${s.arena}/${s.arenas}`);

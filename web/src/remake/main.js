@@ -16,6 +16,8 @@ const params = new URLSearchParams(window.location.search);
 if (params.get('hero')) GameState.hero = params.get('hero');
 // ?bones or ?bones=<skin id> opens the bone editor directly
 if (params.has('bones')) app.go('bones', { skin: params.get('bones') || undefined });
+// ?join=CODE: a friend's invite link — straight into his session
+else if (params.get('join')) app.go('online', { join: params.get('join') });
 // ?theatre: every story scene in a row, map by map (story/theatre.js)
 else if (params.has('theatre')) app.go('brawl', { map: 'forest', theatre: 0 });
 else if (params.has('brawl')) {

@@ -331,13 +331,16 @@ export class Cinema {
     this.menu.setPosition((VIEW_W - w) / 2, boxTop - h - 8).setVisible(true).setAlpha(0);
     s.tweens.add({ targets: this.menu, alpha: 1, duration: 160 });
     let sel = Math.max(0, options.findIndex((o) => !o.off));
-    const paint = () =>
+    this._menuState = { items: options.map((o) => ({ text: o.text, tag: o.tag, tagColor: o.tagColor, off: !!o.off })), sel };
+    const paint = () => {
+      if (this._menuState) this._menuState.sel = sel;
       rows.forEach((r, i) => {
         const on = i === sel;
         r.hl.setFillStyle(0xffd23f, on ? 0.18 : 0);
         r.num.setColor(on ? '#ffffff' : '#ffd23f');
         if (!r.o.off) r.tx.setColor(on ? '#ffe98a' : '#ffffff');
       });
+    };
     paint();
     const pick = await new Promise((resolve) => {
       const take = (i) => {
@@ -373,6 +376,7 @@ export class Cinema {
     s.sound.play('beep', { volume: 0.2, rate: 1.2 });
     this.menu.setVisible(false);
     this.menu.removeAll(true);
+    this._menuState = null;
     return pick;
   }
 
@@ -417,6 +421,7 @@ export class Cinema {
     tag(c);
     for (const o of c.list) tag(o);
     this.phoneUi = c;
+    this._phoneState = { from, msgs: [] };
     const y0 = c.y;
     c.setAlpha(0).setY(y0 + 60);
     s.tweens.add({ targets: c, alpha: 1, y: y0, duration: 320, ease: 'Back.Out' });
@@ -434,6 +439,7 @@ export class Cinema {
       s.tweens.add({ targets: [bub, t], alpha: 1, duration: 180 });
       s.sound.play('beep', { volume: 0.22, rate: 1.5 });
       y += t.height + 30;
+      this._phoneState?.msgs.push(m);
       // A click skips the wait for the next bubble
       await new Promise((r) => {
         const tm = s.time.delayedCall(1000, r);
@@ -457,6 +463,7 @@ export class Cinema {
 
   _closePhone() {
     const c = this.phoneUi;
+    this._phoneState = null;
     if (!c) return;
     this.phoneUi = null;
     this.scene.tweens.add({ targets: c, alpha: 0, y: c.y + 40, duration: 220, onComplete: () => c.destroy() });
@@ -485,6 +492,135 @@ export class Cinema {
     o.connect(g).connect(ctx.destination);
     o.start(t);
     o.stop(t + 0.07);
+  }
+
+  // ------------------------------------------------------------------ online (net/NetGame.js)
+
+  /** What the cutscene shows right now, for the guests' screens. */
+  netState() {
+    const box = this.box.visible
+      ? { n: this.boxName.text, nc: this.boxName.style.color, t: this.boxText.text, tc: this.boxText.style.color, face: this.boxFace.visible ? this.boxFace.texture.key : null, flip: this.boxFace.flipX, hint: this.boxHint.visible }
+      : null;
+    return {
+      a: this.active,
+      bars: this._barK > 0.5 ? 1 : 0,
+      cam: this.cam,
+      box,
+      menu: this.menu.visible && this._menuState ? this._menuState : null,
+      phone: this._phoneState,
+      card: this.card.visible ? { n: this.cardName.text, s: this.cardSub.text } : null,
+      dim: Math.round(this.dimRect.fillAlpha * 100) / 100,
+    };
+  }
+
+  /** A guest: show what the host's cutscene shows (nothing here is interactive). */
+  applyNet(c) {
+    if (!c) return;
+    const s = this.scene;
+    if (c.a !== this.active) {
+      this.active = c.a;
+      this._hud(!c.a);
+    }
+    const bars = c.bars || (s.cineBars ? 1 : 0);
+    if (bars !== this._netBars) {
+      this._netBars = bars;
+      this._bars(bars, 300);
+    }
+    this.cam = c.cam || null;
+    this.dimRect.fillAlpha = c.dim || 0;
+    // Dialogue box
+    this.box.setVisible(!!c.box);
+    if (c.box) {
+      this.boxName.setText(c.box.n).setColor(c.box.nc || '#ffd23f');
+      this.boxText.setText(c.box.t).setColor(c.box.tc || '#ffffff');
+      const face = c.box.face && s.textures.exists(c.box.face) ? c.box.face : null;
+      this.boxFace.setVisible(!!face);
+      if (face && this.boxFace.texture.key !== face) {
+        this.boxFace.setTexture(face);
+        this.boxFace.setScale(112 / Math.max(this.boxFace.width, this.boxFace.height));
+      }
+      if (face) this.boxFace.setFlipX(!!c.box.flip);
+      this.boxHint.setVisible(!!c.box.hint);
+    }
+    // Choices: shown, the host's cursor on them, but only the host picks
+    const mkey = c.menu ? JSON.stringify(c.menu.items) : '';
+    if (mkey !== this._netMenuKey) {
+      this._netMenuKey = mkey;
+      this.menu.removeAll(true);
+      this.menu.setVisible(!!c.menu);
+      if (c.menu) this._buildNetMenu(c.menu);
+    }
+    if (c.menu && this._netRows) {
+      this._netRows.forEach((r, i) => r.hl.setFillStyle(0xffd23f, i === c.menu.sel ? 0.18 : 0));
+    }
+    // Phone
+    const pkey = c.phone ? `${c.phone.from}|${c.phone.msgs.length}` : '';
+    if (pkey !== this._netPhoneKey) {
+      this._netPhoneKey = pkey;
+      this._netPhone(c.phone);
+    }
+    // Name card
+    this.card.setVisible(!!c.card);
+    if (c.card) {
+      this.cardName.setText(c.card.n);
+      this.cardSub.setText(c.card.s);
+      this.card.setAlpha(1).setScale(1);
+    }
+  }
+
+  _buildNetMenu(m) {
+    const s = this.scene;
+    const w = Math.min(VIEW_W - 60, 920);
+    const rowH = 40;
+    const h = m.items.length * rowH + 52;
+    this.menu.add(s.add.rectangle(0, 0, w, h, 0x05060a, 0.92).setOrigin(0, 0).setStrokeStyle(3, 0xffd23f, 0.9));
+    this._netRows = m.items.map((o, i) => {
+      const y = 12 + i * rowH;
+      const hl = s.add.rectangle(6, y, w - 12, rowH - 4, 0xffd23f, 0).setOrigin(0, 0);
+      const parts = [hl, s.add.text(18, y + 10, `${i + 1}.`, { fontFamily: '"Press Start 2P", monospace', fontSize: '14px', color: '#ffd23f' })];
+      let x = 58;
+      if (o.tag) {
+        const tg = s.add.text(x, y + 10, `[${o.tag}]`, { fontFamily: '"Press Start 2P", monospace', fontSize: '14px', color: o.tagColor || '#ffd23f' });
+        parts.push(tg);
+        x += tg.width + 12;
+      }
+      const tx = s.add.text(x, y + 10, o.text, { fontFamily: '"Press Start 2P", monospace', fontSize: '14px', color: o.off ? '#5c6270' : '#ffffff' });
+      if (tx.width > w - x - 16) tx.setScale(Math.max(0.6, (w - x - 16) / tx.width), 1);
+      parts.push(tx);
+      this.menu.add(parts);
+      return { hl };
+    });
+    this.menu.add(s.add.text(w - 16, h - 14, 'выбирает хост', { fontFamily: '"Press Start 2P", monospace', fontSize: '11px', color: '#8f96a8' }).setOrigin(1, 1));
+    for (const ch of this.menu.list) s.tagUi(ch.setScrollFactor(0));
+    const boxTop = this.box.visible ? this.box.y : VIEW_H - BAR_H;
+    this.menu.setPosition((VIEW_W - w) / 2, boxTop - h - 8).setAlpha(1);
+  }
+
+  _netPhone(p) {
+    if (this.phoneUi) {
+      this.phoneUi.destroy();
+      this.phoneUi = null;
+    }
+    if (!p) return;
+    const s = this.scene;
+    const W = 360;
+    const H = 520;
+    const c = s.add.container(VIEW_W - W / 2 - 60, VIEW_H / 2 - 20).setDepth(5750);
+    c.add([
+      s.add.rectangle(0, 0, W, H, 0x0d0f16, 0.97).setStrokeStyle(6, 0x2a2f3c),
+      s.add.rectangle(0, -H / 2 + 34, W - 12, 56, 0x1b2030, 1),
+      s.add.circle(-W / 2 + 40, -H / 2 + 34, 17, 0x3b4560),
+      s.add.text(-W / 2 + 66, -H / 2 + 20, p.from, { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '17px', color: '#ffffff' }),
+    ]);
+    let y = -H / 2 + 80;
+    for (const m of p.msgs) {
+      const t = s.add.text(-W / 2 + 32, y + 10, m, { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '17px', color: '#eef2ff', wordWrap: { width: W - 90 } });
+      c.add([s.add.rectangle(-W / 2 + 18, y, Math.min(W - 40, t.width + 30), t.height + 20, 0x2a3350, 1).setOrigin(0, 0), t]);
+      y += t.height + 30;
+    }
+    s.tagUi(c.setScrollFactor(0));
+    for (const o of c.list) s.tagUi(o.setScrollFactor(0));
+    this.phoneUi = c;
   }
 
   /** Camera hook: returns the overridden { targetX, targetY, zoom, speed } or null. */

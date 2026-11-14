@@ -140,6 +140,12 @@ export class FighterView {
       this.mount.addAt(this.bag, 0);
       this.tag = scene.add.text(0, 0, 'ВОР', { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '26px', color: '#ff3b2f', stroke: '#000', strokeThickness: 6 }).setOrigin(0.5, 1);
     }
+    // Online: every player's nickname over his head
+    if (f.kind === 'player' && f.netName) {
+      this.tag = scene.add
+        .text(0, 0, f.netName, { fontFamily: 'Russo One, Impact, sans-serif', fontSize: '22px', color: '#8fe3ff', stroke: '#000', strokeThickness: 5 })
+        .setOrigin(0.5, 1);
+    }
     const gun = f.team !== 'player' ? FIGHTERS[f.kind]?.weapon : 0;
     if (gun) {
       this.puppet.attachWeapon(gun);
@@ -259,7 +265,12 @@ export class FighterView {
     this.shadow.setAlpha(0.3 * (1 - lift * 0.5));
 
     this.visual.setPosition(Math.round(x), Math.round(gy - y + this.footFix));
-    if (this.tag) this.tag.setPosition(this.visual.x, this.visual.y - (this.bodyH || 260) - 40).setDepth(1500).setVisible(!f.dead);
+    if (this.tag) {
+      // Online: a fallen teammate asks to be picked up (and shows how far along)
+      const down = f.dead && f.kind === 'player' && f.netName && !this.scene.world.pvp;
+      if (f.netName) this.tag.setText(down ? (f.reviveT > 0 ? `${f.netName} · ${Math.round((f.reviveT / 120) * 100)}%` : `${f.netName} — подними!`) : f.netName).setColor(down ? '#ffd23f' : '#8fe3ff');
+      this.tag.setPosition(this.visual.x, this.visual.y - (down ? 120 : (this.bodyH || 260) + 40)).setDepth(1500).setVisible(!f.dead || down);
+    }
     if (this.aura) {
       if (!this.halo) {
         if (!scene.textures.exists('fx_halo')) {

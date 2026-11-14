@@ -1,6 +1,7 @@
 import { stage } from './stage.js';
 import { CAR_HW } from '../sim/race.js';
 import { enemyPartTextureKey } from '../game/enemies/parts.js';
+import { getHero } from '../game/heroes.js';
 
 /** Art for the race (all drawn facing LEFT): [texture, width on screen]. */
 const ART = {
@@ -19,7 +20,8 @@ export class RaceView {
   constructor(scene, heroFace) {
     this.scene = scene;
     this.heroFace = heroFace;
-    this.car = null;
+    /** player id → his car (online every player drives his own) */
+    this.cars = new Map();
     this.obs = new Map();
     this.marks = new Map();
     this.lanes = [];
@@ -32,14 +34,21 @@ export class RaceView {
     return img;
   }
 
-  _makeCar() {
+  /** The driver's face in the window: his hero's head. */
+  faceOf(f) {
+    const h = getHero(f.hero);
+    if (h.skin) return enemyPartTextureKey(h.skin, 'head');
+    return this.heroFace || 'player_head';
+  }
+
+  _makeCar(face) {
     const s = this.scene;
     const c = s.add.container(0, 0);
     // Same size as the parked Lada you got into
     const shadow = s.add.ellipse(0, 6, 450, 56, 0x000000, 0.35);
     const body = this._img('item_car_lada', 440).setFlipX(true);
     // Driver's head in the front window (the car faces right)
-    const head = s.add.image(58, -117, this.heroFace).setOrigin(0.5, 0.75);
+    const head = s.add.image(58, -117, s.textures.exists(face) ? face : this.heroFace).setOrigin(0.5, 0.75);
     head.setScale(68 / Math.max(head.width || 1, head.height || 1));
     const arm = s.add.rectangle(105, -81, 0, 20, 0xd7a07a).setOrigin(0, 0.5);
     c.add([shadow, head, body, arm]);
@@ -75,33 +84,47 @@ export class RaceView {
   render(world, alpha) {
     const s = this.scene;
     const r = world.race;
-    const p = world.fighters.find((f) => f.driving);
-    const pv = p && s.views.get(p.id);
-    if (!r || r.done || !p) {
-      if (this.car) {
-        this.car.destroy();
-        this.car = null;
+    const drivers = r && !r.done ? world.fighters.filter((f) => f.driving) : [];
+    // Cars of those who stopped driving (finish, the race over) go; the fighter shows again
+    for (const [id, car] of this.cars) {
+      if (drivers.some((f) => f.id === id)) continue;
+      car.destroy();
+      this.cars.delete(id);
+      const v = s.views.get(id);
+      v?.visual?.setVisible(true);
+    }
+    if (!r || r.done) {
+      if (this.obs.size || this.marks.size) {
         for (const v of this.obs.values()) v.destroy();
         this.obs.clear();
         for (const v of this.marks.values()) v.destroy();
         this.marks.clear();
-        for (const f of world.fighters) if (f.kind === 'player') s.views.get(f.id)?.visual?.setVisible(true);
       }
+      for (const f of world.fighters) if (f.kind === 'player' && !f.away) s.views.get(f.id)?.visual?.setVisible(true);
       return;
     }
-    if (!this.car) this.car = this._makeCar();
-    if (pv?.visual) pv.visual.setVisible(false);
-    if (pv?.shadow) pv.shadow.setVisible(false);
-    const x = p.px + (p.x - p.px) * alpha;
-    const z = p.pz + (p.z - p.pz) * alpha;
-    const bob = Math.sin(s.time.now / 60) * 1.5;
-    this.car.setPosition(x, stage.groundY(z) + bob).setDepth(stage.depth(z));
-    this.car.setAlpha(p.iframes > 0 && Math.floor(s.time.now / 80) % 2 ? 0.5 : 1);
-    this.car.setAngle(((p.z - p.pz) || 0) * 0.6);
-    // Punch out of the window
-    const pt = p.punchT || 0;
-    this.car.arm.width = pt > 0 ? Math.sin((pt / 16) * Math.PI) * 170 : 0;
-    this.car.arm.y = -81 + (pt > 0 ? 8 : 0);
+    for (const p of drivers) {
+      let car = this.cars.get(p.id);
+      if (!car) {
+        car = this._makeCar(this.faceOf(p));
+        this.cars.set(p.id, car);
+      }
+      const pv = s.views.get(p.id);
+      if (pv?.visual) pv.visual.setVisible(false);
+      if (pv?.shadow) pv.shadow.setVisible(false);
+      const x = p.px + (p.x - p.px) * alpha;
+      const z = p.pz + (p.z - p.pz) * alpha;
+      const bob = Math.sin(s.time.now / 60 + p.id) * 1.5;
+      car.setPosition(x, stage.groundY(z) + bob).setDepth(stage.depth(z));
+      car.setAlpha(p.iframes > 0 && Math.floor(s.time.now / 80) % 2 ? 0.5 : 1);
+      car.setAngle(((p.z - p.pz) || 0) * 0.6);
+      // Punch out of the window
+      const pt = p.punchT || 0;
+      car.arm.width = pt > 0 ? Math.sin((pt / 16) * Math.PI) * 170 : 0;
+      car.arm.y = -81 + (pt > 0 ? 8 : 0);
+    }
+    const me = s.player;
+    const myCar = (me && r.cars?.[me.id]) || Object.values(r.cars || {})[0] || { v: 0 };
 
     // Obstacles
     const seen = new Set();
@@ -172,7 +195,7 @@ export class RaceView {
     }
 
     // Speed lines when flooring it
-    if (r.v > 17 && Math.random() < 0.5) {
+    if (myCar.v > 17 && me?.driving && Math.random() < 0.5) {
       const cam = s.cameras.main;
       const ly = cam.midPoint.y + (Math.random() - 0.3) * cam.height * 0.6;
       const line = s.add.rectangle(cam.midPoint.x + cam.width / cam.zoom / 2, ly, 160, 3, 0xffffff, 0.35).setDepth(6000);

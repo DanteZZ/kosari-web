@@ -72,7 +72,9 @@ export class MapDirector {
     return this.map.arenas[this.idx] || null;
   }
 
-  status() {
+  /** HUD line and counters; `viewerId` — whose race car to show (online each sees his own). */
+  status(viewerId) {
+    this.viewerId = viewerId ?? null;
     const a = this.arena;
     return {
       state: this.state,
@@ -227,6 +229,40 @@ export class MapDirector {
       }
       return;
     }
+    if (a.pvp) {
+      // «Стенка на стенку»: rounds — the last one standing takes it, first to
+      // `a.rounds` wins the match (alone it is free practice)
+      const all = w.fighters.filter((f) => f.kind === 'player' && !f.removed);
+      const up = w.players();
+      const pv = (this.pvpState ||= { score: {}, wait: 0, round: 1 });
+      const bx = this.box || a;
+      if (pv.wait > 0) {
+        if (--pv.wait === 0) {
+          // Next round: everybody up, back to the starting spots
+          pv.round += 1;
+          all.forEach((p, i) => {
+            w.revive(p, 1);
+            p.x = p.px = bx.left + ((i + 1) * (bx.right - bx.left)) / (all.length + 1);
+            p.facing = p.x < (bx.left + bx.right) / 2 ? 1 : -1;
+          });
+          w.events.push({ type: 'pvpRoundStart', round: pv.round });
+        }
+        return;
+      }
+      if (all.length >= 2 && up.length <= 1) {
+        const winner = up[0] || null;
+        if (winner) pv.score[winner.id] = (pv.score[winner.id] || 0) + 1;
+        const need = a.rounds || 3;
+        if (winner && pv.score[winner.id] >= need) {
+          w.events.push({ type: 'pvpWin', id: winner.id, score: { ...pv.score } });
+          this._clear(a);
+        } else {
+          w.events.push({ type: 'pvpRound', id: winner?.id ?? null, round: pv.round, score: { ...pv.score }, need });
+          pv.wait = 180;
+        }
+      }
+      return;
+    }
     if (a.race) {
       if (w.race?.done) {
         w.race = null;
@@ -359,9 +395,15 @@ export class MapDirector {
     if (tc && !tc.done) return `Выкрути пробки: ${tc.got}/${tc.need} (постой рядом) · свети на Пахома!`;
     const r = this.world.race;
     if (r && !r.done) {
-      const p = this.world.players().find((f) => f.driving);
+      const ps = this.world.players();
+      const p = ps.find((f) => f.id === this.viewerId && r.cars?.[f.id]) || ps.find((f) => f.driving);
+      const car = p && r.cars?.[p.id];
+      if (car?.done) return `Финиш: ${car.place}-е место · ждём остальных`;
       const k = p ? Math.max(0, Math.min(1, (p.x - r.x0) / (r.x1 - r.x0))) : 0;
-      return `Гони к шаурмичной: ${Math.round(k * 100)}% · ${Math.round(r.v * 6)} км/ч`;
+      // Online: your place among the cars
+      const n = Object.keys(r.cars || {}).length;
+      const place = n > 1 && p ? 1 + ps.filter((q) => r.cars[q.id] && (r.cars[q.id].done || q.x > p.x)).length : 0;
+      return `${n > 1 ? `Место ${place}/${n} · ` : 'Гони к шаурмичной: '}${Math.round(k * 100)}% · ${Math.round((car?.v || 0) * 6)} км/ч`;
     }
     const g = this.goal;
     if (!g || g.done) return '';
@@ -447,6 +489,18 @@ export class MapDirector {
       // Basement in the dark: fuses first, then the waves
       startTorch(w, b, a.dark);
       this.waitTorch = true;
+      return;
+    }
+    if (a.pvp) {
+      // Players spread across the arena, facing the middle; no waves
+      w.pvp = true;
+      const ps = w.players();
+      ps.forEach((p, i) => {
+        p.x = p.px = b.left + ((i + 1) * (b.right - b.left)) / (ps.length + 1);
+        p.z = p.pz = (w.bounds.zMin + w.bounds.zMax) / 2 + (i % 2 ? 30 : -30);
+        p.facing = p.x < (b.left + b.right) / 2 ? 1 : -1;
+      });
+      w.events.push({ type: 'pvpStart', n: ps.length });
       return;
     }
     if (a.race) {

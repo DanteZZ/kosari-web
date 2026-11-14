@@ -74,6 +74,8 @@ export default defineConfig({
   server: {
     port: 5173,
     open: true,
+    // Online sessions: the rooms service (server/index.mjs) on :5181
+    proxy: { '/net': { target: 'ws://localhost:5181', ws: true } },
   },
   build: {
     target: 'es2020',
