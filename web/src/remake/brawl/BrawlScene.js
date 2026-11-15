@@ -202,7 +202,18 @@ export class BrawlScene extends Phaser.Scene {
     // Mix: music keys follow the music volume, everything else the sfx volume
     const MUSIC = new Set(['game', 'boss', 'credits']);
     const rawPlay = this.sound.play.bind(this.sound);
-    this.sound.play = (key, cfg = {}) => rawPlay(key, { ...cfg, volume: (cfg.volume ?? 1) * volume(MUSIC.has(key) ? 'music' : 'sfx') });
+    // A sound the browser could not load or decode is skipped, not a crash
+    // (Phaser throws on a key missing from the audio cache)
+    this.sound.play = (key, cfg = {}) => {
+      if (!this.cache.audio.exists(key)) {
+        if (!this.missingSfx?.has(key)) {
+          (this.missingSfx ||= new Set()).add(key);
+          console.warn('[sfx] not loaded:', key);
+        }
+        return false;
+      }
+      return rawPlay(key, { ...cfg, volume: (cfg.volume ?? 1) * volume(MUSIC.has(key) ? 'music' : 'sfx') });
+    };
     // Story progress: this map is where «Продолжить» goes now
     if (this.map && !this.map.hidden && this.map.id !== 'sandbox' && this.testArena == null && this.theatre == null && this.netMode !== 'guest') markStarted(this.map.id);
 

@@ -140,7 +140,8 @@ export function preloadGameAssets(scene) {
     }
   }
   for (const [name, ext] of Object.entries(SOUNDS)) {
-    scene.load.audio(name, `assets/sounds/${name}.${ext}`);
+    // ?v: the 8-bit WAVs were re-encoded to 16-bit PCM (some browsers could not decode them)
+    scene.load.audio(name, `assets/sounds/${name}.${ext}?v=pcm16`);
   }
   // Loose painted world parts — the brawl core assembles the forest at runtime
   const WP = 'wp1';
